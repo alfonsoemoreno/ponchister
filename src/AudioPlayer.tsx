@@ -1,6 +1,12 @@
 import React, { useRef, useState } from "react";
 import YouTube from "react-youtube";
 import type { YouTubeProps } from "react-youtube";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import PauseIcon from "@mui/icons-material/Pause";
+import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
+import Box from "@mui/material/Box";
 
 interface AudioPlayerProps {
   videoUrl: string;
@@ -17,7 +23,10 @@ function getYouTubeId(url: string): string | null {
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
   const playerRef = useRef<YouTube | null>(null);
   const videoId = getYouTubeId(videoUrl);
-  const [showPlay, setShowPlay] = useState(true);
+  const [playing, setPlaying] = useState(false);
+  const [videoStatus, setVideoStatus] = useState<"ok" | "error" | "pending">(
+    videoId ? "pending" : "error"
+  );
 
   const opts = {
     height: "20",
@@ -35,18 +44,25 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
     },
   };
 
-  const handlePlay = () => {
+  const handlePlayPause = () => {
     if (
       playerRef.current &&
       typeof playerRef.current.getInternalPlayer === "function"
     ) {
       const internalPlayer = playerRef.current.getInternalPlayer();
-      if (internalPlayer && typeof internalPlayer.playVideo === "function") {
-        internalPlayer.playVideo();
+      if (playing) {
+        if (internalPlayer && typeof internalPlayer.pauseVideo === "function") {
+          internalPlayer.pauseVideo();
+        }
+      } else {
+        if (internalPlayer && typeof internalPlayer.playVideo === "function") {
+          internalPlayer.playVideo();
+        }
+        if (internalPlayer && typeof internalPlayer.unMute === "function") {
+          internalPlayer.unMute();
+        }
       }
-      if (internalPlayer && typeof internalPlayer.unMute === "function") {
-        internalPlayer.unMute();
-      }
+      setPlaying((p) => !p);
     }
   };
 
@@ -60,7 +76,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
         internalPlayer.stopVideo();
       }
     }
-    setShowPlay(true);
+    setPlaying(false);
     onBack();
   };
 
@@ -68,98 +84,61 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
   const onPlayerStateChange: YouTubeProps["onStateChange"] = (event) => {
     // 1 = playing, 2 = paused, 0 = ended
     if (event.data === 1) {
-      setShowPlay(false);
+      setPlaying(true);
     } else if (event.data === 2 || event.data === 0) {
-      setShowPlay(true);
+      setPlaying(false);
     }
   };
 
   return (
-    <div
-      style={{
+    <Box
+      className={`ocean-background${playing ? " speaker-anim" : ""}`}
+      sx={{
+        position: "relative",
         height: "100vh",
         width: "100vw",
-        background: "linear-gradient(135deg, #FF5F6D 0%, #FFC371 100%)",
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
         color: "white",
         textAlign: "center",
-        padding: "2rem",
+        p: 2,
+        overflow: "hidden",
       }}
     >
-      {!showPlay && (
-        <>
-          <h1
-            style={{
-              fontSize: "2.9rem",
-              marginBottom: "1rem",
-              fontFamily: "'Fredoka', sans-serif",
-              fontWeight: 700,
-              letterSpacing: 1,
-              textShadow:
-                "0 0 8px #fff, 0 0 16px #ff00de, 0 0 32px #ff00de, 0 0 48px #ff00de, 0 0 64px #ff00de, 0 0 80px #ff00de, 0 0 100px #ff00de",
-              animation:
-                "neon-bounce 0.35s infinite cubic-bezier(.36,.07,.19,.97) both",
-            }}
-          >
-            ON AIR
-          </h1>
-          <style>{`
-            @keyframes neon-bounce {
-              0% {
-                transform: scale(1) translateY(0);
-                filter: brightness(1.2);
-              }
-              10% {
-                transform: scale(1.08, 0.95) translateY(-2px);
-                filter: brightness(1.4);
-              }
-              20% {
-                transform: scale(0.98, 1.05) translateY(2px);
-                filter: brightness(1.1);
-              }
-              30% {
-                transform: scale(1.12, 0.92) translateY(-4px);
-                filter: brightness(1.5);
-              }
-              40% {
-                transform: scale(0.95, 1.1) translateY(3px);
-                filter: brightness(1.1);
-              }
-              50% {
-                transform: scale(1.15, 0.9) translateY(-6px);
-                filter: brightness(1.6);
-              }
-              60% {
-                transform: scale(0.97, 1.08) translateY(2px);
-                filter: brightness(1.2);
-              }
-              70% {
-                transform: scale(1.08, 0.95) translateY(-2px);
-                filter: brightness(1.3);
-              }
-              80% {
-                transform: scale(1, 1) translateY(0);
-                filter: brightness(1.2);
-              }
-              100% {
-                transform: scale(1) translateY(0);
-                filter: brightness(1.2);
-              }
-            }
-          `}</style>
-        </>
-      )}
+      {/* Indicador de estado de video */}
+      <Box sx={{ position: "absolute", top: 24, right: 24, zIndex: 10 }}>
+        <Box
+          sx={{
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            backgroundColor:
+              videoStatus === "ok"
+                ? "#4caf50"
+                : videoStatus === "error"
+                ? "#f44336"
+                : "#ffeb3b",
+            border: "2px solid #fff",
+            boxShadow: 1,
+          }}
+        />
+      </Box>
 
-      {videoId ? (
-        <div
-          style={{
+      {/* Video de fondo invisible pero detrás */}
+      {videoId && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
             width: 40,
             height: 20,
-            overflow: "hidden",
-            margin: "0 auto",
+            zIndex: 1,
+            opacity: 0.01,
+            pointerEvents: "none",
           }}
         >
           <YouTube
@@ -167,52 +146,84 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
             opts={opts}
             ref={playerRef}
             onStateChange={onPlayerStateChange}
+            onReady={() => setVideoStatus("ok")}
+            onError={() => setVideoStatus("error")}
           />
-        </div>
-      ) : (
-        <p>URL de video no válida</p>
+        </Box>
       )}
 
-      {showPlay && videoId && (
-        <button
-          onClick={handlePlay}
-          style={{
-            marginTop: "2rem",
-            backgroundColor: "#fff",
-            color: "#FF5F6D",
-            padding: "1rem 2.5rem",
-            fontSize: "1.2rem",
-            borderRadius: "2rem",
-            border: "none",
-            fontWeight: 700,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-            cursor: "pointer",
-            transition: "background 0.2s, color 0.2s",
-          }}
-        >
-          Escuchar
-        </button>
-      )}
-
-      <button
-        onClick={handleBack}
-        style={{
-          marginTop: "2rem",
-          backgroundColor: "#fff",
-          color: "#FF5F6D",
-          padding: "1rem 2.5rem",
-          fontSize: "1rem",
-          borderRadius: "2rem",
-          border: "none",
-          fontWeight: 700,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-          cursor: "pointer",
-          transition: "background 0.2s, color 0.2s",
+      {/* Espacio flexible para centrar el botón play/pause */}
+      <Box
+        sx={{
+          flexGrow: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        Volver a escanear
-      </button>
-    </div>
+        {videoId && (
+          <IconButton
+            onClick={handlePlayPause}
+            sx={{
+              width: 160,
+              height: 160,
+              border: "4px solid #ffffff",
+              color: "#ffffff",
+              borderRadius: "50%",
+              mb: 2,
+              "&:hover": {
+                backgroundColor: "rgba(255,255,255,0.15)",
+              },
+            }}
+          >
+            {playing ? (
+              <PauseIcon sx={{ fontSize: 80 }} />
+            ) : (
+              <PlayArrowIcon sx={{ fontSize: 80 }} />
+            )}
+          </IconButton>
+        )}
+      </Box>
+
+      {/* Botón fijo abajo */}
+      <Box
+        sx={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+          position: "absolute",
+          bottom: 72, // 50% más arriba que antes
+          left: 0,
+        }}
+      >
+        <Button
+          variant="outlined"
+          color="inherit"
+          onClick={handleBack}
+          size="large"
+          startIcon={<QrCodeScannerIcon sx={{ fontSize: 32, color: "#fff" }} />}
+          sx={{
+            borderRadius: 2,
+            fontWeight: "bold",
+            fontSize: "1rem",
+            py: 1.2,
+            px: 3,
+            boxShadow: 1,
+            textTransform: "none",
+            color: "#FFF",
+            border: "2px solid #FFF",
+            backgroundColor: "rgba(0,0,0,0.05)",
+            "&:hover": {
+              backgroundColor: "#FFF",
+              color: "#28518C",
+              border: "2px solid #FFF",
+            },
+          }}
+        >
+          Volver a escanear
+        </Button>
+      </Box>
+    </Box>
   );
 };
 

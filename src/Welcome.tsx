@@ -1,4 +1,5 @@
 import React from "react";
+import Button from "@mui/material/Button";
 
 interface WelcomeProps {
   onAccept: () => void;
@@ -60,21 +61,29 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept }) => (
       <p style={{ marginBottom: "2rem", opacity: 0.9 }}>
         Escanea un código QR para escuchar la canción.
       </p>
-      <button
+      <Button
+        variant="contained"
         onClick={onAccept}
-        style={{
-          background: "linear-gradient(to right, #4b6cb7, #182848)",
-          border: "none",
-          color: "#fff",
-          padding: "1rem 2rem",
-          borderRadius: "999px",
-          fontSize: "1rem",
+        sx={{
+          borderRadius: 2,
           fontWeight: "bold",
-          cursor: "pointer",
+          fontSize: "1rem",
+          py: 1.5,
+          px: 4,
+          boxShadow: "0 0 16px #00e6ff, 0 0 32px #00e6ff",
+          background: "linear-gradient(90deg, #00e6ff 0%, #0b0d1c 100%)",
+          color: "#fff",
+          textShadow: "0 0 8px #fff, 0 0 16px #00e6ff",
+          textTransform: "none",
+          transition: "background 0.2s, color 0.2s",
+          "&:hover": {
+            background: "linear-gradient(90deg, #00bfff 0%, #0b0d1c 100%)",
+            boxShadow: "0 0 32px #00e6ff, 0 0 64px #00e6ff",
+          },
         }}
       >
         Comenzar
-      </button>
+      </Button>
     </div>
   </div>
 );

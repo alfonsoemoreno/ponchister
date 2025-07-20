@@ -184,3 +184,44 @@ button:focus-visible {
 .speaker-anim {
   animation: speaker-bounce 0.5s infinite cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
+
+/* Animación de líneas horizontales neon */
+.neon-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.neon-line {
+  position: absolute;
+  left: 0;
+  width: 100vw;
+  height: 6px;
+  border-radius: 3px;
+  opacity: 0.7;
+  filter: blur(1px) brightness(1.5);
+}
+
+/* Animación izquierda a derecha */
+@keyframes neon-move-right {
+  0% {
+    left: -100vw;
+  }
+  100% {
+    left: 100vw;
+  }
+}
+
+/* Animación derecha a izquierda */
+@keyframes neon-move-left {
+  0% {
+    left: 100vw;
+  }
+  100% {
+    left: -100vw;
+  }
+}

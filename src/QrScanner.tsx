@@ -23,7 +23,10 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan }) => {
       html5QrCodeInstance
         .start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: 250 },
+          {
+            fps: 10,
+            qrbox: { width: window.innerWidth, height: window.innerHeight },
+          },
           (decodedText) => {
             if (decodedText.startsWith("http")) {
               if (html5QrCodeInstance && html5QrCodeInstance.isScanning) {
@@ -52,20 +55,30 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan }) => {
   }, [onScan]);
 
   return (
-    <div className="d-flex flex-column justify-content-center align-items-center vh-100 bg-light">
-      <div className="card p-4 shadow-lg text-center">
-        <h2 className="mb-3">Escanea un código QR de YouTube</h2>
-        {error ? (
-          <div className="alert alert-danger">{error}</div>
-        ) : (
-          <div
-            id="qr-scanner"
-            ref={scannerRef}
-            key={error ? "error" : "scanner"}
-            style={{ width: 300, height: 300 }}
-          />
-        )}
-      </div>
+    <div
+      className="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center bg-dark"
+      style={{ zIndex: 1000 }}
+    >
+      {error ? (
+        <div
+          className="alert alert-danger position-absolute top-0 w-100 text-center"
+          style={{ zIndex: 1100 }}
+        >
+          {error}
+        </div>
+      ) : null}
+      <div
+        id="qr-scanner"
+        ref={scannerRef}
+        key={error ? "error" : "scanner"}
+        style={{
+          width: "100vw",
+          height: "100vh",
+          objectFit: "cover",
+          transform: "scale(2)",
+          overflow: "hidden",
+        }}
+      />
     </div>
   );
 };

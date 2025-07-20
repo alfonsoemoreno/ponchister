@@ -105,6 +105,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
         textAlign: "center",
         p: 2,
         overflow: "hidden",
+        fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",
       }}
     >
       {/* Indicador de estado de video */}
@@ -152,11 +153,12 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
         </Box>
       )}
 
-      {/* Espacio flexible para centrar el botón play/pause */}
+      {/* Contenedor centrado para botones play/pause y volver a escanear */}
       <Box
         sx={{
           flexGrow: 1,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
         }}
@@ -183,22 +185,10 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
             )}
           </IconButton>
         )}
-      </Box>
-
-      {/* Botón fijo abajo */}
-      <Box
-        sx={{
-          width: "100%",
-          display: "flex",
-          justifyContent: "center",
-          position: "absolute",
-          bottom: 150, // sube un 150% respecto a la posición anterior
-          left: 0,
-        }}
-      >
+        {/* Botón volver a escanear debajo y centrado */}
         <Button
           variant="outlined"
-          color="inherit"
+          color="primary"
           onClick={handleBack}
           size="large"
           startIcon={<QrCodeScannerIcon sx={{ fontSize: 32, color: "#fff" }} />}
@@ -210,13 +200,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
             px: 3,
             boxShadow: 1,
             textTransform: "none",
-            color: "#FFF",
-            border: "2px solid #FFF",
-            backgroundColor: "rgba(0,0,0,0.05)",
-            "&:hover": {
-              backgroundColor: "#FFF",
-              color: "#28518C",
-              border: "2px solid #FFF",
+            color: "#FFF !important",
+            border: "2px solid #FFF !important",
+            backgroundColor: "rgba(0,0,0,0.05) !important",
+            transition: "background 0.2s, color 0.2s",
+            mt: 6,
+            "&:hover, &:focus, &:active": {
+              backgroundColor: "rgba(0,0,0,0.15) !important",
+              color: "#FFF !important",
+              border: "2px solid #FFF !important",
             },
           }}
         >

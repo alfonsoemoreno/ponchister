@@ -26,6 +26,9 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan }) => {
           {
             fps: 10,
             qrbox: { width: window.innerWidth, height: window.innerHeight },
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore: focusMode es experimental y no está en los tipos oficiales
+            focusMode: "continuous",
           },
           (decodedText) => {
             if (decodedText.startsWith("http")) {
@@ -43,6 +46,17 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan }) => {
           );
         });
     }
+    // Evento para forzar autofocus en móviles
+    const handleTouch = () => {
+      if (scannerRef.current) {
+        // El navegador intentará enfocar al tocar el video
+        const video = scannerRef.current.querySelector("video");
+        if (video) {
+          video.focus();
+        }
+      }
+    };
+    window.addEventListener("touchend", handleTouch);
     return () => {
       if (html5QrCodeInstance && html5QrCodeInstance.isScanning) {
         html5QrCodeInstance.stop().catch(() => {});
@@ -51,6 +65,7 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan }) => {
         cleanupDiv.innerHTML = "";
       }
       html5QrCodeRef.current = null;
+      window.removeEventListener("touchend", handleTouch);
     };
   }, [onScan]);
 
@@ -67,18 +82,149 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan }) => {
           {error}
         </div>
       ) : null}
+      {/* Fondo negro */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          background: "#000",
+          zIndex: 0,
+        }}
+      />
+      {/* Marco visual cuadrado */}
+      <div
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          width: "60vw",
+          height: "60vw",
+          maxWidth: 340,
+          maxHeight: 340,
+          transform: "translate(-50%, -50%)",
+          pointerEvents: "none",
+          zIndex: 2,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            borderRadius: 24,
+            border: "4px solid #00e6ff",
+            boxShadow: "0 0 32px #00e6ff, 0 0 64px #00e6ff",
+            boxSizing: "border-box",
+            pointerEvents: "none",
+            zIndex: 2,
+          }}
+        />
+        {/* Esquinas decorativas */}
+        <div
+          style={{
+            position: "absolute",
+            top: -4,
+            left: -4,
+            width: 32,
+            height: 32,
+            borderTop: "4px solid #fff",
+            borderLeft: "4px solid #fff",
+            borderRadius: "24px 0 0 0",
+            boxSizing: "border-box",
+            zIndex: 3,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: -4,
+            right: -4,
+            width: 32,
+            height: 32,
+            borderTop: "4px solid #fff",
+            borderRight: "4px solid #fff",
+            borderRadius: "0 24px 0 0",
+            boxSizing: "border-box",
+            zIndex: 3,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: -4,
+            left: -4,
+            width: 32,
+            height: 32,
+            borderBottom: "4px solid #fff",
+            borderLeft: "4px solid #fff",
+            borderRadius: "0 0 0 24px",
+            boxSizing: "border-box",
+            zIndex: 3,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: -4,
+            right: -4,
+            width: 32,
+            height: 32,
+            borderBottom: "4px solid #fff",
+            borderRight: "4px solid #fff",
+            borderRadius: "0 0 24px 0",
+            boxSizing: "border-box",
+            zIndex: 3,
+          }}
+        />
+      </div>
+      {/* Cámara con zoom dentro del marco */}
       <div
         id="qr-scanner"
         ref={scannerRef}
         key={error ? "error" : "scanner"}
         style={{
-          width: "100vw",
-          height: "100vh",
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          width: "60vw",
+          height: "60vw",
+          maxWidth: 340,
+          maxHeight: 340,
+          transform: "translate(-50%, -50%) scale(1.8)", // zoom 80%
           objectFit: "cover",
-          transform: "scale(2)",
+          margin: 0,
+          padding: 0,
+          border: "none",
+          borderRadius: 16,
           overflow: "hidden",
+          background: "#000",
+          boxShadow: "0 0 32px #000",
+          zIndex: 1,
         }}
       />
+      {/* Mensaje para forzar enfoque */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 32,
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "rgba(0,0,0,0.7)",
+          color: "#fff",
+          padding: "8px 20px",
+          borderRadius: 16,
+          fontSize: 18,
+          zIndex: 10,
+          pointerEvents: "none",
+        }}
+      >
+        Toca la pantalla para enfocar si la imagen está borrosa
+      </div>
     </div>
   );
 };

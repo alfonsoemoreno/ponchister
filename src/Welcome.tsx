@@ -5,31 +5,57 @@ interface WelcomeProps {
   onAccept: () => void;
 }
 
+const requestFullscreen = () => {
+  const el = document.documentElement as HTMLElement & {
+    webkitRequestFullscreen?: () => void;
+    msRequestFullscreen?: () => void;
+  };
+  if (el.requestFullscreen) {
+    el.requestFullscreen();
+  } else if (typeof el.webkitRequestFullscreen === "function") {
+    el.webkitRequestFullscreen();
+  } else if (typeof el.msRequestFullscreen === "function") {
+    el.msRequestFullscreen();
+  }
+};
+
 const Welcome: React.FC<WelcomeProps> = ({ onAccept }) => (
   <div
     style={{
-      background: "#0b0d1c",
-      color: "#ffffff",
       height: "100vh",
       width: "100vw",
       display: "flex",
       justifyContent: "center",
       alignItems: "center",
+      position: "relative",
+      overflow: "hidden",
+      /* Elimino el background oscuro */
     }}
   >
+    {/* Fondo ocean con blur cubriendo todo */}
+    <div className="ocean-background ocean-blur" />
     <div
       style={{
         textAlign: "center",
         padding: "2rem",
         width: "100%",
         maxWidth: "400px",
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 1,
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
       }}
     >
       <h1
         style={{
-          fontFamily: "'Fredoka', sans-serif",
+          fontFamily: "'Lilita One', 'Poppins', 'Fredoka', Arial, sans-serif",
           fontWeight: 700,
-          fontSize: "3rem",
+          fontSize: "2.5rem",
           marginBottom: "1rem",
           letterSpacing: 1,
           textShadow:
@@ -37,7 +63,7 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept }) => (
           animation: "neon-flicker 1.5s infinite alternate",
         }}
       >
-        Ponchister
+        PONCHISTER
       </h1>
       <style>{`
         @keyframes neon-flicker {
@@ -58,27 +84,49 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept }) => (
           }
         }
       `}</style>
-      <p style={{ marginBottom: "2rem", opacity: 0.9 }}>
+      <p
+        style={{
+          marginBottom: "1rem",
+          opacity: 0.9,
+          fontSize: "1rem",
+          lineHeight: 1.2,
+          padding: "0 1.4rem",
+        }}
+      >
         Escanea un código QR para escuchar la canción.
       </p>
       <Button
-        variant="contained"
-        onClick={onAccept}
+        variant="outlined"
+        color="primary"
+        onClick={() => {
+          requestFullscreen();
+          onAccept();
+        }}
         sx={{
           borderRadius: 2,
           fontWeight: "bold",
           fontSize: "1rem",
-          py: 1.5,
-          px: 4,
-          boxShadow: "0 0 16px #00e6ff, 0 0 32px #00e6ff",
-          background: "linear-gradient(90deg, #00e6ff 0%, #0b0d1c 100%)",
-          color: "#fff",
-          textShadow: "0 0 8px #fff, 0 0 16px #00e6ff",
+          py: 1.2,
+          px: 3,
+          boxShadow: 1,
           textTransform: "none",
+          color: "#FFF !important",
+          border: "2px solid #FFF",
+          backgroundColor: "rgba(0,0,0,0.05) !important",
           transition: "background 0.2s, color 0.2s",
+          mt: "20%",
           "&:hover": {
-            background: "linear-gradient(90deg, #00bfff 0%, #0b0d1c 100%)",
-            boxShadow: "0 0 32px #00e6ff, 0 0 64px #00e6ff",
+            backgroundColor: "#FFF !important",
+            color: "#28518C !important",
+            border: "2px solid #FFF",
+          },
+          "&:focus": {
+            backgroundColor: "rgba(0,0,0,0.05) !important",
+            color: "#FFF !important",
+          },
+          "&:active": {
+            backgroundColor: "rgba(0,0,0,0.05) !important",
+            color: "#FFF !important",
           },
         }}
       >

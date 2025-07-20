@@ -1,4 +1,8 @@
 @import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@700&display=swap");
+/* Importar fuente Poppins para todo el proyecto */
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap");
+/* Importar fuente Lilita One para el h1 principal */
+@import url("https://fonts.googleapis.com/css2?family=Lilita+One&display=swap");
 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -143,6 +147,19 @@ button:focus-visible {
   background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'><path fill='%231F3C7A' fill-opacity='1' d='M0,64L48,106.7C96,149,192,235,288,266.7C384,299,480,277,576,229.3C672,181,768,107,864,80C960,53,1056,75,1152,96C1248,117,1344,139,1392,149.3L1440,160L1440,320L0,320Z'/></svg>")
     bottom/cover no-repeat;
   pointer-events: none;
+}
+
+/* Fondo ocean con blur para Welcome */
+.ocean-blur {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(12px) brightness(1.1);
+  /* fallback para navegadores que soportan backdrop-filter */
+  backdrop-filter: blur(12px) brightness(1.1);
 }
 
 @keyframes speaker-bounce {

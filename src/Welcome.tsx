@@ -29,7 +29,7 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept }) => (
       alignItems: "center",
       position: "relative",
       overflow: "hidden",
-      /* Elimino el background oscuro */
+      backgroundColor: "transparent",
     }}
   >
     {/* Fondo ocean con blur cubriendo todo */}

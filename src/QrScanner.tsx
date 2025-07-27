@@ -208,7 +208,7 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan }) => {
         }}
       />
       {/* Mensaje para forzar enfoque */}
-      <div
+      {/* <div
         style={{
           position: "absolute",
           bottom: 32,
@@ -224,7 +224,7 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan }) => {
         }}
       >
         Toca la pantalla para enfocar si la imagen está borrosa
-      </div>
+      </div> */}
     </div>
   );
 };

@@ -152,14 +152,16 @@ button:focus-visible {
 /* Fondo ocean con blur para Welcome */
 .ocean-blur {
   position: absolute;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
+  /* Expandir fuera de los bordes para evitar borde blanco al desenfocar */
+  top: 0px;
+  left: 0px;
+  right: 20px;
+  bottom: 20px;
   z-index: 0;
   pointer-events: none;
-  filter: blur(12px) brightness(1.1);
+  filter: blur(30px) brightness(1.1);
   /* fallback para navegadores que soportan backdrop-filter */
-  backdrop-filter: blur(12px) brightness(1.1);
+  backdrop-filter: blur(30px) brightness(1.1);
 }
 
 @keyframes speaker-bounce {

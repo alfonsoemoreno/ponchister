@@ -108,7 +108,7 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept }) => (
           fontSize: "1rem",
           py: 1.2,
           px: 3,
-          boxShadow: 1,
+          boxShadow: 0,
           textTransform: "none",
           color: "#FFF !important",
           border: "2px solid #FFF",
@@ -131,6 +131,43 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept }) => (
         }}
       >
         Comenzar
+      </Button>
+      {/* Botón para generar tarjetas */}
+      <Button
+        variant="outlined"
+        color="primary"
+        onClick={() =>
+          window.open("https://ponchistercards.vercel.app", "_blank")
+        }
+        sx={{
+          borderRadius: 2,
+          fontWeight: "bold",
+          fontSize: "1rem",
+          py: 1.2,
+          px: 3,
+          boxShadow: 0,
+          textTransform: "none",
+          color: "#FFF !important",
+          border: "2px solid #FFF",
+          backgroundColor: "rgba(0,0,0,0.05) !important",
+          transition: "background 0.2s, color 0.2s",
+          mt: 2,
+          "&:hover": {
+            backgroundColor: "#FFF !important",
+            color: "#28518C !important",
+            border: "2px solid #FFF",
+          },
+          "&:focus": {
+            backgroundColor: "rgba(0,0,0,0.05) !important",
+            color: "#FFF !important",
+          },
+          "&:active": {
+            backgroundColor: "rgba(0,0,0,0.05) !important",
+            color: "#FFF !important",
+          },
+        }}
+      >
+        Generar tarjetas y fichas
       </Button>
     </div>
   </div>

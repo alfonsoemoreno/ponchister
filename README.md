@@ -1,74 +1,100 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # ponchister
 Juego para los amigos
 =======
 # React + TypeScript + Vite
+=======
+# Ponchister
+>>>>>>> 7c13a7c (feat: Implement Ponchister game with QR and automatic modes)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación React + Vite para el juego musical Ponchister. Ofrece dos modos:
 
-Currently, two official plugins are available:
+- **Modo QR**: escanea un código para reproducir una pista de YouTube.
+- **Modo automático**: solicita canciones aleatorias desde Supabase, permite saltar pistas, revelar la información y continuar jugando.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Requerimientos
 
-## Expanding the ESLint configuration
+- Node.js 18+
+- pnpm (recomendado) o npm/yarn
+- Proyecto Supabase (plan gratuito) con la tabla `songs`
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Instalación
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Variables de entorno (`ponchister/.env.local`)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+<<<<<<< HEAD
 >>>>>>> 64543a8 (Primer avance Ponchister)
+=======
+VITE_SUPABASE_URL=tu-url.supabase.co
+VITE_SUPABASE_ANON_KEY=tu-clave-anon
+```
+
+## Configuración de Supabase
+
+1. Crea un nuevo proyecto en Supabase (plan gratuito).
+2. En **SQL Editor** ejecuta:
+
+```sql
+create table if not exists public.songs (
+  id bigserial primary key,
+  artist text not null,
+  title text not null,
+  year integer,
+  youtube_url text not null,
+  created_at timestamptz default timezone('utc', now())
+);
+
+create unique index if not exists songs_youtube_url_key
+  on public.songs (youtube_url);
+
+alter table public.songs enable row level security;
+
+create policy "Allow read for anon"
+  on public.songs
+  for select
+  to anon
+  using (true);
+```
+
+3. Guarda la URL del proyecto y la anon key en `.env.local` y en las variables de entorno de Vercel.
+4. Copia la **Service Role Key** (Settings → API) para usarla en el script de seed.
+
+## Poblar la base con el Excel
+
+El proyecto hermano `ponchocards` incluye un script que lee `public/plantilla.xlsx` y sincroniza todas las canciones.
+
+1. Crea `ponchocards/.env.local` con:
+
+```
+SUPABASE_URL=tu-url.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
+```
+
+2. Desde la carpeta `ponchocards` ejecuta:
+
+```bash
+pnpm install
+pnpm seed:songs
+```
+
+> El script realiza `upsert` usando `youtube_url`, por lo que puedes ejecutarlo cada vez que actualices el Excel.
+
+## Desarrollo local
+
+```bash
+pnpm dev
+```
+
+La aplicación queda disponible en `http://localhost:5173/`.
+
+## Despliegue
+
+- Define `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en Vercel.
+- Haz un build de prueba con `pnpm build` antes de desplegar.
+>>>>>>> 7c13a7c (feat: Implement Ponchister game with QR and automatic modes)

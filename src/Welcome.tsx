@@ -3,6 +3,7 @@ import Button from "@mui/material/Button";
 
 interface WelcomeProps {
   onAccept: () => void;
+  onStartAuto: () => void;
 }
 
 const requestFullscreen = () => {
@@ -19,7 +20,7 @@ const requestFullscreen = () => {
   }
 };
 
-const Welcome: React.FC<WelcomeProps> = ({ onAccept }) => (
+const Welcome: React.FC<WelcomeProps> = ({ onAccept, onStartAuto }) => (
   <div
     style={{
       height: "100vh",
@@ -69,7 +70,8 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept }) => (
           padding: "0 1.4rem",
         }}
       >
-        Escanea un código QR para escuchar la canción.
+        Escanea un código QR para escuchar una pista o activa el modo automático
+        para recibir canciones aleatorias.
       </p>
       <Button
         variant="outlined"
@@ -107,6 +109,43 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept }) => (
         }}
       >
         Comenzar
+      </Button>
+      <Button
+        variant="outlined"
+        color="secondary"
+        onClick={() => {
+          requestFullscreen();
+          onStartAuto();
+        }}
+        sx={{
+          borderRadius: 2,
+          fontWeight: "bold",
+          fontSize: "1rem",
+          py: 1.2,
+          px: 3,
+          boxShadow: 0,
+          textTransform: "none",
+          color: "#FFF !important",
+          border: "2px solid #FFF",
+          backgroundColor: "rgba(0,0,0,0.05) !important",
+          transition: "background 0.2s, color 0.2s",
+          mt: 2,
+          "&:hover": {
+            backgroundColor: "#FFF !important",
+            color: "#28518C !important",
+            border: "2px solid #FFF",
+          },
+          "&:focus": {
+            backgroundColor: "rgba(0,0,0,0.05) !important",
+            color: "#FFF !important",
+          },
+          "&:active": {
+            backgroundColor: "rgba(0,0,0,0.05) !important",
+            color: "#FFF !important",
+          },
+        }}
+      >
+        Modo automático
       </Button>
       {/* Botón para generar tarjetas */}
       <Button

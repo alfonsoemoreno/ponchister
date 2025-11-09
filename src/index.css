@@ -34,7 +34,7 @@ body,
   height: 100%;
   margin: 0 !important;
   padding: 0 !important;
-  width: 100vw;
+  width: 100%;
   min-height: 100vh;
   overflow: hidden;
 }
@@ -125,8 +125,8 @@ button:focus-visible {
 
 .ocean-background {
   position: relative;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  min-height: 100vh;
   overflow: hidden;
   background: linear-gradient(
     180deg,
@@ -152,11 +152,10 @@ button:focus-visible {
 /* Fondo ocean con blur para Welcome */
 .ocean-blur {
   position: absolute;
-  /* Expandir fuera de los bordes para evitar borde blanco al desenfocar */
-  top: 0px;
-  left: 0px;
-  right: 20px;
-  bottom: 20px;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 0;
   pointer-events: none;
   filter: blur(30px) brightness(1.1);

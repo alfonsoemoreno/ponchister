@@ -19,6 +19,14 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { fetchRandomSong } from "./services/songService";
 import type { Song } from "./types";
 
+interface InternalPlayer {
+  playVideo?: () => void;
+  pauseVideo?: () => void;
+  stopVideo?: () => void;
+  unMute?: () => void;
+  setPlaybackRate?: (rate: number) => void;
+}
+
 interface AutoGameProps {
   onExit: () => void;
 }
@@ -64,7 +72,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   );
 
   const stopPlayback = useCallback(() => {
-    const internalPlayer = playerRef.current?.getInternalPlayer?.();
+    const internalPlayer =
+      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
     if (internalPlayer && typeof internalPlayer.stopVideo === "function") {
       internalPlayer.stopVideo();
     }
@@ -95,6 +104,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   };
 
   const handleSkip = () => {
+    stopPlayback();
     loadRandomSong().catch(() => {
       /* handled in loadRandomSong */
     });
@@ -105,38 +115,40 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   };
 
   const handleNextAfterReveal = () => {
+    stopPlayback();
     loadRandomSong().catch(() => {
       /* handled in loadRandomSong */
     });
   };
 
   const handleExit = () => {
-    stopPlayback();
-    setCurrentSong(null);
-    setGameState("idle");
-    onExit();
+    const finalizeExit = () => {
+      stopPlayback();
+      setCurrentSong(null);
+      setGameState("idle");
+      onExit();
+    };
+
+    finalizeExit();
   };
 
   const handlePlayPause = () => {
-    const internalPlayer = playerRef.current?.getInternalPlayer?.();
+    const internalPlayer =
+      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
     if (!internalPlayer) return;
 
     if (isPlaying) {
-      if (typeof internalPlayer.pauseVideo === "function") {
-        internalPlayer.pauseVideo();
-      }
+      internalPlayer.pauseVideo?.();
     } else {
-      if (typeof internalPlayer.playVideo === "function") {
-        internalPlayer.playVideo();
-      }
-      if (typeof internalPlayer.unMute === "function") {
-        internalPlayer.unMute();
-      }
+      internalPlayer.unMute?.();
+      internalPlayer.playVideo?.();
     }
   };
 
-  const handlePlayerReady: YouTubeProps["onReady"] = () => {
+  const handlePlayerReady: YouTubeProps["onReady"] = (event) => {
     setIsPlaying(false);
+    event.target.setPlaybackRate?.(1);
+    event.target.pauseVideo?.();
   };
 
   const handlePlayerStateChange: YouTubeProps["onStateChange"] = (event) => {
@@ -148,7 +160,12 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     }
   };
 
-  useEffect(() => () => stopPlayback(), [stopPlayback]);
+  useEffect(
+    () => () => {
+      stopPlayback();
+    },
+    [stopPlayback]
+  );
 
   const renderControls = () => {
     if (gameState === "idle") {
@@ -325,24 +342,37 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             color: "#fff",
             textAlign: "left",
             boxShadow: 2,
+            maxHeight: { xs: "50vh", sm: "60vh" },
+            overflowY: "auto",
+            pr: 2,
+            wordBreak: "break-word",
           }}
         >
           <Typography variant="overline" sx={{ color: "#b2ebf2" }}>
             Artista
           </Typography>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 700, mb: 1, wordBreak: "break-word" }}
+          >
             {currentSong.artist}
           </Typography>
           <Typography variant="overline" sx={{ color: "#b2ebf2" }}>
             Canción
           </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 700, mb: 1, wordBreak: "break-word" }}
+          >
             {currentSong.title}
           </Typography>
           <Typography variant="overline" sx={{ color: "#b2ebf2" }}>
             Año
           </Typography>
-          <Typography variant="h5" sx={{ fontWeight: 600 }}>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 600, wordBreak: "break-word" }}
+          >
             {currentSong.year ?? "Desconocido"}
           </Typography>
         </Box>
@@ -406,7 +436,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         color: "white",
         textAlign: "center",
         p: 2,
-        overflow: "hidden",
+        overflowX: "hidden",
+        overflowY: "auto",
+        pb: { xs: 6, sm: 4 },
+        scrollbarWidth: "thin",
+        WebkitOverflowScrolling: "touch",
         fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",
       }}
     >
@@ -475,18 +509,10 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           alignItems: "center",
           gap: 2,
           zIndex: 2,
+          width: "100%",
         }}
       >
-        <Box sx={{ maxWidth: 540, mb: 3 }}>
-          <img
-            src="/ponchister_logo.png"
-            alt="Ponchister"
-            style={{
-              width: "100%",
-              maxWidth: 320,
-              marginBottom: 16,
-            }}
-          />
+        <Box sx={{ maxWidth: 540, mb: 3, mx: "auto", px: { xs: 1, sm: 0 } }}>
           <Typography
             variant="h5"
             component="h2"

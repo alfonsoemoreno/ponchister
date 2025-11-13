@@ -16,7 +16,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 
-import { fetchRandomSong } from "./services/songService";
+import { fetchRandomSong, getSongCount } from "./services/songService";
 import type { Song } from "./types";
 
 interface InternalPlayer {
@@ -64,7 +64,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerKey, setPlayerKey] = useState(0);
+  const [totalSongCount, setTotalSongCount] = useState<number | null>(null);
   const playerRef = useRef<PlayerRef>(null);
+  const seenSongIdsRef = useRef<Set<number>>(new Set());
 
   const videoId = useMemo(
     () => (currentSong ? extractYoutubeId(currentSong.youtube_url) : null),
@@ -83,21 +85,68 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const loadRandomSong = useCallback(async () => {
     setErrorMessage(null);
     setGameState("loading");
+
     try {
       stopPlayback();
-      const song = await fetchRandomSong();
+
+      const shouldRefreshCount = seenSongIdsRef.current.size === 0;
+      const total =
+        totalSongCount !== null && !shouldRefreshCount
+          ? totalSongCount
+          : await getSongCount({ forceRefresh: shouldRefreshCount });
+
+      if (totalSongCount === null || shouldRefreshCount) {
+        setTotalSongCount(total);
+      }
+
+      if (total === 0) {
+        throw new Error("No hay canciones disponibles en la base de datos");
+      }
+
+      if (seenSongIdsRef.current.size >= total) {
+        setErrorMessage(
+          "Ya escuchaste todas las canciones disponibles en esta partida. Reinicia para volver a jugar."
+        );
+        setGameState("error");
+        return;
+      }
+
+      const maxAttempts = Math.min(total, 12);
+      let song: Song | null = null;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const candidate = await fetchRandomSong();
+        if (!seenSongIdsRef.current.has(candidate.id)) {
+          song = candidate;
+          break;
+        }
+      }
+
+      if (!song) {
+        setErrorMessage(
+          "No se encontraron canciones nuevas por ahora. Intenta nuevamente."
+        );
+        setGameState("error");
+        return;
+      }
+
+      seenSongIdsRef.current.add(song.id);
       setCurrentSong(song);
       setPlayerKey((prev) => prev + 1);
       setGameState("playing");
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "No se pudo obtener la canción"
+        error instanceof Error
+          ? error.message
+          : "No se pudo obtener una canción nueva"
       );
       setGameState("error");
     }
-  }, [stopPlayback]);
+  }, [stopPlayback, totalSongCount]);
 
   const handleStart = () => {
+    seenSongIdsRef.current.clear();
+    setTotalSongCount(null);
     loadRandomSong().catch(() => {
       /* handled in loadRandomSong */
     });
@@ -126,6 +175,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       stopPlayback();
       setCurrentSong(null);
       setGameState("idle");
+      seenSongIdsRef.current.clear();
+      setTotalSongCount(null);
       onExit();
     };
 

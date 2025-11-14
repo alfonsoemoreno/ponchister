@@ -26,6 +26,7 @@ interface InternalPlayer {
   unMute?: () => void;
   setVolume?: (volume: number) => void;
   setPlaybackRate?: (rate: number) => void;
+  setPlaybackQuality?: (suggestedQuality: string) => void;
 }
 
 interface AutoGameProps {
@@ -83,6 +84,15 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     }
     setIsPlaying(false);
   }, []);
+
+  const applyPlaybackOptimizations = useCallback(
+    (player: InternalPlayer | null) => {
+      if (!player) return;
+      player.setPlaybackQuality?.("small");
+      player.setPlaybackRate?.(1);
+    },
+    []
+  );
 
   const loadRandomSong = useCallback(async () => {
     setErrorMessage(null);
@@ -193,6 +203,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     if (isPlaying) {
       internalPlayer.pauseVideo?.();
     } else {
+      applyPlaybackOptimizations(internalPlayer);
       internalPlayer.unMute?.();
       internalPlayer.setVolume?.(100);
       const maybePromise = internalPlayer.playVideo?.();
@@ -212,6 +223,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
 
   const handlePlayerReady: YouTubeProps["onReady"] = (event) => {
     setIsPlaying(false);
+    applyPlaybackOptimizations(
+      (event.target as unknown as InternalPlayer) ?? null
+    );
     event.target.setPlaybackRate?.(1);
     event.target.pauseVideo?.();
     const iframe = event.target.getIframe?.();
@@ -221,6 +235,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const handlePlayerStateChange: YouTubeProps["onStateChange"] = (event) => {
     const playerState = event.data;
     if (playerState === 1) {
+      applyPlaybackOptimizations(
+        (event.target as unknown as InternalPlayer) ?? null
+      );
       setIsPlaying(true);
     } else if (playerState === 2 || playerState === 0) {
       setIsPlaying(false);

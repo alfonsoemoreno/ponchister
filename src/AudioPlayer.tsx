@@ -19,6 +19,8 @@ type InternalPlayer = {
   stopVideo?: () => void;
   unMute?: () => void;
   setVolume?: (volume: number) => void;
+  setPlaybackQuality?: (suggestedQuality: string) => void;
+  setPlaybackRate?: (rate: number) => void;
 };
 
 function getYouTubeId(url: string): string | null {
@@ -36,6 +38,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
     videoId ? "pending" : "error"
   );
 
+  const applyPlaybackOptimizations = (player: InternalPlayer | null) => {
+    if (!player) return;
+    // Forzar calidad baja y velocidad normal para reducir carga en dispositivos móviles
+    player.setPlaybackQuality?.("small");
+    player.setPlaybackRate?.(1);
+  };
+
   const opts: YouTubeProps["opts"] = {
     height: "20",
     width: "40",
@@ -50,6 +59,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
       iv_load_policy: 3,
       disablekb: 1,
       playsinline: 1,
+      cc_load_policy: 0,
     },
   };
 
@@ -61,6 +71,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
     if (playing) {
       internalPlayer.pauseVideo?.();
     } else {
+      applyPlaybackOptimizations(internalPlayer);
       internalPlayer.unMute?.();
       internalPlayer.setVolume?.(100);
       const maybePromise = internalPlayer.playVideo?.();
@@ -90,6 +101,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
   const onPlayerStateChange: YouTubeProps["onStateChange"] = (event) => {
     // 1 = playing, 2 = paused, 0 = ended
     if (event.data === 1) {
+      applyPlaybackOptimizations(
+        (event.target as unknown as InternalPlayer) ?? null
+      );
       setPlaying(true);
     } else if (event.data === 2 || event.data === 0) {
       setPlaying(false);
@@ -154,6 +168,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
             ref={playerRef}
             onStateChange={onPlayerStateChange}
             onReady={(event) => {
+              applyPlaybackOptimizations(
+                (event.target as unknown as InternalPlayer) ?? null
+              );
               setVideoStatus("ok");
               const iframe = event.target.getIframe?.();
               iframe?.setAttribute("allow", "autoplay; clipboard-write");

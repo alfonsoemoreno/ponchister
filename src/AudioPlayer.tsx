@@ -13,6 +13,14 @@ interface AudioPlayerProps {
   onBack: () => void;
 }
 
+type InternalPlayer = {
+  playVideo?: () => unknown;
+  pauseVideo?: () => void;
+  stopVideo?: () => void;
+  unMute?: () => void;
+  setVolume?: (volume: number) => void;
+};
+
 function getYouTubeId(url: string): string | null {
   const regExp =
     /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -28,7 +36,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
     videoId ? "pending" : "error"
   );
 
-  const opts = {
+  const opts: YouTubeProps["opts"] = {
     height: "20",
     width: "40",
     playerVars: {
@@ -41,41 +49,39 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
       fs: 0,
       iv_load_policy: 3,
       disablekb: 1,
+      playsinline: 1,
     },
   };
 
   const handlePlayPause = () => {
-    if (
-      playerRef.current &&
-      typeof playerRef.current.getInternalPlayer === "function"
-    ) {
-      const internalPlayer = playerRef.current.getInternalPlayer();
-      if (playing) {
-        if (internalPlayer && typeof internalPlayer.pauseVideo === "function") {
-          internalPlayer.pauseVideo();
-        }
-      } else {
-        if (internalPlayer && typeof internalPlayer.playVideo === "function") {
-          internalPlayer.playVideo();
-        }
-        if (internalPlayer && typeof internalPlayer.unMute === "function") {
-          internalPlayer.unMute();
-        }
+    const internalPlayer =
+      playerRef.current?.getInternalPlayer?.() as InternalPlayer | null;
+    if (!internalPlayer) return;
+
+    if (playing) {
+      internalPlayer.pauseVideo?.();
+    } else {
+      internalPlayer.unMute?.();
+      internalPlayer.setVolume?.(100);
+      const maybePromise = internalPlayer.playVideo?.();
+      if (
+        maybePromise &&
+        typeof maybePromise === "object" &&
+        typeof (maybePromise as Promise<unknown>).catch === "function"
+      ) {
+        (maybePromise as Promise<unknown>).catch(() => {
+          setVideoStatus("error");
+        });
       }
-      setPlaying((p) => !p);
     }
+
+    setPlaying((p) => !p);
   };
 
   const handleBack = () => {
-    if (
-      playerRef.current &&
-      typeof playerRef.current.getInternalPlayer === "function"
-    ) {
-      const internalPlayer = playerRef.current.getInternalPlayer();
-      if (internalPlayer && typeof internalPlayer.stopVideo === "function") {
-        internalPlayer.stopVideo();
-      }
-    }
+    const internalPlayer =
+      playerRef.current?.getInternalPlayer?.() as InternalPlayer | null;
+    internalPlayer?.stopVideo?.();
     setPlaying(false);
     onBack();
   };
@@ -147,7 +153,14 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
             opts={opts}
             ref={playerRef}
             onStateChange={onPlayerStateChange}
-            onReady={() => setVideoStatus("ok")}
+            onReady={(event) => {
+              setVideoStatus("ok");
+              const iframe = event.target.getIframe?.();
+              iframe?.setAttribute("allow", "autoplay; clipboard-write");
+              if (typeof event.target.mute === "function") {
+                event.target.mute();
+              }
+            }}
             onError={() => setVideoStatus("error")}
           />
         </Box>

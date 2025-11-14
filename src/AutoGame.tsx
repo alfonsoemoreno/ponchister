@@ -24,6 +24,7 @@ interface InternalPlayer {
   pauseVideo?: () => void;
   stopVideo?: () => void;
   unMute?: () => void;
+  setVolume?: (volume: number) => void;
   setPlaybackRate?: (rate: number) => void;
 }
 
@@ -48,6 +49,7 @@ const youtubeOptions: YouTubeProps["opts"] = {
     showinfo: 0,
     iv_load_policy: 3,
     disablekb: 1,
+    playsinline: 1,
   },
 };
 
@@ -192,7 +194,19 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       internalPlayer.pauseVideo?.();
     } else {
       internalPlayer.unMute?.();
-      internalPlayer.playVideo?.();
+      internalPlayer.setVolume?.(100);
+      const maybePromise = internalPlayer.playVideo?.();
+      if (
+        maybePromise &&
+        typeof maybePromise === "object" &&
+        typeof (maybePromise as Promise<unknown>).catch === "function"
+      ) {
+        (maybePromise as Promise<unknown>).catch(() => {
+          setErrorMessage(
+            "El reproductor bloqueó el inicio automático. Toca nuevamente para intentar reproducir."
+          );
+        });
+      }
     }
   };
 
@@ -200,6 +214,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     setIsPlaying(false);
     event.target.setPlaybackRate?.(1);
     event.target.pauseVideo?.();
+    const iframe = event.target.getIframe?.();
+    iframe?.setAttribute("allow", "autoplay; clipboard-write");
   };
 
   const handlePlayerStateChange: YouTubeProps["onStateChange"] = (event) => {

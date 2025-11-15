@@ -37,23 +37,6 @@ type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
 
 type PlayerRef = YouTube | null;
 
-const youtubeOptions: YouTubeProps["opts"] = {
-  height: "20",
-  width: "40",
-  playerVars: {
-    autoplay: 0,
-    mute: 1,
-    controls: 0,
-    modestbranding: 1,
-    rel: 0,
-    fs: 0,
-    showinfo: 0,
-    iv_load_policy: 3,
-    disablekb: 1,
-    playsinline: 1,
-  },
-};
-
 function extractYoutubeId(url: string): string | null {
   const regExp =
     /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -80,6 +63,29 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const seenSongIdsRef = useRef<Set<number>>(new Set());
   const songQueueRef = useRef<Song[]>([]);
   const queueIndexRef = useRef(0);
+
+  const playerOptions = useMemo<YouTubeProps["opts"]>(() => {
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : undefined;
+
+    return {
+      height: "20",
+      width: "40",
+      playerVars: {
+        autoplay: 0,
+        mute: 1,
+        controls: 0,
+        modestbranding: 1,
+        rel: 0,
+        fs: 0,
+        showinfo: 0,
+        iv_load_policy: 3,
+        disablekb: 1,
+        playsinline: 1,
+        origin,
+      },
+    };
+  }, []);
 
   const videoId = useMemo(
     () => (currentSong ? extractYoutubeId(currentSong.youtube_url) : null),
@@ -133,7 +139,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       const songs = await fetchAllSongs();
       const uniquePlayable = new Map<string, Song>();
 
-      songs.forEach((song) => {
+      songs.forEach((song: Song) => {
         const trimmedUrl = song.youtube_url.trim();
         const videoKey = extractYoutubeId(trimmedUrl);
         if (!videoKey) {
@@ -605,7 +611,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           <YouTube
             key={playerKey}
             videoId={videoId}
-            opts={youtubeOptions}
+            opts={playerOptions}
             ref={playerRef}
             onReady={handlePlayerReady}
             onError={() => {

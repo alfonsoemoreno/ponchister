@@ -6,7 +6,9 @@ import {
   Box,
   Button,
   CircularProgress,
+  Chip,
   IconButton,
+  Stack,
   Typography,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -53,6 +55,28 @@ function shuffleSongs<T>(entries: T[]): T[] {
   return copy;
 }
 
+async function preloadImage(url: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("No se pudo cargar la imagen"));
+    image.src = url;
+  });
+}
+
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function tokenize(value: string): string[] {
+  return normalizeText(value)
+    .split(/[^a-z0-9]+/g)
+    .filter((token) => token.length >= 3);
+}
+
 const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const [gameState, setGameState] = useState<GameState>("idle");
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
@@ -63,6 +87,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const seenSongIdsRef = useRef<Set<number>>(new Set());
   const songQueueRef = useRef<Song[]>([]);
   const queueIndexRef = useRef(0);
+  const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+  const [artworkLoading, setArtworkLoading] = useState(false);
+  const [artworkError, setArtworkError] = useState<string | null>(null);
 
   const playerOptions = useMemo<YouTubeProps["opts"]>(() => {
     const origin =
@@ -86,6 +113,221 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       },
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!currentSong) {
+      setArtworkUrl(null);
+      setArtworkLoading(false);
+      setArtworkError(null);
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const run = async () => {
+      try {
+        setArtworkLoading(true);
+        setArtworkError(null);
+        setArtworkUrl(null);
+
+        const searchTerms = [
+          `${currentSong.artist} ${currentSong.title}`,
+          currentSong.artist,
+        ];
+
+        const entities = ["album", "musicTrack"] as const;
+        const normalizedArtist = normalizeText(currentSong.artist);
+        const normalizedTitle = normalizeText(currentSong.title);
+        const artistTokens = tokenize(currentSong.artist);
+        const titleTokens = tokenize(currentSong.title);
+
+        const evaluateScore = (parts: Array<string | undefined>): number => {
+          const validParts = parts.filter((value): value is string =>
+            Boolean(value && value.trim())
+          );
+
+          if (!validParts.length) {
+            return 0;
+          }
+
+          const tokenPool = new Set<string>();
+          const normalizedParts = validParts.map((part) => {
+            const tokens = tokenize(part);
+            tokens.forEach((token) => tokenPool.add(token));
+            return normalizeText(part);
+          });
+
+          let score = 0;
+
+          const artistMatches = artistTokens.filter((token) =>
+            tokenPool.has(token)
+          );
+          const titleMatches = titleTokens.filter((token) =>
+            tokenPool.has(token)
+          );
+
+          if (artistMatches.length) {
+            score += 3 + artistMatches.length * 1.5;
+          }
+          if (
+            artistMatches.length === artistTokens.length &&
+            artistTokens.length > 0
+          ) {
+            score += 2;
+          }
+
+          if (titleMatches.length) {
+            score += 4 + titleMatches.length * 2;
+          }
+          if (
+            titleMatches.length === titleTokens.length &&
+            titleTokens.length
+          ) {
+            score += 3;
+          }
+
+          const combined = normalizedParts.join(" ");
+          if (normalizedArtist && combined.includes(normalizedArtist)) {
+            score += 2;
+          }
+          if (normalizedTitle && combined.includes(normalizedTitle)) {
+            score += 2;
+          }
+
+          return score;
+        };
+
+        const candidateMap = new Map<
+          string,
+          { url: string; score: number; source: string }
+        >();
+
+        for (const term of searchTerms) {
+          const encodedTerm = encodeURIComponent(term);
+          for (const entity of entities) {
+            const endpoint = `https://itunes.apple.com/search?term=${encodedTerm}&entity=${entity}&limit=5`;
+            const response = await fetch(endpoint, {
+              signal: controller.signal,
+            });
+
+            if (!response.ok) {
+              continue;
+            }
+
+            const payload: {
+              results?: Array<{
+                artworkUrl100?: string;
+                artistName?: string;
+                trackName?: string;
+                collectionName?: string;
+                collectionCensoredName?: string;
+                collectionArtistName?: string;
+              }>;
+            } = await response.json();
+
+            (payload.results ?? []).forEach((item, index) => {
+              if (!item?.artworkUrl100) {
+                return;
+              }
+
+              const score = evaluateScore([
+                item.artistName,
+                item.trackName,
+                item.collectionName,
+                item.collectionCensoredName,
+                item.collectionArtistName,
+              ]);
+
+              if (score <= 0) {
+                return;
+              }
+
+              let weightedScore = score;
+              if (entity === "album") {
+                weightedScore += 1.5;
+              }
+              if (term === searchTerms[0]) {
+                weightedScore += 1;
+              }
+              if (index === 0) {
+                weightedScore += 0.5;
+              }
+
+              const highRes = item.artworkUrl100.replace(
+                /100x100bb\.jpg$/i,
+                "1000x1000bb.jpg"
+              );
+
+              const existing = candidateMap.get(highRes);
+              if (!existing || weightedScore > existing.score) {
+                candidateMap.set(highRes, {
+                  url: highRes,
+                  score: weightedScore,
+                  source: `${entity}-${term}`,
+                });
+              }
+            });
+          }
+        }
+
+        const candidates = Array.from(candidateMap.values()).sort(
+          (a, b) => b.score - a.score
+        );
+
+        const MIN_CONFIDENCE_SCORE = titleTokens.length ? 7 : 5.5;
+
+        let selectedArtwork: string | null = null;
+        let selectedScore = 0;
+
+        for (const candidate of candidates) {
+          try {
+            await preloadImage(candidate.url);
+            selectedArtwork = candidate.url;
+            selectedScore = candidate.score;
+            break;
+          } catch {
+            // Try next candidate if the image fails to load.
+          }
+        }
+
+        if (!cancelled) {
+          if (selectedArtwork && selectedScore >= MIN_CONFIDENCE_SCORE) {
+            setArtworkUrl(selectedArtwork);
+            setArtworkError(null);
+          } else {
+            setArtworkUrl(null);
+            setArtworkError(
+              "No encontramos una portada que coincidiera bien con la canción."
+            );
+          }
+          setArtworkLoading(false);
+        }
+      } catch (error) {
+        if (controller.signal.aborted || cancelled) {
+          return;
+        }
+        setArtworkLoading(false);
+        setArtworkUrl(null);
+        setArtworkError(
+          error instanceof Error
+            ? error.message
+            : "No se pudo cargar la portada de la canción."
+        );
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [currentSong]);
 
   const videoId = useMemo(
     () => (currentSong ? extractYoutubeId(currentSong.youtube_url) : null),
@@ -130,6 +372,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     setGameState("loading");
     setIsPlaying(false);
     stopPlayback();
+    setArtworkUrl(null);
+    setArtworkError(null);
 
     seenSongIdsRef.current.clear();
     songQueueRef.current = [];
@@ -188,6 +432,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     setGameState("loading");
     setIsPlaying(false);
     stopPlayback();
+    setArtworkError(null);
+    setArtworkUrl(null);
 
     const nextSong = selectNextSongFromQueue();
 
@@ -229,6 +475,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       setCurrentSong(null);
       setGameState("idle");
       setErrorMessage(null);
+      setArtworkUrl(null);
+      setArtworkLoading(false);
+      setArtworkError(null);
       seenSongIdsRef.current.clear();
       songQueueRef.current = [];
       queueIndexRef.current = 0;
@@ -438,113 +687,316 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       );
     }
 
+    const yearChipLabel =
+      typeof currentSong.year === "number"
+        ? `Año ${currentSong.year}`
+        : "Año desconocido";
+
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <IconButton
-          onClick={handlePlayPause}
-          sx={{
-            width: 140,
-            height: 140,
-            border: "4px solid #ffffff",
-            color: "#ffffff",
-            borderRadius: "50%",
-            alignSelf: "center",
-            "&:hover": {
-              backgroundColor: "rgba(255,255,255,0.15)",
-            },
-          }}
-        >
-          {isPlaying ? (
-            <PauseIcon sx={{ fontSize: 72 }} />
-          ) : (
-            <PlayArrowIcon sx={{ fontSize: 72 }} />
-          )}
-        </IconButton>
+      <Box
+        sx={{
+          position: "relative",
+          width: "min(1100px, 92vw)",
+          minHeight: { xs: 460, md: 560 },
+          borderRadius: { xs: 4, md: 6 },
+          overflow: "hidden",
+          boxShadow: "0 50px 120px -40px rgba(9,22,64,0.72)",
+          border: "1px solid rgba(255,255,255,0.1)",
+        }}
+      >
         <Box
           sx={{
-            bgcolor: "rgba(0,0,0,0.4)",
-            borderRadius: 3,
-            px: 3,
-            py: 2,
-            color: "#fff",
-            textAlign: "left",
-            boxShadow: 2,
-            maxHeight: { xs: "50vh", sm: "60vh" },
-            overflowY: "auto",
-            pr: 2,
-            wordBreak: "break-word",
+            position: "absolute",
+            inset: 0,
+            backgroundImage: artworkUrl
+              ? `url(${artworkUrl})`
+              : "radial-gradient(circle at 30% 20%, rgba(99,213,245,0.28), rgba(9,12,28,0.95))",
+            backgroundSize: artworkUrl ? "cover" : "150% 150%",
+            backgroundPosition: artworkUrl ? "center" : "50% 50%",
+            filter: artworkUrl ? "blur(22px)" : "none",
+            transform: artworkUrl ? "scale(1.12)" : "none",
+            opacity: artworkUrl ? 0.95 : 1,
+          }}
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(135deg, rgba(4,8,18,0.92) 0%, rgba(20,44,110,0.86) 52%, rgba(84,164,255,0.62) 100%)",
+            backdropFilter: "blur(8px)",
+          }}
+        />
+        <Stack
+          direction={{ xs: "column-reverse", md: "row" }}
+          spacing={{ xs: 3, md: 5 }}
+          sx={{
+            position: "relative",
+            zIndex: 1,
+            p: { xs: 3, sm: 4, md: 6 },
+            alignItems: { xs: "stretch", md: "center" },
+            gap: { xs: 4, md: 5 },
           }}
         >
-          <Typography variant="overline" sx={{ color: "#b2ebf2" }}>
-            Artista
-          </Typography>
-          <Typography
-            variant="h5"
-            sx={{ fontWeight: 700, mb: 1, wordBreak: "break-word" }}
-          >
-            {currentSong.artist}
-          </Typography>
-          <Typography variant="overline" sx={{ color: "#b2ebf2" }}>
-            Canción
-          </Typography>
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: 700, mb: 1, wordBreak: "break-word" }}
-          >
-            {currentSong.title}
-          </Typography>
-          <Typography variant="overline" sx={{ color: "#b2ebf2" }}>
-            Año
-          </Typography>
-          <Typography
-            variant="h5"
-            sx={{ fontWeight: 600, wordBreak: "break-word" }}
-          >
-            {currentSong.year ?? "Desconocido"}
-          </Typography>
-        </Box>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Button
-            variant="outlined"
-            color="primary"
-            startIcon={<SkipNextIcon />}
-            onClick={handleNextAfterReveal}
+          <Box
             sx={{
-              fontWeight: "bold",
-              textTransform: "none",
-              color: "#FFF !important",
-              border: "2px solid #FFF",
-              backgroundColor: "rgba(0,0,0,0.05) !important",
-              "&:hover": {
-                backgroundColor: "#FFF !important",
-                color: "#28518C !important",
-                border: "2px solid #FFF",
-              },
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: { xs: 2.5, md: 3 },
             }}
           >
-            Siguiente canción
-          </Button>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<ExitToAppIcon />}
-            onClick={handleExit}
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              flexWrap="wrap"
+              sx={{ color: "#fff" }}
+            >
+              <Chip
+                label="Ahora suena"
+                sx={{
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  backgroundColor: "rgba(255,255,255,0.16)",
+                  color: "#fff",
+                  backdropFilter: "blur(10px)",
+                }}
+              />
+              <Chip
+                label={yearChipLabel}
+                sx={{
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  backgroundColor: "rgba(13,148,255,0.2)",
+                  color: "rgba(212,239,255,0.95)",
+                  border: "1px solid rgba(148,197,255,0.35)",
+                }}
+              />
+              {artworkLoading ? (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <CircularProgress size={16} sx={{ color: "#d7f9ff" }} />
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(224,239,255,0.85)" }}
+                  >
+                    Buscando portada...
+                  </Typography>
+                </Stack>
+              ) : null}
+            </Stack>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                letterSpacing: "-0.015em",
+                textAlign: "left",
+                color: "#ffffff",
+                textShadow: "0 30px 60px rgba(0,0,0,0.55)",
+              }}
+            >
+              {currentSong.title}
+            </Typography>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 600,
+                color: "rgba(204,231,255,0.92)",
+                textAlign: "left",
+              }}
+            >
+              {currentSong.artist}
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: "rgba(224,239,255,0.82)",
+                maxWidth: 520,
+                textAlign: "left",
+              }}
+            >
+              Captura la magia del momento con visuales envolventes inspirados
+              en tu canción. Sigue jugando para descubrir nuevas portadas y
+              atmósferas impactantes.
+            </Typography>
+            {artworkError ? (
+              <Typography
+                variant="caption"
+                sx={{ color: "rgba(255,210,210,0.92)", textAlign: "left" }}
+              >
+                {artworkError}
+              </Typography>
+            ) : null}
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              sx={{ pt: { xs: 1, md: 2 }, flexWrap: "wrap" }}
+            >
+              <IconButton
+                onClick={handlePlayPause}
+                sx={{
+                  width: 88,
+                  height: 88,
+                  borderRadius: "50%",
+                  border: "3px solid rgba(255,255,255,0.35)",
+                  background:
+                    "linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(99,213,245,0.35) 100%)",
+                  boxShadow: "0 26px 56px -28px rgba(12,38,96,0.8)",
+                  color: "#ffffff",
+                  transition: "transform 160ms ease",
+                  "&:hover": {
+                    transform: "translateY(-4px) scale(1.02)",
+                    background:
+                      "linear-gradient(135deg, rgba(255,255,255,0.28) 0%, rgba(99,213,245,0.48) 100%)",
+                  },
+                }}
+              >
+                {isPlaying ? (
+                  <PauseIcon sx={{ fontSize: 44 }} />
+                ) : (
+                  <PlayArrowIcon sx={{ fontSize: 48 }} />
+                )}
+              </IconButton>
+              <Stack spacing={1} sx={{ color: "rgba(224,239,255,0.78)" }}>
+                <Typography variant="caption" sx={{ letterSpacing: 1 }}>
+                  {isPlaying ? "Reproduciendo" : "Reanudar previa"}
+                </Typography>
+                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
+                  Usa los botones para pasar o salir de la partida cuando
+                  quieras.
+                </Typography>
+              </Stack>
+            </Stack>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              sx={{ pt: { xs: 2, md: 4 } }}
+            >
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<SkipNextIcon />}
+                onClick={handleNextAfterReveal}
+                sx={{
+                  minWidth: 200,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.5,
+                  boxShadow: "0 22px 48px -18px rgba(50,132,255,0.6)",
+                  background:
+                    "linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #22d3ee 100%)",
+                  "&:hover": {
+                    background:
+                      "linear-gradient(135deg, #2563eb 0%, #3b82f6 45%, #06b6d4 100%)",
+                    boxShadow: "0 26px 56px -20px rgba(37,99,235,0.7)",
+                  },
+                }}
+              >
+                Siguiente canción
+              </Button>
+              <Button
+                variant="outlined"
+                color="inherit"
+                startIcon={<ExitToAppIcon />}
+                onClick={handleExit}
+                sx={{
+                  minWidth: 200,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.5,
+                  borderColor: "rgba(255,255,255,0.4)",
+                  color: "rgba(255,255,255,0.92)",
+                  "&:hover": {
+                    borderColor: "rgba(255,255,255,0.7)",
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                  },
+                }}
+              >
+                Salir del juego
+              </Button>
+            </Stack>
+          </Box>
+          <Box
             sx={{
-              fontWeight: "bold",
-              textTransform: "none",
-              color: "#FFF !important",
-              border: "2px solid #FFF",
-              backgroundColor: "rgba(0,0,0,0.05) !important",
-              "&:hover": {
-                backgroundColor: "#FFF !important",
-                color: "#28518C !important",
-                border: "2px solid #FFF",
-              },
+              width: { xs: "100%", md: 340 },
+              display: "flex",
+              justifyContent: "center",
             }}
           >
-            Salir del juego
-          </Button>
-        </Box>
+            <Box
+              sx={{
+                position: "relative",
+                width: { xs: "72%", sm: 280, md: 320 },
+                aspectRatio: "1 / 1",
+                borderRadius: { xs: 4, md: 5 },
+                overflow: "hidden",
+                boxShadow: "0 38px 78px -32px rgba(5,18,52,0.82)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                background:
+                  "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(148,197,255,0.12) 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {artworkUrl ? (
+                <Box
+                  component="img"
+                  src={artworkUrl}
+                  alt={`Portada de ${currentSong.title}`}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                <Stack
+                  spacing={1}
+                  alignItems="center"
+                  sx={{ p: 3, color: "rgba(224,239,255,0.85)" }}
+                >
+                  <InfoOutlinedIcon sx={{ fontSize: 40, opacity: 0.75 }} />
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ textAlign: "center", fontWeight: 600 }}
+                  >
+                    Visual a la espera
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ textAlign: "center", opacity: 0.8 }}
+                  >
+                    {artworkLoading
+                      ? "Estamos buscando la portada perfecta…"
+                      : "No encontramos una portada. Sigue jugando para descubrir más."}
+                  </Typography>
+                </Stack>
+              )}
+              {artworkLoading ? (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "rgba(4,10,24,0.45)",
+                  }}
+                >
+                  <CircularProgress size={38} sx={{ color: "#d7f9ff" }} />
+                </Box>
+              ) : null}
+            </Box>
+          </Box>
+        </Stack>
       </Box>
     );
   };

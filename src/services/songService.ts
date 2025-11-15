@@ -5,6 +5,7 @@ let cachedSongCount: number | null = null;
 
 const SONG_FIELDS = "id, artist, title, year, youtube_url";
 const MAX_RANDOM_ATTEMPTS = 5;
+const BULK_FETCH_PAGE_SIZE = 1000;
 const YOUTUBE_ID_REGEX =
   /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
 
@@ -91,4 +92,35 @@ export async function fetchRandomSong(): Promise<Song> {
   throw new Error(
     "No se encontró una canción reproducible tras varios intentos. Verifica los datos cargados."
   );
+}
+
+export async function fetchAllSongs(): Promise<Song[]> {
+  const collected: Song[] = [];
+
+  for (let from = 0; ; from += BULK_FETCH_PAGE_SIZE) {
+    const to = from + BULK_FETCH_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("songs")
+      .select(SONG_FIELDS)
+      .order("id", { ascending: true })
+      .range(from, to);
+
+    if (error) {
+      throw new Error(
+        error.message || "No se pudieron cargar las canciones disponibles."
+      );
+    }
+
+    const batch = (data ?? []).map((raw) =>
+      normalizeSong(raw as Record<string, unknown>)
+    );
+
+    collected.push(...batch);
+
+    if (batch.length < BULK_FETCH_PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return collected;
 }

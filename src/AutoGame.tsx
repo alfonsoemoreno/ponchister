@@ -782,13 +782,10 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       <Box
         sx={{
           position: "relative",
-          width: "min(1100px, 94vw)",
-          height: { xs: "calc(100vh - 140px)", md: "calc(100vh - 180px)" },
+          width: "100%",
+          height: "100%",
           minHeight: { xs: 520, md: 640 },
-          borderRadius: { xs: 4, md: 6 },
           overflow: "hidden",
-          boxShadow: "0 50px 120px -40px rgba(9,22,64,0.72)",
-          border: "1px solid rgba(255,255,255,0.1)",
         }}
       >
         <Box
@@ -1212,112 +1209,140 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const renderControls = () => {
     if (gameState === "idle") {
       return (
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleStart}
-          startIcon={<RestartAltIcon />}
+        <Box
           sx={{
-            fontWeight: "bold",
-            fontSize: "1rem",
-            py: 1.2,
-            px: 3,
-            mt: 4,
-            textTransform: "none",
-            color: "#FFF !important",
-            border: "2px solid #FFF",
-            backgroundColor: "rgba(0,0,0,0.05) !important",
-            "&:hover": {
-              backgroundColor: "#FFF !important",
-              color: "#28518C !important",
-              border: "2px solid #FFF",
-            },
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          Iniciar partida automática
-        </Button>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={handleStart}
+            startIcon={<RestartAltIcon />}
+            sx={{
+              fontWeight: "bold",
+              fontSize: "1rem",
+              py: 1.2,
+              px: 3,
+              textTransform: "none",
+              color: "#FFF !important",
+              border: "2px solid #FFF",
+              backgroundColor: "rgba(0,0,0,0.05) !important",
+              "&:hover": {
+                backgroundColor: "#FFF !important",
+                color: "#28518C !important",
+                border: "2px solid #FFF",
+              },
+            }}
+          >
+            Iniciar partida automática
+          </Button>
+        </Box>
       );
     }
 
     if (gameState === "loading") {
       return (
-        <Stack
-          spacing={3}
-          alignItems="center"
+        <Box
           sx={{
-            mt: 6,
-            color: "rgba(255,255,255,0.9)",
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          <CircularProgress sx={{ color: "#d7f9ff" }} />
-          <Typography variant="body1">
-            Preparando la atmósfera para la próxima canción...
-          </Typography>
-        </Stack>
+          <Stack
+            spacing={3}
+            alignItems="center"
+            sx={{
+              color: "rgba(255,255,255,0.9)",
+            }}
+          >
+            <CircularProgress sx={{ color: "#d7f9ff" }} />
+            <Typography variant="body1">
+              Preparando la atmósfera para la próxima canción...
+            </Typography>
+          </Stack>
+        </Box>
       );
     }
 
     if (gameState === "error") {
       return (
-        <Stack
-          spacing={3}
-          alignItems="center"
+        <Box
           sx={{
-            mt: 4,
-            width: "min(520px, 92vw)",
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            px: 2,
           }}
         >
-          <Alert
-            severity="error"
-            icon={false}
+          <Stack
+            spacing={3}
+            alignItems="center"
             sx={{
-              width: "100%",
-              backgroundColor: "rgba(255,255,255,0.08)",
-              color: "rgba(255,255,255,0.94)",
-              border: "1px solid rgba(255,255,255,0.18)",
-              backdropFilter: "blur(12px)",
-              fontWeight: 500,
-              textAlign: "left",
+              width: "min(520px, 92vw)",
             }}
           >
-            {errorMessage ??
-              "No pudimos continuar la partida automática. Intenta reiniciarla o vuelve al menú principal."}
-          </Alert>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<RestartAltIcon />}
-              onClick={handleStart}
+            <Alert
+              severity="error"
+              icon={false}
               sx={{
-                minWidth: 200,
-                textTransform: "none",
-                fontWeight: 700,
+                width: "100%",
+                backgroundColor: "rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.94)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                backdropFilter: "blur(12px)",
+                fontWeight: 500,
+                textAlign: "left",
               }}
             >
-              Reintentar partida
-            </Button>
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={<ExitToAppIcon />}
-              onClick={handleExit}
-              sx={{
-                minWidth: 200,
-                textTransform: "none",
-                fontWeight: 700,
-                borderColor: "rgba(255,255,255,0.45)",
-                color: "rgba(255,255,255,0.92)",
-                "&:hover": {
-                  borderColor: "rgba(255,255,255,0.7)",
-                  backgroundColor: "rgba(255,255,255,0.12)",
-                },
-              }}
-            >
-              Salir
-            </Button>
+              {errorMessage ??
+                "No pudimos continuar la partida automática. Intenta reiniciarla o vuelve al menú principal."}
+            </Alert>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<RestartAltIcon />}
+                onClick={handleStart}
+                sx={{
+                  minWidth: 200,
+                  textTransform: "none",
+                  fontWeight: 700,
+                }}
+              >
+                Reintentar partida
+              </Button>
+              <Button
+                variant="outlined"
+                color="inherit"
+                startIcon={<ExitToAppIcon />}
+                onClick={handleExit}
+                sx={{
+                  minWidth: 200,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderColor: "rgba(255,255,255,0.45)",
+                  color: "rgba(255,255,255,0.92)",
+                  "&:hover": {
+                    borderColor: "rgba(255,255,255,0.7)",
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                  },
+                }}
+              >
+                Salir
+              </Button>
+            </Stack>
           </Stack>
-        </Stack>
+        </Box>
       );
     }
 
@@ -1407,12 +1432,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         sx={{
           flexGrow: 1,
           display: "flex",
-          flexDirection: "column",
+          alignItems: "stretch",
           justifyContent: "center",
-          alignItems: "center",
-          gap: 0,
           zIndex: 2,
           width: "100%",
+          height: "100%",
         }}
       >
         {renderControls()}

@@ -785,7 +785,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           width: "100%",
           height: { xs: "auto", md: "100%" },
           minHeight: { xs: 520, md: 640 },
-          overflow: "hidden",
+          overflow: { xs: "visible", md: "hidden" },
         }}
       >
         <Box
@@ -1460,7 +1460,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           justifyContent: "center",
           zIndex: 2,
           width: "100%",
-          height: "100%",
+          minHeight: 0,
         }}
       >
         {renderControls()}

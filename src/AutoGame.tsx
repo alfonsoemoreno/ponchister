@@ -158,28 +158,33 @@ function tokenize(value: string): string[] {
 const yearSpotlightPulse = keyframes`
   0% {
     opacity: 0;
-    transform: scale(0.6);
+    transform: scale(0.65);
     filter: blur(18px);
   }
-  22% {
+  14% {
+    opacity: 0.45;
+    transform: scale(0.82);
+    filter: blur(14px);
+  }
+  36% {
+    opacity: 0.92;
+    transform: scale(1.02);
+    filter: blur(8px);
+  }
+  58% {
     opacity: 1;
-    transform: scale(0.95);
+    transform: scale(1.32);
     filter: blur(3px);
   }
-  55% {
-    opacity: 1;
-    transform: scale(1.4);
-    filter: blur(0px);
-  }
-  82% {
-    opacity: 0.85;
-    transform: scale(1.9);
-    filter: blur(9px);
+  78% {
+    opacity: 0.74;
+    transform: scale(1.72);
+    filter: blur(7px);
   }
   100% {
     opacity: 0;
-    transform: scale(2.2);
-    filter: blur(18px);
+    transform: scale(2.08);
+    filter: blur(12px);
   }
 `;
 
@@ -889,7 +894,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 boxShadow: "0 52px 120px -34px rgba(2,8,34,0.88)",
                 color: "#ffffff",
                 textAlign: "center",
-                animation: `${yearSpotlightPulse} 3.4s ease-in-out forwards`,
+                animation: `${yearSpotlightPulse} 3.2s cubic-bezier(0.4, 0, 0.2, 1) forwards`,
+                willChange: "transform, opacity, filter",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -1447,7 +1453,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         pt: isExperienceMode ? { xs: 4, sm: 3, md: 0 } : undefined,
         overflowX: "hidden",
         overflowY: "auto",
-        pb: isExperienceMode ? { xs: 6, sm: 5, md: 4 } : { xs: 6, sm: 4 },
+        pb: isExperienceMode ? { xs: 6, sm: 5, md: 0 } : { xs: 6, sm: 4 },
         scrollbarWidth: "thin",
         WebkitOverflowScrolling: "touch",
         fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",

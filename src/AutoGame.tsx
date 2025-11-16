@@ -777,7 +777,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         : "No encontramos una portada perfecta, deja volar tu imaginación mientras suena la música."
       : null;
     const fallbackBackdrop =
-      "radial-gradient(circle at 30% 20%, rgba(99,213,245,0.28), rgba(9,12,28,0.95))";
+      "linear-gradient(140deg, rgba(16,52,124,0.55) 0%, rgba(6,22,56,0.92) 100%)";
     const shouldDisplayArtwork = showDetails && Boolean(artworkUrl);
     const hasNumericYear = typeof currentSong.year === "number";
 
@@ -803,6 +803,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             filter: shouldDisplayArtwork ? "blur(22px)" : "none",
             transform: shouldDisplayArtwork ? "scale(1.12)" : "none",
             opacity: shouldDisplayArtwork ? 0.95 : 1,
+            zIndex: 1,
           }}
         />
         <Box
@@ -810,13 +811,13 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             position: "absolute",
             inset: 0,
             background:
-              "linear-gradient(135deg, rgba(4,8,18,0.92) 0%, rgba(20,44,110,0.86) 52%, rgba(84,164,255,0.62) 100%)",
+              "linear-gradient(130deg, rgba(4,8,18,0.9) 0%, rgba(16,46,112,0.64) 50%, rgba(4,18,48,0.88) 100%)",
             backdropFilter: "blur(12px)",
-            zIndex: 1,
+            zIndex: 2,
           }}
         />
         {shouldShowNeon ? (
-          <Box className="neon-lines">
+          <Box className="neon-lines" sx={{ zIndex: 3 }}>
             <Box
               className="neon-line"
               sx={{
@@ -1452,13 +1453,21 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         scrollbarWidth: "thin",
         WebkitOverflowScrolling: "touch",
         fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",
-        backgroundColor: isExperienceMode ? "#040812" : undefined,
-        backgroundImage: isExperienceMode
-          ? "radial-gradient(circle at 20% 18%, rgba(44,132,255,0.28), rgba(4,8,18,0) 42%), linear-gradient(180deg, rgba(6,18,44,0.95) 0%, rgba(4,12,30,0.97) 58%, rgba(4,8,18,1) 100%)"
-          : undefined,
-        backgroundRepeat: isExperienceMode ? "no-repeat, no-repeat" : undefined,
-        backgroundSize: isExperienceMode ? "200% 220%, cover" : undefined,
-        backgroundAttachment: isExperienceMode ? "scroll, scroll" : undefined,
+        zIndex: 0,
+        ...(isExperienceMode
+          ? {
+              backgroundColor: "#04122c",
+              "&::before": {
+                content: "''",
+                position: "absolute",
+                inset: 0,
+                background:
+                  "linear-gradient(180deg, #082256 0%, #061b43 55%, #040f27 100%)",
+                pointerEvents: "none",
+                zIndex: 0,
+              },
+            }
+          : {}),
         overscrollBehavior: isExperienceMode ? "contain" : undefined,
       }}
     >

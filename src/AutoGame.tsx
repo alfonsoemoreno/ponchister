@@ -18,6 +18,8 @@ import SkipNextIcon from "@mui/icons-material/SkipNext";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 import { fetchAllSongs } from "./services/songService";
 import type { Song } from "./types";
@@ -202,6 +204,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const [artworkLoading, setArtworkLoading] = useState(false);
   const [artworkError, setArtworkError] = useState<string | null>(null);
   const [yearSpotlightVisible, setYearSpotlightVisible] = useState(false);
+  const [spotlightYear, setSpotlightYear] = useState<number | null>(null);
   const yearSpotlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -211,16 +214,146 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       clearTimeout(yearSpotlightTimerRef.current);
       yearSpotlightTimerRef.current = null;
     }
+    setYearSpotlightVisible(false);
+    setSpotlightYear(null);
   }, []);
 
-  const triggerYearSpotlight = useCallback(() => {
-    clearYearSpotlightTimeout();
-    setYearSpotlightVisible(true);
-    yearSpotlightTimerRef.current = setTimeout(() => {
-      setYearSpotlightVisible(false);
-      yearSpotlightTimerRef.current = null;
-    }, 3600);
-  }, [clearYearSpotlightTimeout]);
+  const triggerYearSpotlight = useCallback(
+    (year: number) => {
+      clearYearSpotlightTimeout();
+      setSpotlightYear(year);
+      setYearSpotlightVisible(true);
+      yearSpotlightTimerRef.current = setTimeout(() => {
+        setYearSpotlightVisible(false);
+        setSpotlightYear(null);
+        yearSpotlightTimerRef.current = null;
+      }, 3400);
+    },
+    [clearYearSpotlightTimeout]
+  );
+
+  const renderYearSpotlightOverlay = (displayYear: number | null) => {
+    if (!yearSpotlightVisible || displayYear === null) {
+      return null;
+    }
+
+    return (
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 4,
+          pointerEvents: "none",
+        }}
+      >
+        <Box
+          sx={{
+            width: { xs: "90vw", sm: "78vw", md: "62vw" },
+            height: { xs: "90vh", sm: "78vh", md: "62vh" },
+            maxWidth: 980,
+            maxHeight: 720,
+            minWidth: 260,
+            minHeight: 260,
+            borderRadius: { xs: 6, md: 8 },
+            background:
+              "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.22), rgba(5,18,52,0.9))",
+            boxShadow: "0 52px 120px -34px rgba(2,8,34,0.88)",
+            color: "#ffffff",
+            textAlign: "center",
+            animation: `${yearSpotlightPulse} 3.2s cubic-bezier(0.4, 0, 0.2, 1) forwards`,
+            willChange: "transform, opacity, filter",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 2,
+          }}
+        >
+          <Typography
+            variant="subtitle1"
+            sx={{
+              letterSpacing: { xs: 10, sm: 16 },
+              textTransform: "uppercase",
+              opacity: 0.86,
+              fontWeight: 600,
+              fontSize: { xs: "1.05rem", sm: "1.35rem" },
+            }}
+          >
+            Año
+          </Typography>
+          <Typography
+            variant="h1"
+            sx={{
+              fontWeight: 800,
+              lineHeight: 0.92,
+              letterSpacing: "-0.03em",
+              textShadow: "0 48px 90px rgba(0,0,0,0.75)",
+              fontSize: {
+                xs: "clamp(3.8rem, 18vw, 9rem)",
+                sm: "clamp(5rem, 16vw, 10.5rem)",
+                md: "clamp(6rem, 14vw, 11.5rem)",
+              },
+            }}
+          >
+            {displayYear}
+          </Typography>
+        </Box>
+      </Box>
+    );
+  };
+
+  const renderNeonLines = () => (
+    <Box className="neon-lines" sx={{ zIndex: 3 }}>
+      <Box
+        className="neon-line"
+        sx={{
+          top: "18%",
+          background: "linear-gradient(90deg, #00fff7, #0ff, #fff)",
+          boxShadow: "0 0 16px #00fff7",
+          animation: "neon-move-right 2.5s linear infinite",
+        }}
+      />
+      <Box
+        className="neon-line"
+        sx={{
+          top: "32%",
+          background: "linear-gradient(90deg, #ff00ea, #fff, #ff0)",
+          boxShadow: "0 0 16px #ff00ea",
+          animation: "neon-move-left 3.2s linear infinite",
+        }}
+      />
+      <Box
+        className="neon-line"
+        sx={{
+          top: "46%",
+          background: "linear-gradient(90deg, #fff200, #fff, #00ff6a)",
+          boxShadow: "0 0 16px #fff200",
+          animation: "neon-move-right 2.1s linear infinite",
+        }}
+      />
+      <Box
+        className="neon-line"
+        sx={{
+          top: "60%",
+          background: "linear-gradient(90deg, #00ff6a, #fff, #00fff7)",
+          boxShadow: "0 0 16px #00ff6a",
+          animation: "neon-move-left 2.8s linear infinite",
+        }}
+      />
+      <Box
+        className="neon-line"
+        sx={{
+          top: "74%",
+          background: "linear-gradient(90deg, #ff0, #fff, #ff00ea)",
+          boxShadow: "0 0 16px #ff0",
+          animation: "neon-move-right 3.5s linear infinite",
+        }}
+      />
+    </Box>
+  );
 
   const playerOptions = useMemo<YouTubeProps["opts"]>(() => {
     const origin =
@@ -506,7 +639,6 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     setArtworkUrl(null);
     setArtworkError(null);
     clearYearSpotlightTimeout();
-    setYearSpotlightVisible(false);
 
     seenSongIdsRef.current.clear();
     songQueueRef.current = [];
@@ -569,7 +701,6 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     setArtworkError(null);
     setArtworkUrl(null);
     clearYearSpotlightTimeout();
-    setYearSpotlightVisible(false);
 
     const nextSong = selectNextSongFromQueue();
 
@@ -599,7 +730,17 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
 
   const handleReveal = () => {
     setGameState("revealed");
-    triggerYearSpotlight();
+    if (currentSong && typeof currentSong.year === "number") {
+      triggerYearSpotlight(currentSong.year);
+    }
+  };
+
+  const handleRandomYearReveal = () => {
+    const currentYear = new Date().getFullYear();
+    const minYear = 1950;
+    const randomYear =
+      Math.floor(Math.random() * (currentYear - minYear + 1)) + minYear;
+    triggerYearSpotlight(randomYear);
   };
 
   const handleNextAfterReveal = () => {
@@ -626,7 +767,6 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       setArtworkLoading(false);
       setArtworkError(null);
       clearYearSpotlightTimeout();
-      setYearSpotlightVisible(false);
       seenSongIdsRef.current.clear();
       songQueueRef.current = [];
       queueIndexRef.current = 0;
@@ -785,6 +925,12 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       "linear-gradient(190deg, rgba(12,44,110,0.75) 0%, rgba(6,26,68,0.88) 55%, rgba(2,12,34,0.92) 100%)";
     const shouldDisplayArtwork = showDetails && Boolean(artworkUrl);
     const hasNumericYear = typeof currentSong.year === "number";
+    const spotlightDisplayYear =
+      spotlightYear !== null
+        ? spotlightYear
+        : hasNumericYear
+        ? currentSong.year
+        : null;
 
     return (
       <Box
@@ -819,121 +965,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             zIndex: 2,
           }}
         />
-        {shouldShowNeon ? (
-          <Box className="neon-lines" sx={{ zIndex: 3 }}>
-            <Box
-              className="neon-line"
-              sx={{
-                top: "18%",
-                background: "linear-gradient(90deg, #00fff7, #0ff, #fff)",
-                boxShadow: "0 0 16px #00fff7",
-                animation: "neon-move-right 2.5s linear infinite",
-              }}
-            />
-            <Box
-              className="neon-line"
-              sx={{
-                top: "32%",
-                background: "linear-gradient(90deg, #ff00ea, #fff, #ff0)",
-                boxShadow: "0 0 16px #ff00ea",
-                animation: "neon-move-left 3.2s linear infinite",
-              }}
-            />
-            <Box
-              className="neon-line"
-              sx={{
-                top: "46%",
-                background: "linear-gradient(90deg, #fff200, #fff, #00ff6a)",
-                boxShadow: "0 0 16px #fff200",
-                animation: "neon-move-right 2.1s linear infinite",
-              }}
-            />
-            <Box
-              className="neon-line"
-              sx={{
-                top: "60%",
-                background: "linear-gradient(90deg, #00ff6a, #fff, #00fff7)",
-                boxShadow: "0 0 16px #00ff6a",
-                animation: "neon-move-left 2.8s linear infinite",
-              }}
-            />
-            <Box
-              className="neon-line"
-              sx={{
-                top: "74%",
-                background: "linear-gradient(90deg, #ff0, #fff, #ff00ea)",
-                boxShadow: "0 0 16px #ff0",
-                animation: "neon-move-right 3.5s linear infinite",
-              }}
-            />
-          </Box>
-        ) : null}
-        {showDetails && yearSpotlightVisible && hasNumericYear ? (
-          <Box
-            sx={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 4,
-              pointerEvents: "none",
-            }}
-          >
-            <Box
-              sx={{
-                width: { xs: "90vw", sm: "78vw", md: "62vw" },
-                height: { xs: "90vh", sm: "78vh", md: "62vh" },
-                maxWidth: 980,
-                maxHeight: 720,
-                minWidth: 260,
-                minHeight: 260,
-                borderRadius: { xs: 6, md: 8 },
-                background:
-                  "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.22), rgba(5,18,52,0.9))",
-                boxShadow: "0 52px 120px -34px rgba(2,8,34,0.88)",
-                color: "#ffffff",
-                textAlign: "center",
-                animation: `${yearSpotlightPulse} 3.2s cubic-bezier(0.4, 0, 0.2, 1) forwards`,
-                willChange: "transform, opacity, filter",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 2,
-              }}
-            >
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  letterSpacing: { xs: 10, sm: 16 },
-                  textTransform: "uppercase",
-                  opacity: 0.86,
-                  fontWeight: 600,
-                  fontSize: { xs: "1.05rem", sm: "1.35rem" },
-                }}
-              >
-                Año
-              </Typography>
-              <Typography
-                variant="h1"
-                sx={{
-                  fontWeight: 800,
-                  lineHeight: 0.92,
-                  letterSpacing: "-0.03em",
-                  textShadow: "0 48px 90px rgba(0,0,0,0.75)",
-                  fontSize: {
-                    xs: "clamp(3.8rem, 18vw, 9rem)",
-                    sm: "clamp(5rem, 16vw, 10.5rem)",
-                    md: "clamp(6rem, 14vw, 11.5rem)",
-                  },
-                }}
-              >
-                {currentSong.year}
-              </Typography>
-            </Box>
-          </Box>
-        ) : null}
+        {shouldShowNeon ? renderNeonLines() : null}
+        {renderYearSpotlightOverlay(spotlightDisplayYear)}
         <Stack
           direction={{ xs: "column-reverse", md: "row" }}
           spacing={{ xs: 3, md: 5 }}
@@ -1279,43 +1312,281 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     );
   };
 
-  const renderControls = () => {
-    if (gameState === "idle") {
-      return (
+  const renderIdleLanding = () => {
+    const currentYear = new Date().getFullYear();
+    const fallbackBackdrop =
+      "linear-gradient(190deg, rgba(12,44,110,0.75) 0%, rgba(6,26,68,0.88) 55%, rgba(2,12,34,0.92) 100%)";
+
+    return (
+      <Box
+        sx={{
+          position: "relative",
+          width: "100%",
+          height: { xs: "auto", md: "100%" },
+          minHeight: { xs: 560, md: 640 },
+          overflow: { xs: "visible", md: "hidden" },
+        }}
+      >
         <Box
           sx={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            position: "absolute",
+            inset: 0,
+            backgroundImage: fallbackBackdrop,
+            backgroundSize: "140% 140%",
+            backgroundPosition: "48% 42%",
+            zIndex: 1,
+          }}
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            inset: 0,
+            backdropFilter: "blur(12px)",
+            zIndex: 2,
+          }}
+        />
+        {renderNeonLines()}
+        {renderYearSpotlightOverlay(spotlightYear)}
+        <Stack
+          direction={{ xs: "column-reverse", md: "row" }}
+          spacing={{ xs: 3, md: 5 }}
+          sx={{
+            position: "relative",
+            zIndex: 3,
+            p: { xs: 3, sm: 4, md: 6 },
+            alignItems: { xs: "stretch", md: "center" },
+            gap: { xs: 4, md: 5 },
+            height: { xs: "auto", md: "100%" },
+            pb: { xs: 6, md: 0 },
           }}
         >
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={handleStart}
-            startIcon={<RestartAltIcon />}
+          <Box
             sx={{
-              fontWeight: "bold",
-              fontSize: "1rem",
-              py: 1.2,
-              px: 3,
-              textTransform: "none",
-              color: "#FFF !important",
-              border: "2px solid #FFF",
-              backgroundColor: "rgba(0,0,0,0.05) !important",
-              "&:hover": {
-                backgroundColor: "#FFF !important",
-                color: "#28518C !important",
-                border: "2px solid #FFF",
-              },
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: { xs: 3, md: 4 },
+              justifyContent: { xs: "flex-start", md: "center" },
+              alignItems: "flex-start",
             }}
           >
-            Iniciar partida automática
-          </Button>
-        </Box>
-      );
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              flexWrap="wrap"
+              sx={{ color: "#fff" }}
+            >
+              <Chip
+                label="Modo automático"
+                sx={{
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  backgroundColor: "rgba(255,255,255,0.16)",
+                  color: "#fff",
+                  backdropFilter: "blur(10px)",
+                }}
+              />
+              <Chip
+                label={`Explora ${1950} - ${currentYear}`}
+                sx={{
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  backgroundColor: "rgba(13,148,255,0.2)",
+                  color: "rgba(212,239,255,0.95)",
+                  border: "1px solid rgba(148,197,255,0.35)",
+                }}
+              />
+              <Chip
+                label="Visual inmersivo"
+                sx={{
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                  color: "rgba(230,243,255,0.92)",
+                  border: "1px dashed rgba(230,243,255,0.35)",
+                }}
+              />
+            </Stack>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                letterSpacing: "-0.015em",
+                textAlign: "left",
+                color: "#ffffff",
+                textShadow: "0 30px 60px rgba(0,0,0,0.55)",
+              }}
+            >
+              Vive la experiencia automática
+            </Typography>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 600,
+                color: "rgba(204,231,255,0.92)",
+                textAlign: "left",
+              }}
+            >
+              Canciones, portadas y atmósferas listas para sorprenderte.
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: "rgba(224,239,255,0.82)",
+                maxWidth: 520,
+                textAlign: "left",
+              }}
+            >
+              Prepárate para una secuencia equilibrada de pistas que mantiene el
+              suspenso. Cuando quieras empezar, solo presiona iniciar y deja que
+              el juego haga el resto.
+            </Typography>
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              sx={{
+                pt: { xs: 1, md: 3 },
+                flexWrap: "wrap",
+                alignSelf: { xs: "stretch", md: "flex-start" },
+              }}
+            >
+              <Stack spacing={1} sx={{ color: "rgba(224,239,255,0.78)" }}>
+                <Typography variant="caption" sx={{ letterSpacing: 1 }}>
+                  Listo para comenzar
+                </Typography>
+                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
+                  Inicia o genera un año de referencia en segundos.
+                </Typography>
+              </Stack>
+            </Stack>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              sx={{
+                pt: { xs: 2, md: 4 },
+                alignSelf: { xs: "stretch", md: "flex-start" },
+              }}
+            >
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<PlayArrowIcon />}
+                onClick={handleStart}
+                sx={{
+                  minWidth: 220,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.6,
+                  boxShadow: "0 22px 48px -18px rgba(50,132,255,0.6)",
+                  background:
+                    "linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #22d3ee 100%)",
+                  "&:hover": {
+                    background:
+                      "linear-gradient(135deg, #2563eb 0%, #3b82f6 45%, #06b6d4 100%)",
+                    boxShadow: "0 26px 56px -20px rgba(37,99,235,0.7)",
+                  },
+                }}
+              >
+                Iniciar partida automática
+              </Button>
+              <Button
+                variant="outlined"
+                color="inherit"
+                startIcon={<CalendarMonthIcon />}
+                onClick={handleRandomYearReveal}
+                sx={{
+                  minWidth: 220,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.6,
+                  borderColor: "rgba(255,255,255,0.4)",
+                  color: "rgba(255,255,255,0.92)",
+                  "&:hover": {
+                    borderColor: "rgba(255,255,255,0.7)",
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                  },
+                }}
+              >
+                Obtener año de partida
+              </Button>
+            </Stack>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "rgba(204,231,255,0.72)",
+                textAlign: "left",
+              }}
+            >
+              Cada año sugerido se muestra con la misma animación que la
+              revelación de canciones.
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              width: { xs: "100%", md: 420 },
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <Box
+              sx={{
+                position: "relative",
+                width: { xs: "72%", sm: 300, md: 360 },
+                aspectRatio: "1 / 1",
+                borderRadius: { xs: 4, md: 5 },
+                overflow: "hidden",
+                boxShadow: "0 38px 78px -32px rgba(5,18,52,0.82)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                background:
+                  "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(148,197,255,0.12) 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "column",
+                gap: 2.5,
+                color: "rgba(224,239,255,0.9)",
+                p: { xs: 3, md: 4 },
+                textAlign: "center",
+              }}
+            >
+              <AutoAwesomeIcon
+                sx={{ fontSize: { xs: 56, sm: 64, md: 72 }, opacity: 0.85 }}
+              />
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 700, letterSpacing: 1 }}
+              >
+                Elige tu punto de partida
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  maxWidth: 240,
+                  opacity: 0.8,
+                }}
+              >
+                Obtén un año aleatorio entre 1950 y {currentYear} para inspirar
+                tu próxima partida.
+              </Typography>
+            </Box>
+          </Box>
+        </Stack>
+      </Box>
+    );
+  };
+
+  const renderControls = () => {
+    if (gameState === "idle") {
+      return renderIdleLanding();
     }
 
     if (gameState === "loading") {

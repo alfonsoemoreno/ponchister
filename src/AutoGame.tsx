@@ -777,7 +777,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         : "No encontramos una portada perfecta, deja volar tu imaginación mientras suena la música."
       : null;
     const fallbackBackdrop =
-      "linear-gradient(140deg, rgba(16,52,124,0.55) 0%, rgba(6,22,56,0.92) 100%)";
+      "linear-gradient(190deg, rgba(12,44,110,0.75) 0%, rgba(6,26,68,0.88) 55%, rgba(2,12,34,0.92) 100%)";
     const shouldDisplayArtwork = showDetails && Boolean(artworkUrl);
     const hasNumericYear = typeof currentSong.year === "number";
 
@@ -798,8 +798,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             backgroundImage: shouldDisplayArtwork
               ? `url(${artworkUrl})`
               : fallbackBackdrop,
-            backgroundSize: shouldDisplayArtwork ? "cover" : "150% 150%",
-            backgroundPosition: shouldDisplayArtwork ? "center" : "50% 50%",
+            backgroundSize: shouldDisplayArtwork ? "cover" : "140% 140%",
+            backgroundPosition: shouldDisplayArtwork ? "center" : "45% 40%",
             filter: shouldDisplayArtwork ? "blur(22px)" : "none",
             transform: shouldDisplayArtwork ? "scale(1.12)" : "none",
             opacity: shouldDisplayArtwork ? 0.95 : 1,
@@ -811,7 +811,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             position: "absolute",
             inset: 0,
             background:
-              "linear-gradient(130deg, rgba(4,8,18,0.9) 0%, rgba(16,46,112,0.64) 50%, rgba(4,18,48,0.88) 100%)",
+              "linear-gradient(135deg, rgba(4,10,24,0.45) 0%, rgba(12,40,92,0.32) 52%, rgba(4,14,32,0.7) 100%)",
             backdropFilter: "blur(12px)",
             zIndex: 2,
           }}
@@ -1456,16 +1456,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         zIndex: 0,
         ...(isExperienceMode
           ? {
-              backgroundColor: "#04122c",
-              "&::before": {
-                content: "''",
-                position: "absolute",
-                inset: 0,
-                background:
-                  "linear-gradient(180deg, #082256 0%, #061b43 55%, #040f27 100%)",
-                pointerEvents: "none",
-                zIndex: 0,
-              },
+              background:
+                "linear-gradient(190deg, #0a2a6f 0%, #051d4a 52%, #030c26 100%)",
             }
           : {}),
         overscrollBehavior: isExperienceMode ? "contain" : undefined,

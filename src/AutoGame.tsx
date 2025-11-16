@@ -810,8 +810,6 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           sx={{
             position: "absolute",
             inset: 0,
-            background:
-              "linear-gradient(135deg, rgba(4,10,24,0.45) 0%, rgba(12,40,92,0.32) 52%, rgba(4,14,32,0.7) 100%)",
             backdropFilter: "blur(12px)",
             zIndex: 2,
           }}

@@ -1705,7 +1705,6 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
 
   return (
     <Box
-      className={isExperienceMode ? undefined : "ocean-background"}
       sx={{
         position: "relative",
         width: "100vw",
@@ -1720,11 +1719,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           : "center",
         color: "white",
         textAlign: "center",
-        p: isExperienceMode ? 0 : 2,
-        pt: isExperienceMode ? { xs: 4, sm: 3, md: 0 } : undefined,
+        p: 0,
+        pt: 0,
         overflowX: "hidden",
         overflowY: "auto",
-        pb: isExperienceMode ? { xs: 6, sm: 5, md: 0 } : { xs: 6, sm: 4 },
+        pb: 0,
         scrollbarWidth: "thin",
         WebkitOverflowScrolling: "touch",
         fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",

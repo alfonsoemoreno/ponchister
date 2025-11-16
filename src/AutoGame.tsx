@@ -1453,6 +1453,12 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         WebkitOverflowScrolling: "touch",
         fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",
         backgroundColor: isExperienceMode ? "#040812" : undefined,
+        backgroundImage: isExperienceMode
+          ? "radial-gradient(circle at 20% 18%, rgba(44,132,255,0.28), rgba(4,8,18,0) 42%), linear-gradient(180deg, rgba(6,18,44,0.95) 0%, rgba(4,12,30,0.97) 58%, rgba(4,8,18,1) 100%)"
+          : undefined,
+        backgroundRepeat: isExperienceMode ? "no-repeat, no-repeat" : undefined,
+        backgroundSize: isExperienceMode ? "200% 220%, cover" : undefined,
+        backgroundAttachment: isExperienceMode ? "scroll, scroll" : undefined,
         overscrollBehavior: isExperienceMode ? "contain" : undefined,
       }}
     >

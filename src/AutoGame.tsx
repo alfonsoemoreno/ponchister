@@ -896,6 +896,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               flexDirection: "column",
               height: { xs: "auto", md: "100%" },
               gap: { xs: 3, md: 4 },
+              justifyContent: { xs: "flex-start", md: "center" },
+              alignItems: "flex-start",
+              py: { xs: 0, md: 2 },
             }}
           >
             <Box
@@ -903,8 +906,10 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 display: "flex",
                 flexDirection: "column",
                 gap: { xs: 2.5, md: 3 },
-                flexGrow: { xs: 0, md: 1 },
-                justifyContent: { xs: "flex-start", md: "center" },
+                flexGrow: { xs: 0, md: 0 },
+                justifyContent: "flex-start",
+                maxWidth: 520,
+                width: "100%",
               }}
             >
               {errorMessage ? (
@@ -1026,7 +1031,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               direction="row"
               spacing={2}
               alignItems="center"
-              sx={{ pt: { xs: 1, md: 2 }, flexWrap: "wrap" }}
+              sx={{
+                pt: { xs: 1, md: 3 },
+                flexWrap: "wrap",
+                alignSelf: { xs: "stretch", md: "flex-start" },
+              }}
             >
               <IconButton
                 onClick={handlePlayPause}
@@ -1065,7 +1074,10 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={2}
-              sx={{ pt: { xs: 2, md: 4 } }}
+              sx={{
+                pt: { xs: 2, md: 4 },
+                alignSelf: { xs: "stretch", md: "flex-start" },
+              }}
             >
               <Button
                 variant={primaryAction.variant}
@@ -1367,19 +1379,23 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       className={isExperienceMode ? undefined : "ocean-background"}
       sx={{
         position: "relative",
-        height: "100vh",
         width: "100vw",
+        minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
+        justifyContent: isExperienceMode
+          ? { xs: "flex-start", md: "center" }
+          : "center",
+        alignItems: isExperienceMode
+          ? { xs: "stretch", md: "center" }
+          : "center",
         color: "white",
         textAlign: "center",
         p: isExperienceMode ? 0 : 2,
-        pt: isExperienceMode ? { xs: 3, sm: 2 } : undefined,
+        pt: isExperienceMode ? { xs: 4, sm: 3, md: 0 } : undefined,
         overflowX: "hidden",
-        overflowY: isExperienceMode ? { xs: "auto", md: "hidden" } : "auto",
-        pb: isExperienceMode ? { xs: 4, sm: 3 } : { xs: 6, sm: 4 },
+        overflowY: "auto",
+        pb: isExperienceMode ? { xs: 6, sm: 5, md: 4 } : { xs: 6, sm: 4 },
         scrollbarWidth: "thin",
         WebkitOverflowScrolling: "touch",
         fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",

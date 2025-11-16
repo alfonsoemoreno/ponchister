@@ -700,7 +700,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     }
 
     const showDetails = mode === "reveal";
-    const baseChipLabel = showDetails ? "Ahora suena" : "Modo sorpresa";
+    const baseChipLabel = showDetails ? "Ahora suena" : null;
     const secondaryChipLabel = showDetails
       ? typeof currentSong.year === "number"
         ? `Año ${currentSong.year}`
@@ -808,7 +808,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             inset: 0,
             background:
               "linear-gradient(135deg, rgba(4,8,18,0.92) 0%, rgba(20,44,110,0.86) 52%, rgba(84,164,255,0.62) 100%)",
-            backdropFilter: "blur(8px)",
+            backdropFilter: "blur(12px)",
           }}
         />
         {showDetails && yearSpotlightVisible && hasNumericYear ? (
@@ -928,17 +928,19 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 flexWrap="wrap"
                 sx={{ color: "#fff" }}
               >
-                <Chip
-                  label={baseChipLabel}
-                  sx={{
-                    fontWeight: 600,
-                    letterSpacing: 1,
-                    textTransform: "uppercase",
-                    backgroundColor: "rgba(255,255,255,0.16)",
-                    color: "#fff",
-                    backdropFilter: "blur(10px)",
-                  }}
-                />
+                {baseChipLabel ? (
+                  <Chip
+                    label={baseChipLabel}
+                    sx={{
+                      fontWeight: 600,
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                      backgroundColor: "rgba(255,255,255,0.16)",
+                      color: "#fff",
+                      backdropFilter: "blur(10px)",
+                    }}
+                  />
+                ) : null}
                 <Chip
                   label={secondaryChipLabel}
                   sx={{
@@ -1128,7 +1130,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           </Box>
           <Box
             sx={{
-              width: { xs: "100%", md: 340 },
+              width: { xs: "100%", md: 420 },
               display: "flex",
               justifyContent: "center",
             }}
@@ -1136,7 +1138,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             <Box
               sx={{
                 position: "relative",
-                width: { xs: "72%", sm: 280, md: 320 },
+                width: { xs: "72%", sm: 300, md: 380 },
                 aspectRatio: "1 / 1",
                 borderRadius: { xs: 4, md: 5 },
                 overflow: "hidden",
@@ -1357,9 +1359,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     return renderExperienceView("guess");
   };
 
+  const isExperienceMode = gameState === "playing" || gameState === "revealed";
+
   return (
     <Box
-      className="ocean-background"
+      className={isExperienceMode ? undefined : "ocean-background"}
       sx={{
         position: "relative",
         height: "100vh",
@@ -1370,13 +1374,14 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         alignItems: "center",
         color: "white",
         textAlign: "center",
-        p: 2,
+        p: isExperienceMode ? 0 : 2,
         overflowX: "hidden",
-        overflowY: "auto",
-        pb: { xs: 6, sm: 4 },
+        overflowY: isExperienceMode ? "hidden" : "auto",
+        pb: isExperienceMode ? 0 : { xs: 6, sm: 4 },
         scrollbarWidth: "thin",
         WebkitOverflowScrolling: "touch",
         fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",
+        backgroundColor: isExperienceMode ? "#040812" : undefined,
       }}
     >
       <Box sx={{ position: "absolute", top: 24, right: 24, zIndex: 10 }}>

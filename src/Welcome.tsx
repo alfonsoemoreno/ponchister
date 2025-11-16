@@ -135,26 +135,58 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept, onStartAuto }) => {
           width: "100%",
           display: "flex",
           justifyContent: "center",
+          alignItems: "stretch",
         }}
       >
         <Stack
-          spacing={{ xs: 4, md: 6 }}
+          direction={{ xs: "column", md: "row" }}
+          spacing={{ xs: 5, md: 6 }}
           sx={{
-            width: "min(960px, 92vw)",
-            py: { xs: 6, md: 10 },
+            width: "min(1080px, 92vw)",
+            py: { xs: 6, md: 8 },
+            alignItems: { xs: "stretch", md: "flex-start" },
           }}
         >
           <Box
-            component="img"
-            src="/ponchister_logo.png"
-            alt="Ponchister"
             sx={{
-              width: { xs: "58%", sm: 240, md: 260 },
-              maxWidth: 320,
-              alignSelf: { xs: "flex-start", md: "flex-start" },
+              width: { xs: "78%", sm: 320, md: 380 },
+              alignSelf: { xs: "center", md: "flex-start" },
             }}
-          />
-          <Stack spacing={3} sx={{ maxWidth: 620 }}>
+          >
+            <Box
+              sx={{
+                position: "relative",
+                width: "100%",
+                aspectRatio: "1 / 1",
+                borderRadius: { xs: 4, md: 5 },
+                overflow: "hidden",
+                boxShadow: "0 38px 78px -32px rgba(5,18,52,0.82)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                background:
+                  "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(148,197,255,0.12) 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                p: { xs: 4, md: 5 },
+              }}
+            >
+              <Box
+                component="img"
+                src="/ponchister_logo.png"
+                alt="Ponchister"
+                sx={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  filter: "drop-shadow(0 22px 40px rgba(2,10,36,0.55))",
+                }}
+              />
+            </Box>
+          </Box>
+          <Stack
+            spacing={{ xs: 4, md: 5 }}
+            sx={{ flex: 1, alignSelf: { xs: "center", md: "flex-start" } }}
+          >
             <Stack
               direction="row"
               spacing={1.5}
@@ -195,123 +227,123 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept, onStartAuto }) => {
                 }}
               />
             </Stack>
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 800,
-                letterSpacing: "-0.02em",
-                textShadow: "0 40px 80px rgba(0,0,0,0.6)",
-              }}
-            >
-              Descubre Ponchister en su forma más cinematográfica
-            </Typography>
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight: 600,
-                color: "rgba(204,231,255,0.92)",
-              }}
-            >
-              Escanea un código QR para escuchar una pista o lánzate al modo
-              automático para recibir canciones equilibradas, portadas y
-              atmósferas envolventes al instante.
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{ color: "rgba(224,239,255,0.82)", maxWidth: 600 }}
-            >
-              Nuestro algoritmo evita repeticiones, equilibra décadas y revela
-              cada canción con animaciones brillantes. Puedes inspirarte con un
-              año al azar, explorar tarjetas impresas o simplemente dejar que la
-              música te sorprenda.
-            </Typography>
-          </Stack>
-          <Stack spacing={3} sx={{ maxWidth: 640 }}>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={2}
-              sx={{
-                alignSelf: { xs: "stretch", sm: "flex-start" },
-              }}
-            >
-              <Button
-                variant="contained"
-                startIcon={<QrCodeScannerIcon />}
-                onClick={handleStartScan}
+            <Stack spacing={2.5} sx={{ maxWidth: 620 }}>
+              <Typography
+                variant="h3"
                 sx={{
-                  minWidth: 220,
-                  textTransform: "none",
-                  fontWeight: 700,
-                  borderRadius: 999,
-                  px: 3.5,
-                  py: 1.6,
-                  boxShadow: "0 22px 48px -18px rgba(50,132,255,0.6)",
-                  background:
-                    "linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #22d3ee 100%)",
-                  "&:hover": {
-                    background:
-                      "linear-gradient(135deg, #2563eb 0%, #3b82f6 45%, #06b6d4 100%)",
-                    boxShadow: "0 26px 56px -20px rgba(37,99,235,0.7)",
-                  },
+                  fontWeight: 800,
+                  letterSpacing: "-0.02em",
+                  textShadow: "0 40px 80px rgba(0,0,0,0.6)",
                 }}
               >
-                Comenzar con QR
-              </Button>
-              <Button
-                variant="outlined"
-                color="inherit"
-                startIcon={<AutoAwesomeIcon />}
-                onClick={handleStartAutoMode}
+                Descubre Ponchister en su forma más cinematográfica
+              </Typography>
+              <Typography
+                variant="h5"
                 sx={{
-                  minWidth: 220,
-                  textTransform: "none",
-                  fontWeight: 700,
-                  borderRadius: 999,
-                  px: 3.5,
-                  py: 1.6,
-                  borderColor: "rgba(255,255,255,0.4)",
-                  color: "rgba(255,255,255,0.92)",
-                  "&:hover": {
-                    borderColor: "rgba(255,255,255,0.7)",
-                    backgroundColor: "rgba(255,255,255,0.12)",
-                  },
+                  fontWeight: 600,
+                  color: "rgba(204,231,255,0.92)",
                 }}
               >
-                Activar modo automático
-              </Button>
-              <Button
-                variant="outlined"
-                color="inherit"
-                startIcon={<OpenInNewIcon />}
-                onClick={handleOpenCards}
-                sx={{
-                  minWidth: 220,
-                  textTransform: "none",
-                  fontWeight: 700,
-                  borderRadius: 999,
-                  px: 3.5,
-                  py: 1.6,
-                  borderColor: "rgba(255,255,255,0.24)",
-                  color: "rgba(224,239,255,0.92)",
-                  "&:hover": {
-                    borderColor: "rgba(255,255,255,0.5)",
-                    backgroundColor: "rgba(255,255,255,0.08)",
-                  },
-                }}
+                Escanea un código QR para escuchar una pista o lánzate al modo
+                automático para recibir canciones equilibradas, portadas y
+                atmósferas envolventes al instante.
+              </Typography>
+              <Typography
+                variant="body1"
+                sx={{ color: "rgba(224,239,255,0.82)", maxWidth: 600 }}
               >
-                Generar tarjetas y fichas
-              </Button>
+                Nuestro algoritmo evita repeticiones, equilibra décadas y revela
+                cada canción con animaciones brillantes. Puedes inspirarte con
+                un año al azar, explorar tarjetas impresas o simplemente dejar
+                que la música te sorprenda.
+              </Typography>
             </Stack>
-            <Typography
-              variant="caption"
-              sx={{
-                color: "rgba(204,231,255,0.74)",
-                letterSpacing: 0.4,
-              }}
-            >
-              Sugerencia: activa pantalla completa para disfrutar al máximo las
-              animaciones y el ambiente sonoro.
-            </Typography>
+            <Stack spacing={3} sx={{ maxWidth: 640 }}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+              >
+                <Button
+                  variant="contained"
+                  startIcon={<QrCodeScannerIcon />}
+                  onClick={handleStartScan}
+                  sx={{
+                    minWidth: 220,
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    px: 3.5,
+                    py: 1.6,
+                    boxShadow: "0 22px 48px -18px rgba(50,132,255,0.6)",
+                    background:
+                      "linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #22d3ee 100%)",
+                    "&:hover": {
+                      background:
+                        "linear-gradient(135deg, #2563eb 0%, #3b82f6 45%, #06b6d4 100%)",
+                      boxShadow: "0 26px 56px -20px rgba(37,99,235,0.7)",
+                    },
+                  }}
+                >
+                  Comenzar con QR
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<AutoAwesomeIcon />}
+                  onClick={handleStartAutoMode}
+                  sx={{
+                    minWidth: 220,
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    px: 3.5,
+                    py: 1.6,
+                    borderColor: "rgba(255,255,255,0.4)",
+                    color: "rgba(255,255,255,0.92)",
+                    "&:hover": {
+                      borderColor: "rgba(255,255,255,0.7)",
+                      backgroundColor: "rgba(255,255,255,0.12)",
+                    },
+                  }}
+                >
+                  Activar modo automático
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<OpenInNewIcon />}
+                  onClick={handleOpenCards}
+                  sx={{
+                    minWidth: 220,
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    px: 3.5,
+                    py: 1.6,
+                    borderColor: "rgba(255,255,255,0.24)",
+                    color: "rgba(224,239,255,0.92)",
+                    "&:hover": {
+                      borderColor: "rgba(255,255,255,0.5)",
+                      backgroundColor: "rgba(255,255,255,0.08)",
+                    },
+                  }}
+                >
+                  Generar tarjetas y fichas
+                </Button>
+              </Stack>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "rgba(204,231,255,0.74)",
+                  letterSpacing: 0.4,
+                }}
+              >
+                Sugerencia: activa pantalla completa para disfrutar al máximo
+                las animaciones y el ambiente sonoro.
+              </Typography>
+            </Stack>
           </Stack>
         </Stack>
       </Box>

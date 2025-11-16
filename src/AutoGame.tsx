@@ -783,7 +783,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         sx={{
           position: "relative",
           width: "100%",
-          height: "100%",
+          height: { xs: "auto", md: "100%" },
           minHeight: { xs: 520, md: 640 },
           overflow: "hidden",
         }}
@@ -885,7 +885,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             p: { xs: 3, sm: 4, md: 6 },
             alignItems: { xs: "stretch", md: "center" },
             gap: { xs: 4, md: 5 },
-            height: "100%",
+            height: { xs: "auto", md: "100%" },
+            pb: { xs: 6, md: 0 },
           }}
         >
           <Box
@@ -893,7 +894,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               flex: 1,
               display: "flex",
               flexDirection: "column",
-              height: "100%",
+              height: { xs: "auto", md: "100%" },
               gap: { xs: 3, md: 4 },
             }}
           >
@@ -902,8 +903,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 display: "flex",
                 flexDirection: "column",
                 gap: { xs: 2.5, md: 3 },
-                flexGrow: 1,
-                justifyContent: "center",
+                flexGrow: { xs: 0, md: 1 },
+                justifyContent: { xs: "flex-start", md: "center" },
               }}
             >
               {errorMessage ? (
@@ -1375,13 +1376,15 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         color: "white",
         textAlign: "center",
         p: isExperienceMode ? 0 : 2,
+        pt: isExperienceMode ? { xs: 3, sm: 2 } : undefined,
         overflowX: "hidden",
-        overflowY: isExperienceMode ? "hidden" : "auto",
-        pb: isExperienceMode ? 0 : { xs: 6, sm: 4 },
+        overflowY: isExperienceMode ? { xs: "auto", md: "hidden" } : "auto",
+        pb: isExperienceMode ? { xs: 4, sm: 3 } : { xs: 6, sm: 4 },
         scrollbarWidth: "thin",
         WebkitOverflowScrolling: "touch",
         fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",
         backgroundColor: isExperienceMode ? "#040812" : undefined,
+        overscrollBehavior: isExperienceMode ? "contain" : undefined,
       }}
     >
       <Box sx={{ position: "absolute", top: 24, right: 24, zIndex: 10 }}>

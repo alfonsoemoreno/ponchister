@@ -11,6 +11,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { keyframes } from "@mui/system";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
@@ -55,6 +56,83 @@ function shuffleSongs<T>(entries: T[]): T[] {
   return copy;
 }
 
+const UNKNOWN_YEAR_KEY = "__unknown_year__";
+const YEAR_SOFT_USAGE_LIMIT = 3;
+
+function songYearKey(song: Song): string {
+  return typeof song.year === "number" ? String(song.year) : UNKNOWN_YEAR_KEY;
+}
+
+function buildBalancedQueue(songs: Song[]): Song[] {
+  if (!songs.length) {
+    return [];
+  }
+
+  const buckets = new Map<string, Song[]>();
+
+  songs.forEach((song) => {
+    const key = songYearKey(song);
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.push(song);
+    } else {
+      buckets.set(key, [song]);
+    }
+  });
+
+  buckets.forEach((bucket, key) => {
+    buckets.set(key, shuffleSongs(bucket));
+  });
+
+  const usage = new Map<string, number>();
+  const queue: Song[] = [];
+  const total = songs.length;
+
+  while (queue.length < total) {
+    const activeEntries = Array.from(buckets.entries()).filter(
+      ([, bucket]) => bucket.length > 0
+    );
+
+    if (!activeEntries.length) {
+      break;
+    }
+
+    const usageEntries = activeEntries.map(([yearKey]) => ({
+      yearKey,
+      usage: usage.get(yearKey) ?? 0,
+    }));
+
+    const underLimit = usageEntries.filter(
+      ({ usage: count }) => count < YEAR_SOFT_USAGE_LIMIT
+    );
+    const minUsage = Math.min(...usageEntries.map(({ usage: count }) => count));
+    const baseline = usageEntries.filter(
+      ({ usage: count }) => count === minUsage
+    );
+
+    const candidatePool = underLimit.length ? underLimit : baseline;
+    const selected =
+      candidatePool[Math.floor(Math.random() * candidatePool.length)];
+
+    const selectedBucket = buckets.get(selected.yearKey);
+    if (!selectedBucket || !selectedBucket.length) {
+      usage.set(selected.yearKey, selected.usage);
+      continue;
+    }
+
+    const song = selectedBucket.pop();
+    if (!song) {
+      usage.set(selected.yearKey, selected.usage);
+      continue;
+    }
+
+    queue.push(song);
+    usage.set(selected.yearKey, selected.usage + 1);
+  }
+
+  return queue;
+}
+
 async function preloadImage(url: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const image = new Image();
@@ -77,6 +155,34 @@ function tokenize(value: string): string[] {
     .filter((token) => token.length >= 3);
 }
 
+const yearSpotlightPulse = keyframes`
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+    filter: blur(18px);
+  }
+  22% {
+    opacity: 1;
+    transform: scale(0.95);
+    filter: blur(3px);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.4);
+    filter: blur(0px);
+  }
+  82% {
+    opacity: 0.85;
+    transform: scale(1.9);
+    filter: blur(9px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+    filter: blur(18px);
+  }
+`;
+
 const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const [gameState, setGameState] = useState<GameState>("idle");
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
@@ -90,6 +196,26 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
   const [artworkLoading, setArtworkLoading] = useState(false);
   const [artworkError, setArtworkError] = useState<string | null>(null);
+  const [yearSpotlightVisible, setYearSpotlightVisible] = useState(false);
+  const yearSpotlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  const clearYearSpotlightTimeout = useCallback(() => {
+    if (yearSpotlightTimerRef.current) {
+      clearTimeout(yearSpotlightTimerRef.current);
+      yearSpotlightTimerRef.current = null;
+    }
+  }, []);
+
+  const triggerYearSpotlight = useCallback(() => {
+    clearYearSpotlightTimeout();
+    setYearSpotlightVisible(true);
+    yearSpotlightTimerRef.current = setTimeout(() => {
+      setYearSpotlightVisible(false);
+      yearSpotlightTimerRef.current = null;
+    }, 3600);
+  }, [clearYearSpotlightTimeout]);
 
   const playerOptions = useMemo<YouTubeProps["opts"]>(() => {
     const origin =
@@ -374,6 +500,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     stopPlayback();
     setArtworkUrl(null);
     setArtworkError(null);
+    clearYearSpotlightTimeout();
+    setYearSpotlightVisible(false);
 
     seenSongIdsRef.current.clear();
     songQueueRef.current = [];
@@ -394,7 +522,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         }
       });
 
-      const playableSongs = shuffleSongs(Array.from(uniquePlayable.values()));
+      const dedupedSongs = shuffleSongs(Array.from(uniquePlayable.values()));
+      const playableSongs = buildBalancedQueue(dedupedSongs);
 
       if (!playableSongs.length) {
         throw new Error(
@@ -425,7 +554,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       );
       setGameState("error");
     }
-  }, [selectNextSongFromQueue, stopPlayback]);
+  }, [clearYearSpotlightTimeout, selectNextSongFromQueue, stopPlayback]);
 
   const loadNextSongFromQueue = useCallback(() => {
     setErrorMessage(null);
@@ -434,6 +563,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     stopPlayback();
     setArtworkError(null);
     setArtworkUrl(null);
+    clearYearSpotlightTimeout();
+    setYearSpotlightVisible(false);
 
     const nextSong = selectNextSongFromQueue();
 
@@ -449,7 +580,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     setCurrentSong(nextSong);
     setPlayerKey((prev) => prev + 1);
     setGameState("playing");
-  }, [selectNextSongFromQueue, stopPlayback]);
+  }, [clearYearSpotlightTimeout, selectNextSongFromQueue, stopPlayback]);
 
   const handleStart = () => {
     prepareQueueAndStart().catch(() => {
@@ -463,11 +594,22 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
 
   const handleReveal = () => {
     setGameState("revealed");
+    triggerYearSpotlight();
   };
 
   const handleNextAfterReveal = () => {
     loadNextSongFromQueue();
   };
+
+  const handlePlayerError = useCallback<
+    NonNullable<YouTubeProps["onError"]>
+  >(() => {
+    setIsPlaying(false);
+    loadNextSongFromQueue();
+    setErrorMessage(
+      "No se pudo reproducir el video de esta canción. Pasamos a otra pista."
+    );
+  }, [loadNextSongFromQueue]);
 
   const handleExit = () => {
     const finalizeExit = () => {
@@ -478,6 +620,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       setArtworkUrl(null);
       setArtworkLoading(false);
       setArtworkError(null);
+      clearYearSpotlightTimeout();
+      setYearSpotlightVisible(false);
       seenSongIdsRef.current.clear();
       songQueueRef.current = [];
       queueIndexRef.current = 0;
@@ -543,161 +687,104 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     [stopPlayback]
   );
 
-  const renderControls = () => {
-    if (gameState === "idle") {
-      return (
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleStart}
-          startIcon={<RestartAltIcon />}
-          sx={{
-            fontWeight: "bold",
-            fontSize: "1rem",
-            py: 1.2,
-            px: 3,
-            mt: 4,
-            textTransform: "none",
-            color: "#FFF !important",
-            border: "2px solid #FFF",
-            backgroundColor: "rgba(0,0,0,0.05) !important",
-            "&:hover": {
-              backgroundColor: "#FFF !important",
-              color: "#28518C !important",
-              border: "2px solid #FFF",
-            },
-          }}
-        >
-          Iniciar juego automático
-        </Button>
-      );
-    }
+  useEffect(
+    () => () => {
+      clearYearSpotlightTimeout();
+    },
+    [clearYearSpotlightTimeout]
+  );
 
-    if (gameState === "loading") {
-      return (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 4 }}>
-          <CircularProgress size={56} thickness={4} sx={{ color: "#fff" }} />
-          <Typography variant="body1" sx={{ color: "#fff" }}>
-            Buscando una canción...
-          </Typography>
-        </Box>
-      );
-    }
-
-    if (gameState === "error") {
-      return (
-        <Box sx={{ mt: 4, maxWidth: 360 }}>
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {errorMessage ?? "Ocurrió un error inesperado"}
-          </Alert>
-          <Button
-            variant="outlined"
-            color="primary"
-            startIcon={<RestartAltIcon />}
-            onClick={handleStart}
-            sx={{
-              fontWeight: "bold",
-              textTransform: "none",
-              color: "#FFF !important",
-              border: "2px solid #FFF",
-              backgroundColor: "rgba(0,0,0,0.05) !important",
-              "&:hover": {
-                backgroundColor: "#FFF !important",
-                color: "#28518C !important",
-                border: "2px solid #FFF",
-              },
-            }}
-          >
-            Reintentar
-          </Button>
-        </Box>
-      );
-    }
-
-    if (!currentSong || !videoId) {
+  const renderExperienceView = (mode: "guess" | "reveal") => {
+    if (!currentSong) {
       return null;
     }
 
-    if (gameState === "playing") {
-      return (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <IconButton
-            onClick={handlePlayPause}
-            sx={{
-              width: 160,
-              height: 160,
-              border: "4px solid #ffffff",
-              color: "#ffffff",
-              borderRadius: "50%",
-              alignSelf: "center",
-              "&:hover": {
-                backgroundColor: "rgba(255,255,255,0.15)",
-              },
-            }}
-          >
-            {isPlaying ? (
-              <PauseIcon sx={{ fontSize: 80 }} />
-            ) : (
-              <PlayArrowIcon sx={{ fontSize: 80 }} />
-            )}
-          </IconButton>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Button
-              variant="outlined"
-              color="primary"
-              startIcon={<SkipNextIcon />}
-              onClick={handleSkip}
-              sx={{
-                fontWeight: "bold",
-                textTransform: "none",
-                color: "#FFF !important",
-                border: "2px solid #FFF",
-                backgroundColor: "rgba(0,0,0,0.05) !important",
-                "&:hover": {
-                  backgroundColor: "#FFF !important",
-                  color: "#28518C !important",
-                  border: "2px solid #FFF",
-                },
-              }}
-            >
-              Pasar canción
-            </Button>
-            <Button
-              variant="outlined"
-              color="secondary"
-              startIcon={<InfoOutlinedIcon />}
-              onClick={handleReveal}
-              sx={{
-                fontWeight: "bold",
-                textTransform: "none",
-                color: "#FFF !important",
-                border: "2px solid #FFF",
-                backgroundColor: "rgba(0,0,0,0.05) !important",
-                "&:hover": {
-                  backgroundColor: "#FFF !important",
-                  color: "#28518C !important",
-                  border: "2px solid #FFF",
-                },
-              }}
-            >
-              Mostrar artista y canción
-            </Button>
-          </Box>
-        </Box>
-      );
-    }
-
-    const yearChipLabel =
-      typeof currentSong.year === "number"
+    const showDetails = mode === "reveal";
+    const baseChipLabel = showDetails ? "Ahora suena" : "Modo sorpresa";
+    const secondaryChipLabel = showDetails
+      ? typeof currentSong.year === "number"
         ? `Año ${currentSong.year}`
-        : "Año desconocido";
+        : "Año desconocido"
+      : "¿Qué año crees?";
+    const tertiaryChipLabel = showDetails
+      ? null
+      : "Revela sólo cuando estés listo";
+
+    const heading = showDetails
+      ? currentSong.title
+      : "¿Puedes adivinar la canción?";
+    const subheading = showDetails
+      ? currentSong.artist
+      : "Escucha, siente y deja que la intuición te guíe.";
+    const description = showDetails
+      ? "Captura la magia del momento con visuales envolventes inspirados en tu canción. Sigue jugando para descubrir nuevas portadas y atmósferas impactantes."
+      : 'Mantén el suspenso: cuando creas tener la respuesta, presiona "Mostrar artista y canción" para confirmar tu apuesta.';
+
+    const statusCaptionLabel = showDetails
+      ? "Reproduciendo"
+      : "En modo sorpresa";
+    const statusCaptionDescription = showDetails
+      ? "Usa los controles para pasar o salir de la partida cuando quieras."
+      : "Puedes pausar, saltar o revelar en cualquier momento.";
+
+    const primaryAction = showDetails
+      ? {
+          icon: <SkipNextIcon />,
+          label: "Siguiente canción",
+          onClick: handleNextAfterReveal,
+          variant: "contained" as const,
+          color: "primary" as const,
+        }
+      : {
+          icon: <InfoOutlinedIcon />,
+          label: "Mostrar artista y canción",
+          onClick: handleReveal,
+          variant: "contained" as const,
+          color: "primary" as const,
+        };
+
+    const secondaryAction = showDetails
+      ? {
+          icon: <ExitToAppIcon />,
+          label: "Salir del juego",
+          onClick: handleExit,
+          variant: "outlined" as const,
+          color: "inherit" as const,
+        }
+      : {
+          icon: <SkipNextIcon />,
+          label: "Pasar canción",
+          onClick: handleSkip,
+          variant: "outlined" as const,
+          color: "inherit" as const,
+        };
+
+    const fallbackTitle = showDetails
+      ? "Visual a la espera"
+      : "Escenario en preparación";
+    const fallbackDescription = artworkLoading
+      ? showDetails
+        ? "Estamos buscando la portada perfecta…"
+        : "Estamos preparando la atmósfera visual…"
+      : "Sigue escuchando, pronto llegará la inspiración visual.";
+
+    const displayedArtworkError = artworkError
+      ? showDetails
+        ? artworkError
+        : "No encontramos una portada perfecta, deja volar tu imaginación mientras suena la música."
+      : null;
+    const fallbackBackdrop =
+      "radial-gradient(circle at 30% 20%, rgba(99,213,245,0.28), rgba(9,12,28,0.95))";
+    const shouldDisplayArtwork = showDetails && Boolean(artworkUrl);
+    const hasNumericYear = typeof currentSong.year === "number";
 
     return (
       <Box
         sx={{
           position: "relative",
-          width: "min(1100px, 92vw)",
-          minHeight: { xs: 460, md: 560 },
+          width: "min(1100px, 94vw)",
+          height: { xs: "calc(100vh - 140px)", md: "calc(100vh - 180px)" },
+          minHeight: { xs: 520, md: 640 },
           borderRadius: { xs: 4, md: 6 },
           overflow: "hidden",
           boxShadow: "0 50px 120px -40px rgba(9,22,64,0.72)",
@@ -708,14 +795,14 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           sx={{
             position: "absolute",
             inset: 0,
-            backgroundImage: artworkUrl
+            backgroundImage: shouldDisplayArtwork
               ? `url(${artworkUrl})`
-              : "radial-gradient(circle at 30% 20%, rgba(99,213,245,0.28), rgba(9,12,28,0.95))",
-            backgroundSize: artworkUrl ? "cover" : "150% 150%",
-            backgroundPosition: artworkUrl ? "center" : "50% 50%",
-            filter: artworkUrl ? "blur(22px)" : "none",
-            transform: artworkUrl ? "scale(1.12)" : "none",
-            opacity: artworkUrl ? 0.95 : 1,
+              : fallbackBackdrop,
+            backgroundSize: shouldDisplayArtwork ? "cover" : "150% 150%",
+            backgroundPosition: shouldDisplayArtwork ? "center" : "50% 50%",
+            filter: shouldDisplayArtwork ? "blur(22px)" : "none",
+            transform: shouldDisplayArtwork ? "scale(1.12)" : "none",
+            opacity: shouldDisplayArtwork ? 0.95 : 1,
           }}
         />
         <Box
@@ -727,6 +814,71 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             backdropFilter: "blur(8px)",
           }}
         />
+        {showDetails && yearSpotlightVisible && hasNumericYear ? (
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          >
+            <Box
+              sx={{
+                width: { xs: "90vw", sm: "78vw", md: "62vw" },
+                height: { xs: "90vh", sm: "78vh", md: "62vh" },
+                maxWidth: 980,
+                maxHeight: 720,
+                minWidth: 260,
+                minHeight: 260,
+                borderRadius: { xs: 6, md: 8 },
+                background:
+                  "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.22), rgba(5,18,52,0.9))",
+                boxShadow: "0 52px 120px -34px rgba(2,8,34,0.88)",
+                color: "#ffffff",
+                textAlign: "center",
+                animation: `${yearSpotlightPulse} 3.4s ease-in-out forwards`,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 2,
+              }}
+            >
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  letterSpacing: { xs: 10, sm: 16 },
+                  textTransform: "uppercase",
+                  opacity: 0.86,
+                  fontWeight: 600,
+                  fontSize: { xs: "1.05rem", sm: "1.35rem" },
+                }}
+              >
+                Año
+              </Typography>
+              <Typography
+                variant="h1"
+                sx={{
+                  fontWeight: 800,
+                  lineHeight: 0.92,
+                  letterSpacing: "-0.03em",
+                  textShadow: "0 48px 90px rgba(0,0,0,0.75)",
+                  fontSize: {
+                    xs: "clamp(3.8rem, 18vw, 9rem)",
+                    sm: "clamp(5rem, 16vw, 10.5rem)",
+                    md: "clamp(6rem, 14vw, 11.5rem)",
+                  },
+                }}
+              >
+                {currentSong.year}
+              </Typography>
+            </Box>
+          </Box>
+        ) : null}
         <Stack
           direction={{ xs: "column-reverse", md: "row" }}
           spacing={{ xs: 3, md: 5 }}
@@ -736,6 +888,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             p: { xs: 3, sm: 4, md: 6 },
             alignItems: { xs: "stretch", md: "center" },
             gap: { xs: 4, md: 5 },
+            height: "100%",
           }}
         >
           <Box
@@ -743,92 +896,132 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               flex: 1,
               display: "flex",
               flexDirection: "column",
-              gap: { xs: 2.5, md: 3 },
+              height: "100%",
+              gap: { xs: 3, md: 4 },
             }}
           >
-            <Stack
-              direction="row"
-              spacing={1.5}
-              alignItems="center"
-              flexWrap="wrap"
-              sx={{ color: "#fff" }}
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: { xs: 2.5, md: 3 },
+                flexGrow: 1,
+                justifyContent: "center",
+              }}
             >
-              <Chip
-                label="Ahora suena"
-                sx={{
-                  fontWeight: 600,
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  backgroundColor: "rgba(255,255,255,0.16)",
-                  color: "#fff",
-                  backdropFilter: "blur(10px)",
-                }}
-              />
-              <Chip
-                label={yearChipLabel}
-                sx={{
-                  fontWeight: 600,
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  backgroundColor: "rgba(13,148,255,0.2)",
-                  color: "rgba(212,239,255,0.95)",
-                  border: "1px solid rgba(148,197,255,0.35)",
-                }}
-              />
-              {artworkLoading ? (
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <CircularProgress size={16} sx={{ color: "#d7f9ff" }} />
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "rgba(224,239,255,0.85)" }}
-                  >
-                    Buscando portada...
-                  </Typography>
-                </Stack>
+              {errorMessage ? (
+                <Alert
+                  severity="warning"
+                  icon={false}
+                  sx={{
+                    backgroundColor: "rgba(255,255,255,0.08)",
+                    color: "rgba(255,255,255,0.94)",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    backdropFilter: "blur(12px)",
+                    fontWeight: 500,
+                  }}
+                >
+                  {errorMessage}
+                </Alert>
               ) : null}
-            </Stack>
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 800,
-                letterSpacing: "-0.015em",
-                textAlign: "left",
-                color: "#ffffff",
-                textShadow: "0 30px 60px rgba(0,0,0,0.55)",
-              }}
-            >
-              {currentSong.title}
-            </Typography>
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 600,
-                color: "rgba(204,231,255,0.92)",
-                textAlign: "left",
-              }}
-            >
-              {currentSong.artist}
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                color: "rgba(224,239,255,0.82)",
-                maxWidth: 520,
-                textAlign: "left",
-              }}
-            >
-              Captura la magia del momento con visuales envolventes inspirados
-              en tu canción. Sigue jugando para descubrir nuevas portadas y
-              atmósferas impactantes.
-            </Typography>
-            {artworkError ? (
-              <Typography
-                variant="caption"
-                sx={{ color: "rgba(255,210,210,0.92)", textAlign: "left" }}
+              <Stack
+                direction="row"
+                spacing={1.5}
+                alignItems="center"
+                flexWrap="wrap"
+                sx={{ color: "#fff" }}
               >
-                {artworkError}
+                <Chip
+                  label={baseChipLabel}
+                  sx={{
+                    fontWeight: 600,
+                    letterSpacing: 1,
+                    textTransform: "uppercase",
+                    backgroundColor: "rgba(255,255,255,0.16)",
+                    color: "#fff",
+                    backdropFilter: "blur(10px)",
+                  }}
+                />
+                <Chip
+                  label={secondaryChipLabel}
+                  sx={{
+                    fontWeight: 600,
+                    letterSpacing: 1,
+                    textTransform: "uppercase",
+                    backgroundColor: "rgba(13,148,255,0.2)",
+                    color: "rgba(212,239,255,0.95)",
+                    border: "1px solid rgba(148,197,255,0.35)",
+                  }}
+                />
+                {tertiaryChipLabel ? (
+                  <Chip
+                    label={tertiaryChipLabel}
+                    sx={{
+                      fontWeight: 600,
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                      backgroundColor: "rgba(255,255,255,0.12)",
+                      color: "rgba(230,243,255,0.92)",
+                      border: "1px dashed rgba(230,243,255,0.35)",
+                    }}
+                  />
+                ) : null}
+                {artworkLoading ? (
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <CircularProgress size={16} sx={{ color: "#d7f9ff" }} />
+                    <Typography
+                      variant="caption"
+                      sx={{ color: "rgba(224,239,255,0.85)" }}
+                    >
+                      Buscando portada...
+                    </Typography>
+                  </Stack>
+                ) : null}
+              </Stack>
+              <Typography
+                variant="h3"
+                sx={{
+                  fontWeight: 800,
+                  letterSpacing: "-0.015em",
+                  textAlign: "left",
+                  color: "#ffffff",
+                  textShadow: "0 30px 60px rgba(0,0,0,0.55)",
+                }}
+              >
+                {heading}
               </Typography>
-            ) : null}
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 600,
+                  color: "rgba(204,231,255,0.92)",
+                  textAlign: "left",
+                }}
+              >
+                {subheading}
+              </Typography>
+              <Typography
+                variant="body1"
+                sx={{
+                  color: "rgba(224,239,255,0.82)",
+                  maxWidth: 520,
+                  textAlign: "left",
+                }}
+              >
+                {description}
+              </Typography>
+              {displayedArtworkError ? (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "rgba(255,210,210,0.92)",
+                    textAlign: "left",
+                  }}
+                >
+                  {displayedArtworkError}
+                </Typography>
+              ) : null}
+            </Box>
             <Stack
               direction="row"
               spacing={2}
@@ -862,11 +1055,10 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               </IconButton>
               <Stack spacing={1} sx={{ color: "rgba(224,239,255,0.78)" }}>
                 <Typography variant="caption" sx={{ letterSpacing: 1 }}>
-                  {isPlaying ? "Reproduciendo" : "Reanudar previa"}
+                  {statusCaptionLabel}
                 </Typography>
                 <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
-                  Usa los botones para pasar o salir de la partida cuando
-                  quieras.
+                  {statusCaptionDescription}
                 </Typography>
               </Stack>
             </Stack>
@@ -876,10 +1068,10 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               sx={{ pt: { xs: 2, md: 4 } }}
             >
               <Button
-                variant="contained"
-                color="primary"
-                startIcon={<SkipNextIcon />}
-                onClick={handleNextAfterReveal}
+                variant={primaryAction.variant}
+                color={primaryAction.color}
+                startIcon={primaryAction.icon}
+                onClick={primaryAction.onClick}
                 sx={{
                   minWidth: 200,
                   textTransform: "none",
@@ -889,21 +1081,26 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   py: 1.5,
                   boxShadow: "0 22px 48px -18px rgba(50,132,255,0.6)",
                   background:
-                    "linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #22d3ee 100%)",
-                  "&:hover": {
-                    background:
-                      "linear-gradient(135deg, #2563eb 0%, #3b82f6 45%, #06b6d4 100%)",
-                    boxShadow: "0 26px 56px -20px rgba(37,99,235,0.7)",
-                  },
+                    primaryAction.variant === "contained"
+                      ? "linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #22d3ee 100%)"
+                      : undefined,
+                  "&:hover":
+                    primaryAction.variant === "contained"
+                      ? {
+                          background:
+                            "linear-gradient(135deg, #2563eb 0%, #3b82f6 45%, #06b6d4 100%)",
+                          boxShadow: "0 26px 56px -20px rgba(37,99,235,0.7)",
+                        }
+                      : undefined,
                 }}
               >
-                Siguiente canción
+                {primaryAction.label}
               </Button>
               <Button
-                variant="outlined"
-                color="inherit"
-                startIcon={<ExitToAppIcon />}
-                onClick={handleExit}
+                variant={secondaryAction.variant}
+                color={secondaryAction.color}
+                startIcon={secondaryAction.icon}
+                onClick={secondaryAction.onClick}
                 sx={{
                   minWidth: 200,
                   textTransform: "none",
@@ -911,15 +1108,24 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   borderRadius: 999,
                   px: 3.5,
                   py: 1.5,
-                  borderColor: "rgba(255,255,255,0.4)",
-                  color: "rgba(255,255,255,0.92)",
-                  "&:hover": {
-                    borderColor: "rgba(255,255,255,0.7)",
-                    backgroundColor: "rgba(255,255,255,0.12)",
-                  },
+                  borderColor:
+                    secondaryAction.variant === "outlined"
+                      ? "rgba(255,255,255,0.4)"
+                      : undefined,
+                  color:
+                    secondaryAction.variant === "outlined"
+                      ? "rgba(255,255,255,0.92)"
+                      : undefined,
+                  "&:hover":
+                    secondaryAction.variant === "outlined"
+                      ? {
+                          borderColor: "rgba(255,255,255,0.7)",
+                          backgroundColor: "rgba(255,255,255,0.12)",
+                        }
+                      : undefined,
                 }}
               >
-                Salir del juego
+                {secondaryAction.label}
               </Button>
             </Stack>
           </Box>
@@ -946,11 +1152,15 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 justifyContent: "center",
               }}
             >
-              {artworkUrl ? (
+              {shouldDisplayArtwork ? (
                 <Box
                   component="img"
-                  src={artworkUrl}
-                  alt={`Portada de ${currentSong.title}`}
+                  src={artworkUrl ?? undefined}
+                  alt={
+                    showDetails
+                      ? `Portada de ${currentSong.title}`
+                      : "Portada sugerida"
+                  }
                   sx={{
                     width: "100%",
                     height: "100%",
@@ -968,19 +1178,17 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                     variant="subtitle2"
                     sx={{ textAlign: "center", fontWeight: 600 }}
                   >
-                    Visual a la espera
+                    {fallbackTitle}
                   </Typography>
                   <Typography
                     variant="caption"
                     sx={{ textAlign: "center", opacity: 0.8 }}
                   >
-                    {artworkLoading
-                      ? "Estamos buscando la portada perfecta…"
-                      : "No encontramos una portada. Sigue jugando para descubrir más."}
+                    {fallbackDescription}
                   </Typography>
                 </Stack>
               )}
-              {artworkLoading ? (
+              {artworkLoading && showDetails ? (
                 <Box
                   sx={{
                     position: "absolute",
@@ -1001,9 +1209,132 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     );
   };
 
+  const renderControls = () => {
+    if (gameState === "idle") {
+      return (
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={handleStart}
+          startIcon={<RestartAltIcon />}
+          sx={{
+            fontWeight: "bold",
+            fontSize: "1rem",
+            py: 1.2,
+            px: 3,
+            mt: 4,
+            textTransform: "none",
+            color: "#FFF !important",
+            border: "2px solid #FFF",
+            backgroundColor: "rgba(0,0,0,0.05) !important",
+            "&:hover": {
+              backgroundColor: "#FFF !important",
+              color: "#28518C !important",
+              border: "2px solid #FFF",
+            },
+          }}
+        >
+          Iniciar partida automática
+        </Button>
+      );
+    }
+
+    if (gameState === "loading") {
+      return (
+        <Stack
+          spacing={3}
+          alignItems="center"
+          sx={{
+            mt: 6,
+            color: "rgba(255,255,255,0.9)",
+          }}
+        >
+          <CircularProgress sx={{ color: "#d7f9ff" }} />
+          <Typography variant="body1">
+            Preparando la atmósfera para la próxima canción...
+          </Typography>
+        </Stack>
+      );
+    }
+
+    if (gameState === "error") {
+      return (
+        <Stack
+          spacing={3}
+          alignItems="center"
+          sx={{
+            mt: 4,
+            width: "min(520px, 92vw)",
+          }}
+        >
+          <Alert
+            severity="error"
+            icon={false}
+            sx={{
+              width: "100%",
+              backgroundColor: "rgba(255,255,255,0.08)",
+              color: "rgba(255,255,255,0.94)",
+              border: "1px solid rgba(255,255,255,0.18)",
+              backdropFilter: "blur(12px)",
+              fontWeight: 500,
+              textAlign: "left",
+            }}
+          >
+            {errorMessage ??
+              "No pudimos continuar la partida automática. Intenta reiniciarla o vuelve al menú principal."}
+          </Alert>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<RestartAltIcon />}
+              onClick={handleStart}
+              sx={{
+                minWidth: 200,
+                textTransform: "none",
+                fontWeight: 700,
+              }}
+            >
+              Reintentar partida
+            </Button>
+            <Button
+              variant="outlined"
+              color="inherit"
+              startIcon={<ExitToAppIcon />}
+              onClick={handleExit}
+              sx={{
+                minWidth: 200,
+                textTransform: "none",
+                fontWeight: 700,
+                borderColor: "rgba(255,255,255,0.45)",
+                color: "rgba(255,255,255,0.92)",
+                "&:hover": {
+                  borderColor: "rgba(255,255,255,0.7)",
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                },
+              }}
+            >
+              Salir
+            </Button>
+          </Stack>
+        </Stack>
+      );
+    }
+
+    if (!currentSong) {
+      return null;
+    }
+
+    if (gameState === "revealed") {
+      return renderExperienceView("reveal");
+    }
+
+    return renderExperienceView("guess");
+  };
+
   return (
     <Box
-      className={`ocean-background${isPlaying ? " speaker-anim" : ""}`}
+      className="ocean-background"
       sx={{
         position: "relative",
         height: "100vh",
@@ -1066,14 +1397,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             opts={playerOptions}
             ref={playerRef}
             onReady={handlePlayerReady}
-            onError={() => {
-              setIsPlaying(false);
-              setCurrentSong(null);
-              setErrorMessage(
-                "No se pudo reproducir el video. Prueba con otra canción."
-              );
-              setGameState("error");
-            }}
+            onError={handlePlayerError}
             onStateChange={handlePlayerStateChange}
           />
         </Box>
@@ -1086,35 +1410,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          gap: 2,
+          gap: 0,
           zIndex: 2,
           width: "100%",
         }}
       >
-        <Box sx={{ maxWidth: 540, mb: 3, mx: "auto", px: { xs: 1, sm: 0 } }}>
-          <Typography
-            variant="h5"
-            component="h2"
-            sx={{
-              mb: 1,
-              fontWeight: 700,
-              textShadow: "0 0 16px rgba(0,0,0,0.4)",
-            }}
-          >
-            Modo automático
-          </Typography>
-          <Typography
-            variant="body1"
-            sx={{
-              color: "rgba(255,255,255,0.85)",
-              textShadow: "0 0 10px rgba(0,0,0,0.35)",
-            }}
-          >
-            Solicita canciones aleatorias desde la base de datos y adivina antes
-            de revelar el artista, título y año.
-          </Typography>
-        </Box>
-
         {renderControls()}
       </Box>
 

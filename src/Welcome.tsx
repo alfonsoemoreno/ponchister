@@ -1,5 +1,8 @@
 import React from "react";
-import Button from "@mui/material/Button";
+import { Box, Button, Chip, Stack, Typography } from "@mui/material";
+import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 interface WelcomeProps {
   onAccept: () => void;
@@ -20,172 +23,300 @@ const requestFullscreen = () => {
   }
 };
 
-const Welcome: React.FC<WelcomeProps> = ({ onAccept, onStartAuto }) => (
-  <div
-    style={{
-      height: "100vh",
-      width: "100vw",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      position: "relative",
-      overflow: "hidden",
-      backgroundColor: "transparent",
-    }}
-  >
-    {/* Fondo ocean con blur cubriendo todo */}
-    <div className="ocean-background ocean-blur" />
-    <div
-      style={{
-        textAlign: "center",
-        padding: "2rem",
-        width: "100%",
-        maxWidth: "400px",
-        position: "absolute",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        zIndex: 1,
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-      }}
-    >
-      <img
-        src="/ponchister_logo.png"
-        alt="Ponchister"
-        style={{
-          width: "100%",
-          maxWidth: "300px",
-          marginBottom: "1rem",
+const Welcome: React.FC<WelcomeProps> = ({ onAccept, onStartAuto }) => {
+  const currentYear = new Date().getFullYear();
+
+  const handleStartScan = () => {
+    requestFullscreen();
+    onAccept();
+  };
+
+  const handleStartAutoMode = () => {
+    requestFullscreen();
+    onStartAuto();
+  };
+
+  const handleOpenCards = () => {
+    window.open("https://ponchistercards.vercel.app", "_blank");
+  };
+
+  const neonLines = (
+    <Box className="neon-lines" sx={{ zIndex: 2 }}>
+      <Box
+        className="neon-line"
+        sx={{
+          top: "18%",
+          background: "linear-gradient(90deg, #00fff7, #0ff, #fff)",
+          boxShadow: "0 0 16px #00fff7",
+          animation: "neon-move-right 2.5s linear infinite",
         }}
       />
-      <p
-        style={{
-          marginBottom: "1rem",
+      <Box
+        className="neon-line"
+        sx={{
+          top: "32%",
+          background: "linear-gradient(90deg, #ff00ea, #fff, #ff0)",
+          boxShadow: "0 0 16px #ff00ea",
+          animation: "neon-move-left 3.2s linear infinite",
+        }}
+      />
+      <Box
+        className="neon-line"
+        sx={{
+          top: "46%",
+          background: "linear-gradient(90deg, #fff200, #fff, #00ff6a)",
+          boxShadow: "0 0 16px #fff200",
+          animation: "neon-move-right 2.1s linear infinite",
+        }}
+      />
+      <Box
+        className="neon-line"
+        sx={{
+          top: "60%",
+          background: "linear-gradient(90deg, #00ff6a, #fff, #00fff7)",
+          boxShadow: "0 0 16px #00ff6a",
+          animation: "neon-move-left 2.8s linear infinite",
+        }}
+      />
+      <Box
+        className="neon-line"
+        sx={{
+          top: "74%",
+          background: "linear-gradient(90deg, #ff0, #fff, #ff00ea)",
+          boxShadow: "0 0 16px #ff0",
+          animation: "neon-move-right 3.5s linear infinite",
+        }}
+      />
+    </Box>
+  );
+
+  return (
+    <Box
+      sx={{
+        position: "relative",
+        width: "100vw",
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "stretch",
+        justifyContent: "center",
+        color: "#fff",
+        overflowX: "hidden",
+        overflowY: "auto",
+        fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",
+        background:
+          "linear-gradient(190deg, #0a2a6f 0%, #051d4a 52%, #030c26 100%)",
+      }}
+    >
+      <Box
+        sx={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(circle at 24% 12%, rgba(56,136,255,0.32), rgba(6,18,44,0) 38%)",
           opacity: 0.9,
-          fontSize: "1rem",
-          lineHeight: 1.2,
-          padding: "0 1.4rem",
+          zIndex: 0,
         }}
-      >
-        Escanea un código QR para escuchar una pista o activa el modo automático
-        para recibir canciones aleatorias.
-      </p>
-      <Button
-        variant="outlined"
-        color="primary"
-        onClick={() => {
-          requestFullscreen();
-          onAccept();
-        }}
+      />
+      <Box
         sx={{
-          borderRadius: 2,
-          fontWeight: "bold",
-          fontSize: "1rem",
-          py: 1.2,
-          px: 3,
-          boxShadow: 0,
-          textTransform: "none",
-          color: "#FFF !important",
-          border: "2px solid #FFF",
-          backgroundColor: "rgba(0,0,0,0.05) !important",
-          transition: "background 0.2s, color 0.2s",
-          mt: "20%",
-          "&:hover": {
-            backgroundColor: "#FFF !important",
-            color: "#28518C !important",
-            border: "2px solid #FFF",
-          },
-          "&:focus": {
-            backgroundColor: "rgba(0,0,0,0.05) !important",
-            color: "#FFF !important",
-          },
-          "&:active": {
-            backgroundColor: "rgba(0,0,0,0.05) !important",
-            color: "#FFF !important",
-          },
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(125deg, rgba(4,10,24,0.82) 0%, rgba(4,18,50,0.78) 52%, rgba(16,46,112,0.7) 100%)",
+          backdropFilter: "blur(18px)",
+          zIndex: 1,
         }}
-      >
-        Comenzar
-      </Button>
-      <Button
-        variant="outlined"
-        color="secondary"
-        onClick={() => {
-          requestFullscreen();
-          onStartAuto();
-        }}
+      />
+      {neonLines}
+      <Box
         sx={{
-          borderRadius: 2,
-          fontWeight: "bold",
-          fontSize: "1rem",
-          py: 1.2,
-          px: 3,
-          boxShadow: 0,
-          textTransform: "none",
-          color: "#FFF !important",
-          border: "2px solid #FFF",
-          backgroundColor: "rgba(0,0,0,0.05) !important",
-          transition: "background 0.2s, color 0.2s",
-          mt: 2,
-          "&:hover": {
-            backgroundColor: "#FFF !important",
-            color: "#28518C !important",
-            border: "2px solid #FFF",
-          },
-          "&:focus": {
-            backgroundColor: "rgba(0,0,0,0.05) !important",
-            color: "#FFF !important",
-          },
-          "&:active": {
-            backgroundColor: "rgba(0,0,0,0.05) !important",
-            color: "#FFF !important",
-          },
+          position: "relative",
+          zIndex: 3,
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
         }}
       >
-        Modo automático
-      </Button>
-      {/* Botón para generar tarjetas */}
-      <Button
-        variant="outlined"
-        color="primary"
-        onClick={() =>
-          window.open("https://ponchistercards.vercel.app", "_blank")
-        }
-        sx={{
-          borderRadius: 2,
-          fontWeight: "bold",
-          fontSize: "1rem",
-          py: 1.2,
-          px: 3,
-          boxShadow: 0,
-          textTransform: "none",
-          color: "#FFF !important",
-          border: "2px solid #FFF",
-          backgroundColor: "rgba(0,0,0,0.05) !important",
-          transition: "background 0.2s, color 0.2s",
-          mt: 2,
-          "&:hover": {
-            backgroundColor: "#FFF !important",
-            color: "#28518C !important",
-            border: "2px solid #FFF",
-          },
-          "&:focus": {
-            backgroundColor: "rgba(0,0,0,0.05) !important",
-            color: "#FFF !important",
-          },
-          "&:active": {
-            backgroundColor: "rgba(0,0,0,0.05) !important",
-            color: "#FFF !important",
-          },
-        }}
-      >
-        Generar tarjetas y fichas
-      </Button>
-    </div>
-  </div>
-);
+        <Stack
+          spacing={{ xs: 4, md: 6 }}
+          sx={{
+            width: "min(960px, 92vw)",
+            py: { xs: 6, md: 10 },
+          }}
+        >
+          <Box
+            component="img"
+            src="/ponchister_logo.png"
+            alt="Ponchister"
+            sx={{
+              width: { xs: "58%", sm: 240, md: 260 },
+              maxWidth: 320,
+              alignSelf: { xs: "flex-start", md: "flex-start" },
+            }}
+          />
+          <Stack spacing={3} sx={{ maxWidth: 620 }}>
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              flexWrap="wrap"
+            >
+              <Chip
+                label="Experiencia Ponchister"
+                sx={{
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  backgroundColor: "rgba(255,255,255,0.16)",
+                  color: "#fff",
+                  backdropFilter: "blur(10px)",
+                }}
+              />
+              <Chip
+                label={`Canciones ${1950} - ${currentYear}`}
+                sx={{
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  backgroundColor: "rgba(13,148,255,0.2)",
+                  color: "rgba(212,239,255,0.95)",
+                  border: "1px solid rgba(148,197,255,0.35)",
+                }}
+              />
+              <Chip
+                label="Escucha inmersiva"
+                sx={{
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                  color: "rgba(230,243,255,0.92)",
+                  border: "1px dashed rgba(230,243,255,0.35)",
+                }}
+              />
+            </Stack>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                textShadow: "0 40px 80px rgba(0,0,0,0.6)",
+              }}
+            >
+              Descubre Ponchister en su forma más cinematográfica
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "rgba(204,231,255,0.92)",
+              }}
+            >
+              Escanea un código QR para escuchar una pista o lánzate al modo
+              automático para recibir canciones equilibradas, portadas y
+              atmósferas envolventes al instante.
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{ color: "rgba(224,239,255,0.82)", maxWidth: 600 }}
+            >
+              Nuestro algoritmo evita repeticiones, equilibra décadas y revela
+              cada canción con animaciones brillantes. Puedes inspirarte con un
+              año al azar, explorar tarjetas impresas o simplemente dejar que la
+              música te sorprenda.
+            </Typography>
+          </Stack>
+          <Stack spacing={3} sx={{ maxWidth: 640 }}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              sx={{
+                alignSelf: { xs: "stretch", sm: "flex-start" },
+              }}
+            >
+              <Button
+                variant="contained"
+                startIcon={<QrCodeScannerIcon />}
+                onClick={handleStartScan}
+                sx={{
+                  minWidth: 220,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.6,
+                  boxShadow: "0 22px 48px -18px rgba(50,132,255,0.6)",
+                  background:
+                    "linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #22d3ee 100%)",
+                  "&:hover": {
+                    background:
+                      "linear-gradient(135deg, #2563eb 0%, #3b82f6 45%, #06b6d4 100%)",
+                    boxShadow: "0 26px 56px -20px rgba(37,99,235,0.7)",
+                  },
+                }}
+              >
+                Comenzar con QR
+              </Button>
+              <Button
+                variant="outlined"
+                color="inherit"
+                startIcon={<AutoAwesomeIcon />}
+                onClick={handleStartAutoMode}
+                sx={{
+                  minWidth: 220,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.6,
+                  borderColor: "rgba(255,255,255,0.4)",
+                  color: "rgba(255,255,255,0.92)",
+                  "&:hover": {
+                    borderColor: "rgba(255,255,255,0.7)",
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                  },
+                }}
+              >
+                Activar modo automático
+              </Button>
+              <Button
+                variant="outlined"
+                color="inherit"
+                startIcon={<OpenInNewIcon />}
+                onClick={handleOpenCards}
+                sx={{
+                  minWidth: 220,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.6,
+                  borderColor: "rgba(255,255,255,0.24)",
+                  color: "rgba(224,239,255,0.92)",
+                  "&:hover": {
+                    borderColor: "rgba(255,255,255,0.5)",
+                    backgroundColor: "rgba(255,255,255,0.08)",
+                  },
+                }}
+              >
+                Generar tarjetas y fichas
+              </Button>
+            </Stack>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "rgba(204,231,255,0.74)",
+                letterSpacing: 0.4,
+              }}
+            >
+              Sugerencia: activa pantalla completa para disfrutar al máximo las
+              animaciones y el ambiente sonoro.
+            </Typography>
+          </Stack>
+        </Stack>
+      </Box>
+    </Box>
+  );
+};
 
 export default Welcome;

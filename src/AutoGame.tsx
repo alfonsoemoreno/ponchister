@@ -19,7 +19,6 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 
 import { fetchAllSongs } from "./services/songService";
 import type { Song } from "./types";
@@ -1530,55 +1529,6 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               revelación de canciones.
             </Typography>
           </Box>
-          <Box
-            sx={{
-              width: { xs: "100%", md: 420 },
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            <Box
-              sx={{
-                position: "relative",
-                width: { xs: "72%", sm: 300, md: 360 },
-                aspectRatio: "1 / 1",
-                borderRadius: { xs: 4, md: 5 },
-                overflow: "hidden",
-                boxShadow: "0 38px 78px -32px rgba(5,18,52,0.82)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                background:
-                  "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(148,197,255,0.12) 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexDirection: "column",
-                gap: 2.5,
-                color: "rgba(224,239,255,0.9)",
-                p: { xs: 3, md: 4 },
-                textAlign: "center",
-              }}
-            >
-              <AutoAwesomeIcon
-                sx={{ fontSize: { xs: 56, sm: 64, md: 72 }, opacity: 0.85 }}
-              />
-              <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: 700, letterSpacing: 1 }}
-              >
-                Elige tu punto de partida
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  maxWidth: 240,
-                  opacity: 0.8,
-                }}
-              >
-                Obtén un año aleatorio entre 1950 y {currentYear} para inspirar
-                tu próxima partida.
-              </Typography>
-            </Box>
-          </Box>
         </Stack>
       </Box>
     );
@@ -1728,12 +1678,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         WebkitOverflowScrolling: "touch",
         fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",
         zIndex: 0,
-        ...(isExperienceMode
-          ? {
-              background:
-                "linear-gradient(190deg, #0a2a6f 0%, #051d4a 52%, #030c26 100%)",
-            }
-          : {}),
+        background:
+          "linear-gradient(190deg, #0a2a6f 0%, #051d4a 52%, #030c26 100%)",
         overscrollBehavior: isExperienceMode ? "contain" : undefined,
       }}
     >

@@ -11,7 +11,6 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { keyframes } from "@mui/system";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
@@ -21,7 +20,11 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 
 import { fetchAllSongs } from "./services/songService";
-import type { Song } from "./types";
+import { extractYoutubeId } from "./lib/autoGameQueue";
+import { useAutoGameQueue } from "./hooks/useAutoGameQueue";
+import { useArtworkLookup } from "./hooks/useArtworkLookup";
+import { NeonLines } from "./auto-game/NeonLines";
+import { YearSpotlight } from "./auto-game/YearSpotlight";
 
 interface InternalPlayer {
   playVideo?: () => void;
@@ -41,172 +44,34 @@ type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
 
 type PlayerRef = YouTube | null;
 
-function extractYoutubeId(url: string): string | null {
-  const regExp =
-    /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  const match = url.match(regExp);
-  return match && match[1]?.length === 11 ? match[1] : null;
-}
-
-function shuffleSongs<T>(entries: T[]): T[] {
-  const copy = [...entries];
-  for (let index = copy.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
-  }
-  return copy;
-}
-
-const UNKNOWN_YEAR_KEY = "__unknown_year__";
-const YEAR_SOFT_USAGE_LIMIT = 3;
-
-function songYearKey(song: Song): string {
-  return typeof song.year === "number" ? String(song.year) : UNKNOWN_YEAR_KEY;
-}
-
-function buildBalancedQueue(songs: Song[]): Song[] {
-  if (!songs.length) {
-    return [];
-  }
-
-  const buckets = new Map<string, Song[]>();
-
-  songs.forEach((song) => {
-    const key = songYearKey(song);
-    const existing = buckets.get(key);
-    if (existing) {
-      existing.push(song);
-    } else {
-      buckets.set(key, [song]);
-    }
-  });
-
-  buckets.forEach((bucket, key) => {
-    buckets.set(key, shuffleSongs(bucket));
-  });
-
-  const usage = new Map<string, number>();
-  const queue: Song[] = [];
-  const total = songs.length;
-
-  while (queue.length < total) {
-    const activeEntries = Array.from(buckets.entries()).filter(
-      ([, bucket]) => bucket.length > 0
-    );
-
-    if (!activeEntries.length) {
-      break;
-    }
-
-    const usageEntries = activeEntries.map(([yearKey]) => ({
-      yearKey,
-      usage: usage.get(yearKey) ?? 0,
-    }));
-
-    const underLimit = usageEntries.filter(
-      ({ usage: count }) => count < YEAR_SOFT_USAGE_LIMIT
-    );
-    const minUsage = Math.min(...usageEntries.map(({ usage: count }) => count));
-    const baseline = usageEntries.filter(
-      ({ usage: count }) => count === minUsage
-    );
-
-    const candidatePool = underLimit.length ? underLimit : baseline;
-    const selected =
-      candidatePool[Math.floor(Math.random() * candidatePool.length)];
-
-    const selectedBucket = buckets.get(selected.yearKey);
-    if (!selectedBucket || !selectedBucket.length) {
-      usage.set(selected.yearKey, selected.usage);
-      continue;
-    }
-
-    const song = selectedBucket.pop();
-    if (!song) {
-      usage.set(selected.yearKey, selected.usage);
-      continue;
-    }
-
-    queue.push(song);
-    usage.set(selected.yearKey, selected.usage + 1);
-  }
-
-  return queue;
-}
-
-async function preloadImage(url: string): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error("No se pudo cargar la imagen"));
-    image.src = url;
-  });
-}
-
-function normalizeText(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
-function tokenize(value: string): string[] {
-  return normalizeText(value)
-    .split(/[^a-z0-9]+/g)
-    .filter((token) => token.length >= 3);
-}
-
-const yearSpotlightPulse = keyframes`
-  0% {
-    opacity: 0;
-    transform: scale(0.65);
-    filter: blur(18px);
-  }
-  14% {
-    opacity: 0.45;
-    transform: scale(0.82);
-    filter: blur(14px);
-  }
-  36% {
-    opacity: 0.92;
-    transform: scale(1.02);
-    filter: blur(8px);
-  }
-  58% {
-    opacity: 1;
-    transform: scale(1.32);
-    filter: blur(3px);
-  }
-  78% {
-    opacity: 0.74;
-    transform: scale(1.72);
-    filter: blur(7px);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(2.08);
-    filter: blur(12px);
-  }
-`;
-
 const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const [gameState, setGameState] = useState<GameState>("idle");
-  const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerKey, setPlayerKey] = useState(0);
   const playerRef = useRef<PlayerRef>(null);
-  const seenSongIdsRef = useRef<Set<number>>(new Set());
-  const songQueueRef = useRef<Song[]>([]);
-  const queueIndexRef = useRef(0);
-  const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
-  const [artworkLoading, setArtworkLoading] = useState(false);
-  const [artworkError, setArtworkError] = useState<string | null>(null);
   const [yearSpotlightVisible, setYearSpotlightVisible] = useState(false);
   const [spotlightYear, setSpotlightYear] = useState<number | null>(null);
   const yearSpotlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+
+  const {
+    status: queueStatus,
+    error: queueError,
+    currentSong,
+    startQueue,
+    advanceQueue,
+    resetQueue,
+  } = useAutoGameQueue({ fetchSongs: fetchAllSongs });
+
+  const {
+    artworkUrl,
+    loading: artworkLoading,
+    error: artworkError,
+  } = useArtworkLookup(currentSong);
+
+  const displayedError = errorMessage ?? queueError;
 
   const clearYearSpotlightTimeout = useCallback(() => {
     if (yearSpotlightTimerRef.current) {
@@ -229,129 +94,6 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       }, 3400);
     },
     [clearYearSpotlightTimeout]
-  );
-
-  const renderYearSpotlightOverlay = (displayYear: number | null) => {
-    if (!yearSpotlightVisible || displayYear === null) {
-      return null;
-    }
-
-    return (
-      <Box
-        sx={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 4,
-          pointerEvents: "none",
-        }}
-      >
-        <Box
-          sx={{
-            width: { xs: "90vw", sm: "78vw", md: "62vw" },
-            height: { xs: "90vh", sm: "78vh", md: "62vh" },
-            maxWidth: 980,
-            maxHeight: 720,
-            minWidth: 260,
-            minHeight: 260,
-            borderRadius: { xs: 6, md: 8 },
-            background:
-              "radial-gradient(circle at 50% 50%, rgba(255,255,255,0.22), rgba(5,18,52,0.9))",
-            boxShadow: "0 52px 120px -34px rgba(2,8,34,0.88)",
-            color: "#ffffff",
-            textAlign: "center",
-            animation: `${yearSpotlightPulse} 3.2s cubic-bezier(0.4, 0, 0.2, 1) forwards`,
-            willChange: "transform, opacity, filter",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 2,
-          }}
-        >
-          <Typography
-            variant="subtitle1"
-            sx={{
-              letterSpacing: { xs: 10, sm: 16 },
-              textTransform: "uppercase",
-              opacity: 0.86,
-              fontWeight: 600,
-              fontSize: { xs: "1.05rem", sm: "1.35rem" },
-            }}
-          >
-            Año
-          </Typography>
-          <Typography
-            variant="h1"
-            sx={{
-              fontWeight: 800,
-              lineHeight: 0.92,
-              letterSpacing: "-0.03em",
-              textShadow: "0 48px 90px rgba(0,0,0,0.75)",
-              fontSize: {
-                xs: "clamp(3.8rem, 18vw, 9rem)",
-                sm: "clamp(5rem, 16vw, 10.5rem)",
-                md: "clamp(6rem, 14vw, 11.5rem)",
-              },
-            }}
-          >
-            {displayYear}
-          </Typography>
-        </Box>
-      </Box>
-    );
-  };
-
-  const renderNeonLines = () => (
-    <Box className="neon-lines" sx={{ zIndex: 3 }}>
-      <Box
-        className="neon-line"
-        sx={{
-          top: "18%",
-          background: "linear-gradient(90deg, #00fff7, #0ff, #fff)",
-          boxShadow: "0 0 16px #00fff7",
-          animation: "neon-move-right 2.5s linear infinite",
-        }}
-      />
-      <Box
-        className="neon-line"
-        sx={{
-          top: "32%",
-          background: "linear-gradient(90deg, #ff00ea, #fff, #ff0)",
-          boxShadow: "0 0 16px #ff00ea",
-          animation: "neon-move-left 3.2s linear infinite",
-        }}
-      />
-      <Box
-        className="neon-line"
-        sx={{
-          top: "46%",
-          background: "linear-gradient(90deg, #fff200, #fff, #00ff6a)",
-          boxShadow: "0 0 16px #fff200",
-          animation: "neon-move-right 2.1s linear infinite",
-        }}
-      />
-      <Box
-        className="neon-line"
-        sx={{
-          top: "60%",
-          background: "linear-gradient(90deg, #00ff6a, #fff, #00fff7)",
-          boxShadow: "0 0 16px #00ff6a",
-          animation: "neon-move-left 2.8s linear infinite",
-        }}
-      />
-      <Box
-        className="neon-line"
-        sx={{
-          top: "74%",
-          background: "linear-gradient(90deg, #ff0, #fff, #ff00ea)",
-          boxShadow: "0 0 16px #ff0",
-          animation: "neon-move-right 3.5s linear infinite",
-        }}
-      />
-    </Box>
   );
 
   const playerOptions = useMemo<YouTubeProps["opts"]>(() => {
@@ -378,219 +120,27 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
     if (!currentSong) {
-      setArtworkUrl(null);
-      setArtworkLoading(false);
-      setArtworkError(null);
       return;
     }
+    setPlayerKey((prev) => prev + 1);
+    setIsPlaying(false);
+    setGameState("playing");
+    setErrorMessage(null);
+    clearYearSpotlightTimeout();
+  }, [currentSong, clearYearSpotlightTimeout]);
 
-    let cancelled = false;
-    const controller = new AbortController();
-
-    const run = async () => {
-      try {
-        setArtworkLoading(true);
-        setArtworkError(null);
-        setArtworkUrl(null);
-
-        const searchTerms = [
-          `${currentSong.artist} ${currentSong.title}`,
-          currentSong.artist,
-        ];
-
-        const entities = ["album", "musicTrack"] as const;
-        const normalizedArtist = normalizeText(currentSong.artist);
-        const normalizedTitle = normalizeText(currentSong.title);
-        const artistTokens = tokenize(currentSong.artist);
-        const titleTokens = tokenize(currentSong.title);
-
-        const evaluateScore = (parts: Array<string | undefined>): number => {
-          const validParts = parts.filter((value): value is string =>
-            Boolean(value && value.trim())
-          );
-
-          if (!validParts.length) {
-            return 0;
-          }
-
-          const tokenPool = new Set<string>();
-          const normalizedParts = validParts.map((part) => {
-            const tokens = tokenize(part);
-            tokens.forEach((token) => tokenPool.add(token));
-            return normalizeText(part);
-          });
-
-          let score = 0;
-
-          const artistMatches = artistTokens.filter((token) =>
-            tokenPool.has(token)
-          );
-          const titleMatches = titleTokens.filter((token) =>
-            tokenPool.has(token)
-          );
-
-          if (artistMatches.length) {
-            score += 3 + artistMatches.length * 1.5;
-          }
-          if (
-            artistMatches.length === artistTokens.length &&
-            artistTokens.length > 0
-          ) {
-            score += 2;
-          }
-
-          if (titleMatches.length) {
-            score += 4 + titleMatches.length * 2;
-          }
-          if (
-            titleMatches.length === titleTokens.length &&
-            titleTokens.length
-          ) {
-            score += 3;
-          }
-
-          const combined = normalizedParts.join(" ");
-          if (normalizedArtist && combined.includes(normalizedArtist)) {
-            score += 2;
-          }
-          if (normalizedTitle && combined.includes(normalizedTitle)) {
-            score += 2;
-          }
-
-          return score;
-        };
-
-        const candidateMap = new Map<
-          string,
-          { url: string; score: number; source: string }
-        >();
-
-        for (const term of searchTerms) {
-          const encodedTerm = encodeURIComponent(term);
-          for (const entity of entities) {
-            const endpoint = `https://itunes.apple.com/search?term=${encodedTerm}&entity=${entity}&limit=5`;
-            const response = await fetch(endpoint, {
-              signal: controller.signal,
-            });
-
-            if (!response.ok) {
-              continue;
-            }
-
-            const payload: {
-              results?: Array<{
-                artworkUrl100?: string;
-                artistName?: string;
-                trackName?: string;
-                collectionName?: string;
-                collectionCensoredName?: string;
-                collectionArtistName?: string;
-              }>;
-            } = await response.json();
-
-            (payload.results ?? []).forEach((item, index) => {
-              if (!item?.artworkUrl100) {
-                return;
-              }
-
-              const score = evaluateScore([
-                item.artistName,
-                item.trackName,
-                item.collectionName,
-                item.collectionCensoredName,
-                item.collectionArtistName,
-              ]);
-
-              if (score <= 0) {
-                return;
-              }
-
-              let weightedScore = score;
-              if (entity === "album") {
-                weightedScore += 1.5;
-              }
-              if (term === searchTerms[0]) {
-                weightedScore += 1;
-              }
-              if (index === 0) {
-                weightedScore += 0.5;
-              }
-
-              const highRes = item.artworkUrl100.replace(
-                /100x100bb\.jpg$/i,
-                "1000x1000bb.jpg"
-              );
-
-              const existing = candidateMap.get(highRes);
-              if (!existing || weightedScore > existing.score) {
-                candidateMap.set(highRes, {
-                  url: highRes,
-                  score: weightedScore,
-                  source: `${entity}-${term}`,
-                });
-              }
-            });
-          }
-        }
-
-        const candidates = Array.from(candidateMap.values()).sort(
-          (a, b) => b.score - a.score
-        );
-
-        const MIN_CONFIDENCE_SCORE = titleTokens.length ? 7 : 5.5;
-
-        let selectedArtwork: string | null = null;
-        let selectedScore = 0;
-
-        for (const candidate of candidates) {
-          try {
-            await preloadImage(candidate.url);
-            selectedArtwork = candidate.url;
-            selectedScore = candidate.score;
-            break;
-          } catch {
-            // Try next candidate if the image fails to load.
-          }
-        }
-
-        if (!cancelled) {
-          if (selectedArtwork && selectedScore >= MIN_CONFIDENCE_SCORE) {
-            setArtworkUrl(selectedArtwork);
-            setArtworkError(null);
-          } else {
-            setArtworkUrl(null);
-            setArtworkError(
-              "No encontramos una portada que coincidiera bien con la canción."
-            );
-          }
-          setArtworkLoading(false);
-        }
-      } catch (error) {
-        if (controller.signal.aborted || cancelled) {
-          return;
-        }
-        setArtworkLoading(false);
-        setArtworkUrl(null);
-        setArtworkError(
-          error instanceof Error
-            ? error.message
-            : "No se pudo cargar la portada de la canción."
-        );
-      }
-    };
-
-    run();
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [currentSong]);
+  useEffect(() => {
+    if (queueStatus === "loading") {
+      setGameState("loading");
+    }
+    if (queueStatus === "error" || queueStatus === "exhausted") {
+      setGameState("error");
+    }
+    if (queueStatus === "idle" && !currentSong) {
+      setGameState("idle");
+    }
+  }, [currentSong, queueStatus]);
 
   const videoId = useMemo(
     () => (currentSong ? extractYoutubeId(currentSong.youtube_url) : null),
@@ -615,117 +165,43 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     []
   );
 
-  const selectNextSongFromQueue = useCallback((): Song | null => {
-    const queue = songQueueRef.current;
-    const seen = seenSongIdsRef.current;
+  useEffect(
+    () => () => {
+      stopPlayback();
+    },
+    [stopPlayback]
+  );
 
-    while (queueIndexRef.current < queue.length) {
-      const candidate = queue[queueIndexRef.current];
-      queueIndexRef.current += 1;
-      if (!seen.has(candidate.id)) {
-        return candidate;
-      }
-    }
+  useEffect(
+    () => () => {
+      clearYearSpotlightTimeout();
+    },
+    [clearYearSpotlightTimeout]
+  );
 
-    return null;
-  }, []);
-
-  const prepareQueueAndStart = useCallback(async () => {
+  const advanceToNextSong = useCallback(() => {
     setErrorMessage(null);
     setGameState("loading");
     setIsPlaying(false);
     stopPlayback();
-    setArtworkUrl(null);
-    setArtworkError(null);
     clearYearSpotlightTimeout();
+    advanceQueue();
+  }, [advanceQueue, clearYearSpotlightTimeout, stopPlayback]);
 
-    seenSongIdsRef.current.clear();
-    songQueueRef.current = [];
-    queueIndexRef.current = 0;
-
-    try {
-      const songs = await fetchAllSongs();
-      const uniquePlayable = new Map<string, Song>();
-
-      songs.forEach((song: Song) => {
-        const trimmedUrl = song.youtube_url.trim();
-        const videoKey = extractYoutubeId(trimmedUrl);
-        if (!videoKey) {
-          return;
-        }
-        if (!uniquePlayable.has(videoKey)) {
-          uniquePlayable.set(videoKey, song);
-        }
-      });
-
-      const dedupedSongs = shuffleSongs(Array.from(uniquePlayable.values()));
-      const playableSongs = buildBalancedQueue(dedupedSongs);
-
-      if (!playableSongs.length) {
-        throw new Error(
-          "No hay canciones reproducibles disponibles en la base de datos."
-        );
-      }
-
-      songQueueRef.current = playableSongs;
-      queueIndexRef.current = 0;
-
-      const nextSong = selectNextSongFromQueue();
-
-      if (!nextSong) {
-        throw new Error(
-          "No se encontraron canciones para iniciar la partida automática."
-        );
-      }
-
-      seenSongIdsRef.current.add(nextSong.id);
-      setCurrentSong(nextSong);
-      setPlayerKey((prev) => prev + 1);
-      setGameState("playing");
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "No se pudo preparar la partida automática."
-      );
-      setGameState("error");
-    }
-  }, [clearYearSpotlightTimeout, selectNextSongFromQueue, stopPlayback]);
-
-  const loadNextSongFromQueue = useCallback(() => {
+  const handleStart = useCallback(() => {
     setErrorMessage(null);
     setGameState("loading");
     setIsPlaying(false);
     stopPlayback();
-    setArtworkError(null);
-    setArtworkUrl(null);
     clearYearSpotlightTimeout();
-
-    const nextSong = selectNextSongFromQueue();
-
-    if (!nextSong) {
-      setErrorMessage(
-        "Ya escuchaste todas las canciones disponibles en esta partida. Reinicia para volver a jugar."
-      );
-      setGameState("error");
-      return;
-    }
-
-    seenSongIdsRef.current.add(nextSong.id);
-    setCurrentSong(nextSong);
-    setPlayerKey((prev) => prev + 1);
-    setGameState("playing");
-  }, [clearYearSpotlightTimeout, selectNextSongFromQueue, stopPlayback]);
-
-  const handleStart = () => {
-    prepareQueueAndStart().catch(() => {
-      /* handled in prepareQueueAndStart */
+    startQueue().catch(() => {
+      /* handled via hook state */
     });
-  };
+  }, [clearYearSpotlightTimeout, startQueue, stopPlayback]);
 
-  const handleSkip = () => {
-    loadNextSongFromQueue();
-  };
+  const handleSkip = useCallback(() => {
+    advanceToNextSong();
+  }, [advanceToNextSong]);
 
   const handleReveal = () => {
     setGameState("revealed");
@@ -742,38 +218,31 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     triggerYearSpotlight(randomYear);
   };
 
-  const handleNextAfterReveal = () => {
-    loadNextSongFromQueue();
-  };
+  const handleNextAfterReveal = useCallback(() => {
+    advanceToNextSong();
+  }, [advanceToNextSong]);
 
   const handlePlayerError = useCallback<
     NonNullable<YouTubeProps["onError"]>
   >(() => {
     setIsPlaying(false);
-    loadNextSongFromQueue();
     setErrorMessage(
       "No se pudo reproducir el video de esta canción. Pasamos a otra pista."
     );
-  }, [loadNextSongFromQueue]);
+    advanceToNextSong();
+  }, [advanceToNextSong]);
 
-  const handleExit = () => {
-    const finalizeExit = () => {
-      stopPlayback();
-      setCurrentSong(null);
-      setGameState("idle");
-      setErrorMessage(null);
-      setArtworkUrl(null);
-      setArtworkLoading(false);
-      setArtworkError(null);
-      clearYearSpotlightTimeout();
-      seenSongIdsRef.current.clear();
-      songQueueRef.current = [];
-      queueIndexRef.current = 0;
-      onExit();
-    };
-
-    finalizeExit();
-  };
+  const handleExit = useCallback(() => {
+    stopPlayback();
+    resetQueue();
+    setGameState("idle");
+    setErrorMessage(null);
+    setIsPlaying(false);
+    setYearSpotlightVisible(false);
+    setSpotlightYear(null);
+    clearYearSpotlightTimeout();
+    onExit();
+  }, [clearYearSpotlightTimeout, onExit, resetQueue, stopPlayback]);
 
   const handlePlayPause = () => {
     const internalPlayer =
@@ -964,8 +433,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             zIndex: 2,
           }}
         />
-        {shouldShowNeon ? renderNeonLines() : null}
-        {renderYearSpotlightOverlay(spotlightDisplayYear)}
+        <NeonLines active={shouldShowNeon} sx={{ zIndex: 3 }} />
+        <YearSpotlight
+          visible={yearSpotlightVisible && spotlightDisplayYear !== null}
+          year={spotlightDisplayYear}
+        />
         <Stack
           direction={{ xs: "column-reverse", md: "row" }}
           spacing={{ xs: 3, md: 5 }}
@@ -1002,7 +474,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 width: "100%",
               }}
             >
-              {errorMessage ? (
+              {displayedError ? (
                 <Alert
                   severity="warning"
                   icon={false}
@@ -1014,7 +486,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                     fontWeight: 500,
                   }}
                 >
-                  {errorMessage}
+                  {displayedError}
                 </Alert>
               ) : null}
               <Stack
@@ -1344,8 +816,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             zIndex: 2,
           }}
         />
-        {renderNeonLines()}
-        {renderYearSpotlightOverlay(spotlightYear)}
+        <NeonLines sx={{ zIndex: 3 }} />
+        <YearSpotlight visible={yearSpotlightVisible} year={spotlightYear} />
         <Stack
           direction={{ xs: "column-reverse", md: "row" }}
           spacing={{ xs: 3, md: 5 }}
@@ -1598,7 +1070,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 textAlign: "left",
               }}
             >
-              {errorMessage ??
+              {displayedError ??
                 "No pudimos continuar la partida automática. Intenta reiniciarla o vuelve al menú principal."}
             </Alert>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>

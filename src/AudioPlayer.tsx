@@ -7,6 +7,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import Box from "@mui/material/Box";
+import { NeonLines } from "./auto-game/NeonLines";
 
 interface AudioPlayerProps {
   videoUrl: string;
@@ -247,56 +248,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ videoUrl, onBack }) => {
       </Box>
 
       {/* Líneas neon animadas cuando está reproduciendo */}
-      {playing && (
-        <Box className="neon-lines">
-          {/* 5 líneas, alternando animación y color */}
-          <Box
-            className="neon-line"
-            sx={{
-              top: "18%",
-              background: "linear-gradient(90deg, #00fff7, #0ff, #fff)",
-              boxShadow: "0 0 16px #00fff7",
-              animation: "neon-move-right 2.5s linear infinite",
-            }}
-          />
-          <Box
-            className="neon-line"
-            sx={{
-              top: "32%",
-              background: "linear-gradient(90deg, #ff00ea, #fff, #ff0)",
-              boxShadow: "0 0 16px #ff00ea",
-              animation: "neon-move-left 3.2s linear infinite",
-            }}
-          />
-          <Box
-            className="neon-line"
-            sx={{
-              top: "46%",
-              background: "linear-gradient(90deg, #fff200, #fff, #00ff6a)",
-              boxShadow: "0 0 16px #fff200",
-              animation: "neon-move-right 2.1s linear infinite",
-            }}
-          />
-          <Box
-            className="neon-line"
-            sx={{
-              top: "60%",
-              background: "linear-gradient(90deg, #00ff6a, #fff, #00fff7)",
-              boxShadow: "0 0 16px #00ff6a",
-              animation: "neon-move-left 2.8s linear infinite",
-            }}
-          />
-          <Box
-            className="neon-line"
-            sx={{
-              top: "74%",
-              background: "linear-gradient(90deg, #ff0, #fff, #ff00ea)",
-              boxShadow: "0 0 16px #ff0",
-              animation: "neon-move-right 3.5s linear infinite",
-            }}
-          />
-        </Box>
-      )}
+      <NeonLines active={playing} />
     </Box>
   );
 };

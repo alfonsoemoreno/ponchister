@@ -722,16 +722,24 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           </Box>
           <Box
             sx={{
-              width: { xs: "100%", md: 420 },
+              width: { xs: "100%", md: "100%" },
+              flex: { xs: "0 0 auto", md: 1 },
               display: "flex",
               justifyContent: "center",
+              alignItems: "center",
+              height: { xs: "auto", md: "100%" },
+              minHeight: { md: 0 },
               viewTransitionName: "auto-game-artwork-frame",
             }}
           >
             <Box
               sx={{
                 position: "relative",
-                width: { xs: "72%", sm: 300, md: 380 },
+                width: {
+                  xs: "72%",
+                  sm: 300,
+                  md: "min(48vw, 78vh)",
+                },
                 aspectRatio: "1 / 1",
                 borderRadius: { xs: 4, md: 5 },
                 overflow: "hidden",
@@ -1028,6 +1036,60 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               Cada año sugerido se muestra con la misma animación que la
               revelación de canciones.
             </Typography>
+          </Box>
+          <Box
+            sx={{
+              width: { xs: "100%", md: "100%" },
+              flex: { xs: "0 0 auto", md: 1 },
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: { xs: "auto", md: "100%" },
+              minHeight: { md: 0 },
+              viewTransitionName: "auto-game-artwork-frame",
+            }}
+          >
+            <Box
+              sx={{
+                position: "relative",
+                width: {
+                  xs: "72%",
+                  sm: 300,
+                  md: "min(48vw, 78vh)",
+                },
+                aspectRatio: "1 / 1",
+                borderRadius: { xs: 4, md: 5 },
+                overflow: "hidden",
+                boxShadow: "0 38px 78px -32px rgba(5,18,52,0.82)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                background:
+                  "linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(99,213,245,0.26) 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Stack
+                spacing={2}
+                alignItems="center"
+                sx={{
+                  p: { xs: 3, md: 5 },
+                  color: "rgba(224,239,255,0.88)",
+                  textAlign: "center",
+                }}
+              >
+                <InfoOutlinedIcon
+                  sx={{ fontSize: { xs: 48, md: 64 }, opacity: 0.82 }}
+                />
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  Portada lista para desplegarse
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.82 }}>
+                  Cuando empieces la partida automática, la carátula ocupará el
+                  máximo espacio disponible para sumergirte por completo.
+                </Typography>
+              </Stack>
+            </Box>
           </Box>
         </Stack>
       </Box>

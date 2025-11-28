@@ -78,6 +78,7 @@ export const YearSpotlight: FC<YearSpotlightProps> = ({ visible, year }) => {
           alignItems: "center",
           justifyContent: "center",
           gap: 2,
+          viewTransitionName: "auto-game-spotlight",
         }}
       >
         <Typography

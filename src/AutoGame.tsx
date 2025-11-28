@@ -25,6 +25,7 @@ import { useAutoGameQueue } from "./hooks/useAutoGameQueue";
 import { useArtworkLookup } from "./hooks/useArtworkLookup";
 import { NeonLines } from "./auto-game/NeonLines";
 import { YearSpotlight } from "./auto-game/YearSpotlight";
+import { useViewTransition } from "./hooks/useViewTransition";
 
 interface InternalPlayer {
   playVideo?: () => void;
@@ -70,6 +71,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     loading: artworkLoading,
     error: artworkError,
   } = useArtworkLookup(currentSong);
+
+  const runViewTransition = useViewTransition();
 
   const displayedError = errorMessage ?? queueError;
 
@@ -123,12 +126,14 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     if (!currentSong) {
       return;
     }
-    setPlayerKey((prev) => prev + 1);
-    setIsPlaying(false);
-    setGameState("playing");
-    setErrorMessage(null);
-    clearYearSpotlightTimeout();
-  }, [currentSong, clearYearSpotlightTimeout]);
+    void runViewTransition(() => {
+      setPlayerKey((prev) => prev + 1);
+      setIsPlaying(false);
+      setGameState("playing");
+      setErrorMessage(null);
+      clearYearSpotlightTimeout();
+    });
+  }, [currentSong, clearYearSpotlightTimeout, runViewTransition]);
 
   useEffect(() => {
     if (queueStatus === "loading") {
@@ -180,43 +185,54 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   );
 
   const advanceToNextSong = useCallback(() => {
-    setErrorMessage(null);
-    setGameState("loading");
-    setIsPlaying(false);
-    stopPlayback();
-    clearYearSpotlightTimeout();
-    advanceQueue();
-  }, [advanceQueue, clearYearSpotlightTimeout, stopPlayback]);
+    void runViewTransition(() => {
+      setErrorMessage(null);
+      setGameState("loading");
+      setIsPlaying(false);
+      stopPlayback();
+      clearYearSpotlightTimeout();
+      advanceQueue();
+    });
+  }, [
+    advanceQueue,
+    clearYearSpotlightTimeout,
+    runViewTransition,
+    stopPlayback,
+  ]);
 
   const handleStart = useCallback(() => {
-    setErrorMessage(null);
-    setGameState("loading");
-    setIsPlaying(false);
-    stopPlayback();
-    clearYearSpotlightTimeout();
-    startQueue().catch(() => {
-      /* handled via hook state */
+    void runViewTransition(async () => {
+      setErrorMessage(null);
+      setGameState("loading");
+      setIsPlaying(false);
+      stopPlayback();
+      clearYearSpotlightTimeout();
+      await startQueue();
     });
-  }, [clearYearSpotlightTimeout, startQueue, stopPlayback]);
+  }, [clearYearSpotlightTimeout, runViewTransition, startQueue, stopPlayback]);
 
   const handleSkip = useCallback(() => {
     advanceToNextSong();
   }, [advanceToNextSong]);
 
-  const handleReveal = () => {
-    setGameState("revealed");
-    if (currentSong && typeof currentSong.year === "number") {
-      triggerYearSpotlight(currentSong.year);
-    }
-  };
+  const handleReveal = useCallback(() => {
+    void runViewTransition(() => {
+      setGameState("revealed");
+      if (currentSong && typeof currentSong.year === "number") {
+        triggerYearSpotlight(currentSong.year);
+      }
+    });
+  }, [currentSong, runViewTransition, triggerYearSpotlight]);
 
-  const handleRandomYearReveal = () => {
+  const handleRandomYearReveal = useCallback(() => {
     const currentYear = new Date().getFullYear();
     const minYear = 1950;
     const randomYear =
       Math.floor(Math.random() * (currentYear - minYear + 1)) + minYear;
-    triggerYearSpotlight(randomYear);
-  };
+    void runViewTransition(() => {
+      triggerYearSpotlight(randomYear);
+    });
+  }, [runViewTransition, triggerYearSpotlight]);
 
   const handleNextAfterReveal = useCallback(() => {
     advanceToNextSong();
@@ -233,16 +249,24 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   }, [advanceToNextSong]);
 
   const handleExit = useCallback(() => {
-    stopPlayback();
-    resetQueue();
-    setGameState("idle");
-    setErrorMessage(null);
-    setIsPlaying(false);
-    setYearSpotlightVisible(false);
-    setSpotlightYear(null);
-    clearYearSpotlightTimeout();
-    onExit();
-  }, [clearYearSpotlightTimeout, onExit, resetQueue, stopPlayback]);
+    void runViewTransition(() => {
+      stopPlayback();
+      resetQueue();
+      setGameState("idle");
+      setErrorMessage(null);
+      setIsPlaying(false);
+      setYearSpotlightVisible(false);
+      setSpotlightYear(null);
+      clearYearSpotlightTimeout();
+      onExit();
+    });
+  }, [
+    clearYearSpotlightTimeout,
+    onExit,
+    resetQueue,
+    runViewTransition,
+    stopPlayback,
+  ]);
 
   const handlePlayPause = () => {
     const internalPlayer =
@@ -292,20 +316,6 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       setIsPlaying(false);
     }
   };
-
-  useEffect(
-    () => () => {
-      stopPlayback();
-    },
-    [stopPlayback]
-  );
-
-  useEffect(
-    () => () => {
-      clearYearSpotlightTimeout();
-    },
-    [clearYearSpotlightTimeout]
-  );
 
   const renderExperienceView = (
     mode: "guess" | "reveal",
@@ -408,6 +418,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           height: { xs: "auto", md: "100%" },
           minHeight: { xs: 520, md: 640 },
           overflow: { xs: "visible", md: "hidden" },
+          viewTransitionName: "auto-game-canvas",
         }}
       >
         <Box
@@ -423,6 +434,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             transform: shouldDisplayArtwork ? "scale(1.12)" : "none",
             opacity: shouldDisplayArtwork ? 0.95 : 1,
             zIndex: 1,
+            viewTransitionName: "auto-game-background",
           }}
         />
         <Box
@@ -431,9 +443,13 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             inset: 0,
             backdropFilter: "blur(12px)",
             zIndex: 2,
+            viewTransitionName: "auto-game-overlay",
           }}
         />
-        <NeonLines active={shouldShowNeon} sx={{ zIndex: 3 }} />
+        <NeonLines
+          active={shouldShowNeon}
+          sx={{ zIndex: 3, viewTransitionName: "auto-game-neon" }}
+        />
         <YearSpotlight
           visible={yearSpotlightVisible && spotlightDisplayYear !== null}
           year={spotlightDisplayYear}
@@ -449,6 +465,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             gap: { xs: 4, md: 5 },
             height: { xs: "auto", md: "100%" },
             pb: { xs: 6, md: 0 },
+            viewTransitionName: "auto-game-panel",
           }}
         >
           <Box
@@ -708,6 +725,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               width: { xs: "100%", md: 420 },
               display: "flex",
               justifyContent: "center",
+              viewTransitionName: "auto-game-artwork-frame",
             }}
           >
             <Box
@@ -724,6 +742,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                viewTransitionName: "auto-game-artwork-shell",
               }}
             >
               {shouldDisplayArtwork ? (
@@ -739,13 +758,18 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                     width: "100%",
                     height: "100%",
                     objectFit: "cover",
+                    viewTransitionName: "auto-game-artwork",
                   }}
                 />
               ) : (
                 <Stack
                   spacing={1}
                   alignItems="center"
-                  sx={{ p: 3, color: "rgba(224,239,255,0.85)" }}
+                  sx={{
+                    p: 3,
+                    color: "rgba(224,239,255,0.85)",
+                    viewTransitionName: "auto-game-artwork-fallback",
+                  }}
                 >
                   <InfoOutlinedIcon sx={{ fontSize: 40, opacity: 0.75 }} />
                   <Typography
@@ -796,6 +820,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           height: { xs: "auto", md: "100%" },
           minHeight: { xs: 560, md: 640 },
           overflow: { xs: "visible", md: "hidden" },
+          viewTransitionName: "auto-game-canvas",
         }}
       >
         <Box
@@ -806,6 +831,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             backgroundSize: "140% 140%",
             backgroundPosition: "48% 42%",
             zIndex: 1,
+            viewTransitionName: "auto-game-background",
           }}
         />
         <Box
@@ -814,9 +840,10 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             inset: 0,
             backdropFilter: "blur(12px)",
             zIndex: 2,
+            viewTransitionName: "auto-game-overlay",
           }}
         />
-        <NeonLines sx={{ zIndex: 3 }} />
+        <NeonLines sx={{ zIndex: 3, viewTransitionName: "auto-game-neon" }} />
         <YearSpotlight visible={yearSpotlightVisible} year={spotlightYear} />
         <Stack
           direction={{ xs: "column-reverse", md: "row" }}
@@ -829,6 +856,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             gap: { xs: 4, md: 5 },
             height: { xs: "auto", md: "100%" },
             pb: { xs: 6, md: 0 },
+            viewTransitionName: "auto-game-panel",
           }}
         >
           <Box
@@ -1153,6 +1181,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         background:
           "linear-gradient(190deg, #0a2a6f 0%, #051d4a 52%, #030c26 100%)",
         overscrollBehavior: isExperienceMode ? "contain" : undefined,
+        viewTransitionName: "auto-game-root",
       }}
     >
       <Box sx={{ position: "absolute", top: 24, right: 24, zIndex: 10 }}>

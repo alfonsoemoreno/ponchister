@@ -1,0 +1,69 @@
+import { useCallback, useMemo } from "react";
+
+export type ViewTransitionCallback = () => void | Promise<void>;
+
+function isViewTransitionSupported(): boolean {
+  return typeof document !== "undefined" && "startViewTransition" in document;
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+type ViewTransitionLike = {
+  finished: Promise<void>;
+};
+
+type StartViewTransition = (
+  this: Document,
+  updateCallback: () => void | Promise<void>
+) => ViewTransitionLike;
+
+export function useViewTransition(): (
+  callback: ViewTransitionCallback
+) => Promise<void> {
+  const supported = useMemo(isViewTransitionSupported, []);
+  const reducedMotion = useMemo(prefersReducedMotion, []);
+
+  return useCallback(
+    async (callback: ViewTransitionCallback) => {
+      if (!callback) {
+        return;
+      }
+
+      if (reducedMotion || !supported) {
+        await callback();
+        return;
+      }
+
+      const startViewTransition = (
+        document as Document & {
+          startViewTransition?: StartViewTransition;
+        }
+      ).startViewTransition;
+
+      if (typeof startViewTransition !== "function") {
+        await callback();
+        return;
+      }
+
+      const transition = startViewTransition.call(document, async () => {
+        await callback();
+      });
+
+      try {
+        await transition.finished;
+      } catch (error) {
+        console.info(
+          `[view-transition] status=aborted message="${
+            error instanceof Error ? error.message : String(error)
+          }"`
+        );
+      }
+    },
+    [reducedMotion, supported]
+  );
+}

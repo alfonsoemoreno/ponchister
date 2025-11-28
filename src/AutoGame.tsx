@@ -23,9 +23,11 @@ import { fetchAllSongs } from "./services/songService";
 import { extractYoutubeId } from "./lib/autoGameQueue";
 import { useAutoGameQueue } from "./hooks/useAutoGameQueue";
 import { useArtworkLookup } from "./hooks/useArtworkLookup";
+import { useArtworkPalette } from "./hooks/useArtworkPalette";
 import { NeonLines } from "./auto-game/NeonLines";
 import { YearSpotlight } from "./auto-game/YearSpotlight";
 import { useViewTransition } from "./hooks/useViewTransition";
+import { darken, lighten, rgbToCss } from "./lib/color";
 
 interface InternalPlayer {
   playVideo?: () => void;
@@ -44,6 +46,356 @@ interface AutoGameProps {
 type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
 
 type PlayerRef = YouTube | null;
+
+interface ChipTheme {
+  background: string;
+  color: string;
+  borderColor?: string;
+  borderStyle?: "solid" | "dashed";
+}
+
+interface IconButtonTheme {
+  background: string;
+  hoverBackground: string;
+  border: string;
+  color: string;
+  hoverColor: string;
+  shadow: string;
+  hoverShadow: string;
+}
+
+interface PrimaryButtonTheme {
+  background: string;
+  hoverBackground: string;
+  textColor: string;
+  shadow: string;
+  hoverShadow: string;
+}
+
+interface SecondaryButtonTheme {
+  border: string;
+  textColor: string;
+  hoverBorder: string;
+  hoverBackground: string;
+}
+
+interface StatusTextTheme {
+  label: string;
+  description: string;
+}
+
+interface FallbackTheme {
+  text: string;
+  caption: string;
+  icon: string;
+  background: string;
+}
+
+interface AlertTheme {
+  background: string;
+  color: string;
+  border: string;
+}
+
+interface AdaptiveTheme {
+  overlayTint: string;
+  text: {
+    primary: string;
+    secondary: string;
+    body: string;
+    caption: string;
+    muted: string;
+  };
+  textShadow: string;
+  alert: AlertTheme;
+  chips: {
+    primary: ChipTheme;
+    secondary: ChipTheme;
+    tertiary: ChipTheme;
+  };
+  spinner: string;
+  iconButton: IconButtonTheme;
+  primaryButton: PrimaryButtonTheme;
+  secondaryButton: SecondaryButtonTheme;
+  status: StatusTextTheme;
+  fallback: FallbackTheme;
+  warningText: string;
+  progressOverlay: string;
+}
+
+const DEFAULT_THEME: AdaptiveTheme = {
+  overlayTint: "rgba(4, 12, 26, 0.48)",
+  text: {
+    primary: "#ffffff",
+    secondary: "rgba(204,231,255,0.92)",
+    body: "rgba(224,239,255,0.82)",
+    caption: "rgba(204,231,255,0.72)",
+    muted: "rgba(224,239,255,0.78)",
+  },
+  textShadow: "0 30px 60px rgba(0,0,0,0.55)",
+  alert: {
+    background: "rgba(255,255,255,0.08)",
+    color: "rgba(255,255,255,0.94)",
+    border: "rgba(255,255,255,0.18)",
+  },
+  chips: {
+    primary: {
+      background: "rgba(255,255,255,0.16)",
+      color: "#ffffff",
+      borderColor: undefined,
+    },
+    secondary: {
+      background: "rgba(13,148,255,0.2)",
+      color: "rgba(212,239,255,0.95)",
+      borderColor: "rgba(148,197,255,0.35)",
+      borderStyle: "solid",
+    },
+    tertiary: {
+      background: "rgba(255,255,255,0.12)",
+      color: "rgba(230,243,255,0.92)",
+      borderColor: "rgba(230,243,255,0.35)",
+      borderStyle: "dashed",
+    },
+  },
+  spinner: "#d7f9ff",
+  iconButton: {
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(99,213,245,0.35) 100%)",
+    hoverBackground:
+      "linear-gradient(135deg, rgba(255,255,255,0.28) 0%, rgba(99,213,245,0.48) 100%)",
+    border: "3px solid rgba(255,255,255,0.35)",
+    color: "#ffffff",
+    hoverColor: "#ffffff",
+    shadow: "0 26px 56px -28px rgba(12,38,96,0.8)",
+    hoverShadow: "0 30px 64px -30px rgba(12,38,96,0.82)",
+  },
+  primaryButton: {
+    background:
+      "linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #22d3ee 100%)",
+    hoverBackground:
+      "linear-gradient(135deg, #2563eb 0%, #3b82f6 45%, #06b6d4 100%)",
+    textColor: "#ffffff",
+    shadow: "0 22px 48px -18px rgba(50,132,255,0.6)",
+    hoverShadow: "0 26px 56px -20px rgba(37,99,235,0.7)",
+  },
+  secondaryButton: {
+    border: "rgba(255,255,255,0.4)",
+    textColor: "rgba(255,255,255,0.92)",
+    hoverBorder: "rgba(255,255,255,0.7)",
+    hoverBackground: "rgba(255,255,255,0.12)",
+  },
+  status: {
+    label: "rgba(224,239,255,0.78)",
+    description: "rgba(224,239,255,0.8)",
+  },
+  fallback: {
+    text: "rgba(224,239,255,0.85)",
+    caption: "rgba(224,239,255,0.8)",
+    icon: "rgba(224,239,255,0.85)",
+    background: "transparent",
+  },
+  warningText: "rgba(255,210,210,0.92)",
+  progressOverlay: "rgba(4,10,24,0.45)",
+};
+
+const adjustBaseTone = (colorValue: number): number =>
+  Math.max(0, Math.min(255, colorValue));
+
+const withSafeBase = (paletteColor: { r: number; g: number; b: number }) => ({
+  r: adjustBaseTone(paletteColor.r),
+  g: adjustBaseTone(paletteColor.g),
+  b: adjustBaseTone(paletteColor.b),
+});
+
+const createAdaptiveTheme = (
+  palette: {
+    color: { r: number; g: number; b: number };
+    brightness: number;
+  } | null
+): AdaptiveTheme => {
+  if (!palette) {
+    return DEFAULT_THEME;
+  }
+
+  const safeBase = withSafeBase(palette.color);
+  const brightness = palette.brightness;
+  const adjustedBase =
+    brightness < 0.22
+      ? lighten(safeBase, 0.32)
+      : brightness > 0.82
+      ? darken(safeBase, 0.22)
+      : safeBase;
+
+  if (brightness > 0.62) {
+    const midTone = darken(adjustedBase, 0.25);
+    const deepTone = darken(adjustedBase, 0.45);
+    const hoverTone = darken(adjustedBase, 0.55);
+    const lightTone = darken(adjustedBase, 0.15);
+
+    return {
+      ...DEFAULT_THEME,
+      overlayTint: "rgba(5, 12, 26, 0.64)",
+      text: {
+        primary: "#061223",
+        secondary: "rgba(12,32,60,0.88)",
+        body: "rgba(14,38,68,0.78)",
+        caption: "rgba(12,32,60,0.65)",
+        muted: "rgba(14,38,68,0.72)",
+      },
+      textShadow: "0 30px 60px rgba(0,0,0,0.35)",
+      alert: {
+        background: "rgba(255,255,255,0.78)",
+        color: "#061223",
+        border: "rgba(6,22,44,0.18)",
+      },
+      chips: {
+        primary: {
+          background: "rgba(8,22,46,0.12)",
+          color: "#061223",
+          borderColor: "rgba(6,22,44,0.16)",
+          borderStyle: "solid",
+        },
+        secondary: {
+          background: rgbToCss(lightTone, 0.22),
+          color: rgbToCss(hoverTone),
+          borderColor: rgbToCss(deepTone, 0.32),
+          borderStyle: "solid",
+        },
+        tertiary: {
+          background: "rgba(255,255,255,0.74)",
+          color: "#061223",
+          borderColor: "rgba(6,22,44,0.18)",
+          borderStyle: "dashed",
+        },
+      },
+      spinner: rgbToCss(deepTone),
+      iconButton: {
+        background: `linear-gradient(135deg, ${rgbToCss(
+          lighten(adjustedBase, 0.48),
+          0.82
+        )} 0%, ${rgbToCss(lighten(adjustedBase, 0.32), 0.88)} 100%)`,
+        hoverBackground: `linear-gradient(135deg, ${rgbToCss(
+          lighten(adjustedBase, 0.42),
+          0.92
+        )} 0%, ${rgbToCss(lighten(adjustedBase, 0.22), 0.98)} 100%)`,
+        border: "3px solid rgba(6,22,44,0.22)",
+        color: rgbToCss(darken(adjustedBase, 0.78)),
+        hoverColor: rgbToCss(darken(adjustedBase, 0.85)),
+        shadow: "0 26px 56px -28px rgba(8,22,48,0.5)",
+        hoverShadow: "0 30px 64px -26px rgba(6,18,38,0.58)",
+      },
+      primaryButton: {
+        background: `linear-gradient(135deg, ${rgbToCss(
+          lightTone
+        )} 0%, ${rgbToCss(midTone)} 50%, ${rgbToCss(deepTone)} 100%)`,
+        hoverBackground: `linear-gradient(135deg, ${rgbToCss(
+          darken(adjustedBase, 0.18)
+        )} 0%, ${rgbToCss(deepTone)} 50%, ${rgbToCss(hoverTone)} 100%)`,
+        textColor: "#f8fbff",
+        shadow: `0 22px 48px -18px ${rgbToCss(
+          darken(adjustedBase, 0.62),
+          0.6
+        )}`,
+        hoverShadow: `0 26px 56px -20px ${rgbToCss(
+          darken(adjustedBase, 0.68),
+          0.68
+        )}`,
+      },
+      secondaryButton: {
+        border: "rgba(6,22,44,0.35)",
+        textColor: "rgba(6,22,44,0.92)",
+        hoverBorder: "rgba(6,22,44,0.45)",
+        hoverBackground: "rgba(6,22,44,0.12)",
+      },
+      status: {
+        label: "rgba(14,38,68,0.78)",
+        description: "rgba(14,38,68,0.72)",
+      },
+      fallback: {
+        text: "rgba(14,38,68,0.78)",
+        caption: "rgba(12,32,60,0.62)",
+        icon: rgbToCss(deepTone),
+        background: "transparent",
+      },
+      warningText: "rgba(172,58,58,0.88)",
+      progressOverlay: rgbToCss(darken(adjustedBase, 0.6), 0.45),
+    };
+  }
+
+  const accentBase =
+    brightness < 0.32 ? lighten(adjustedBase, 0.18) : adjustedBase;
+  const accentLift = lighten(accentBase, 0.24);
+  const accentDeep = darken(accentBase, 0.22);
+  const accentHover = darken(accentBase, 0.32);
+  const accentShadow = rgbToCss(darken(accentBase, 0.58), 0.58);
+  const accentHoverShadow = rgbToCss(darken(accentBase, 0.64), 0.64);
+
+  return {
+    ...DEFAULT_THEME,
+    overlayTint:
+      brightness < 0.28 ? "rgba(2, 8, 22, 0.55)" : DEFAULT_THEME.overlayTint,
+    chips: {
+      primary: {
+        background: rgbToCss(lighten(accentBase, 0.55), 0.16),
+        color: DEFAULT_THEME.text.primary,
+        borderColor: rgbToCss(lighten(accentBase, 0.45), 0.22),
+        borderStyle: "solid",
+      },
+      secondary: {
+        background: rgbToCss(lighten(accentBase, 0.15), 0.22),
+        color: rgbToCss(lighten(accentBase, 0.7)),
+        borderColor: rgbToCss(lighten(accentBase, 0.08), 0.35),
+        borderStyle: "solid",
+      },
+      tertiary: {
+        background: rgbToCss(lighten(accentBase, 0.35), 0.18),
+        color: rgbToCss(lighten(accentBase, 0.8)),
+        borderColor: rgbToCss(lighten(accentBase, 0.25), 0.26),
+        borderStyle: "dashed",
+      },
+    },
+    spinner: rgbToCss(lighten(accentBase, 0.55)),
+    iconButton: {
+      background: `linear-gradient(135deg, ${rgbToCss(
+        lighten(accentBase, 0.4),
+        0.28
+      )} 0%, ${rgbToCss(lighten(accentBase, 0.22), 0.4)} 100%)`,
+      hoverBackground: `linear-gradient(135deg, ${rgbToCss(
+        lighten(accentBase, 0.45),
+        0.35
+      )} 0%, ${rgbToCss(lighten(accentBase, 0.25), 0.48)} 100%)`,
+      border: "3px solid rgba(255,255,255,0.28)",
+      color: DEFAULT_THEME.iconButton.color,
+      hoverColor: DEFAULT_THEME.iconButton.hoverColor,
+      shadow: DEFAULT_THEME.iconButton.shadow,
+      hoverShadow: DEFAULT_THEME.iconButton.hoverShadow,
+    },
+    primaryButton: {
+      background: `linear-gradient(135deg, ${rgbToCss(
+        accentLift
+      )} 0%, ${rgbToCss(accentBase)} 50%, ${rgbToCss(accentDeep)} 100%)`,
+      hoverBackground: `linear-gradient(135deg, ${rgbToCss(
+        lighten(accentBase, 0.12)
+      )} 0%, ${rgbToCss(accentDeep)} 50%, ${rgbToCss(accentHover)} 100%)`,
+      textColor: DEFAULT_THEME.primaryButton.textColor,
+      shadow: `0 22px 48px -18px ${accentShadow}`,
+      hoverShadow: `0 26px 56px -20px ${accentHoverShadow}`,
+    },
+    secondaryButton: {
+      border: rgbToCss(lighten(accentBase, 0.3), 0.35),
+      textColor: DEFAULT_THEME.secondaryButton.textColor,
+      hoverBorder: rgbToCss(lighten(accentBase, 0.45), 0.55),
+      hoverBackground: rgbToCss(lighten(accentBase, 0.25), 0.15),
+    },
+    status: DEFAULT_THEME.status,
+    fallback: {
+      ...DEFAULT_THEME.fallback,
+      icon: rgbToCss(lighten(accentBase, 0.55)),
+    },
+    warningText: DEFAULT_THEME.warningText,
+    progressOverlay: DEFAULT_THEME.progressOverlay,
+  };
+};
 
 const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const [gameState, setGameState] = useState<GameState>("idle");
@@ -71,8 +423,10 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     loading: artworkLoading,
     error: artworkError,
   } = useArtworkLookup(currentSong);
+  const { palette: artworkPalette } = useArtworkPalette(artworkUrl);
 
   const runViewTransition = useViewTransition();
+  const rootTheme = createAdaptiveTheme(artworkPalette);
 
   const displayedError = errorMessage ?? queueError;
 
@@ -409,6 +763,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         : hasNumericYear
         ? currentSong.year
         : null;
+    const theme = createAdaptiveTheme(
+      shouldDisplayArtwork ? artworkPalette : null
+    );
 
     return (
       <Box
@@ -442,6 +799,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             position: "absolute",
             inset: 0,
             backdropFilter: "blur(12px)",
+            backgroundColor: theme.overlayTint,
             zIndex: 2,
             viewTransitionName: "auto-game-overlay",
           }}
@@ -496,9 +854,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   severity="warning"
                   icon={false}
                   sx={{
-                    backgroundColor: "rgba(255,255,255,0.08)",
-                    color: "rgba(255,255,255,0.94)",
-                    border: "1px solid rgba(255,255,255,0.18)",
+                    backgroundColor: theme.alert.background,
+                    color: theme.alert.color,
+                    border: `1px solid ${theme.alert.border}`,
                     backdropFilter: "blur(12px)",
                     fontWeight: 500,
                   }}
@@ -511,7 +869,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 spacing={1.5}
                 alignItems="center"
                 flexWrap="wrap"
-                sx={{ color: "#fff" }}
+                sx={{ color: theme.text.primary }}
               >
                 {baseChipLabel ? (
                   <Chip
@@ -520,8 +878,13 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                       fontWeight: 600,
                       letterSpacing: 1,
                       textTransform: "uppercase",
-                      backgroundColor: "rgba(255,255,255,0.16)",
-                      color: "#fff",
+                      backgroundColor: theme.chips.primary.background,
+                      color: theme.chips.primary.color,
+                      border: theme.chips.primary.borderColor
+                        ? `${theme.chips.primary.borderStyle ?? "solid"} 1px ${
+                            theme.chips.primary.borderColor
+                          }`
+                        : undefined,
                       backdropFilter: "blur(10px)",
                     }}
                   />
@@ -532,9 +895,13 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                     fontWeight: 600,
                     letterSpacing: 1,
                     textTransform: "uppercase",
-                    backgroundColor: "rgba(13,148,255,0.2)",
-                    color: "rgba(212,239,255,0.95)",
-                    border: "1px solid rgba(148,197,255,0.35)",
+                    backgroundColor: theme.chips.secondary.background,
+                    color: theme.chips.secondary.color,
+                    border: theme.chips.secondary.borderColor
+                      ? `${theme.chips.secondary.borderStyle ?? "solid"} 1px ${
+                          theme.chips.secondary.borderColor
+                        }`
+                      : undefined,
                   }}
                 />
                 {tertiaryChipLabel ? (
@@ -544,18 +911,22 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                       fontWeight: 600,
                       letterSpacing: 1,
                       textTransform: "uppercase",
-                      backgroundColor: "rgba(255,255,255,0.12)",
-                      color: "rgba(230,243,255,0.92)",
-                      border: "1px dashed rgba(230,243,255,0.35)",
+                      backgroundColor: theme.chips.tertiary.background,
+                      color: theme.chips.tertiary.color,
+                      border: theme.chips.tertiary.borderColor
+                        ? `${theme.chips.tertiary.borderStyle ?? "solid"} 1px ${
+                            theme.chips.tertiary.borderColor
+                          }`
+                        : undefined,
                     }}
                   />
                 ) : null}
                 {artworkLoading ? (
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <CircularProgress size={16} sx={{ color: "#d7f9ff" }} />
+                    <CircularProgress size={16} sx={{ color: theme.spinner }} />
                     <Typography
                       variant="caption"
-                      sx={{ color: "rgba(224,239,255,0.85)" }}
+                      sx={{ color: theme.text.body }}
                     >
                       Buscando portada...
                     </Typography>
@@ -568,8 +939,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   fontWeight: 800,
                   letterSpacing: "-0.015em",
                   textAlign: "left",
-                  color: "#ffffff",
-                  textShadow: "0 30px 60px rgba(0,0,0,0.55)",
+                  color: theme.text.primary,
+                  textShadow: theme.textShadow,
                 }}
               >
                 {heading}
@@ -578,7 +949,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 variant="h4"
                 sx={{
                   fontWeight: 600,
-                  color: "rgba(204,231,255,0.92)",
+                  color: theme.text.secondary,
                   textAlign: "left",
                 }}
               >
@@ -587,7 +958,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               <Typography
                 variant="body1"
                 sx={{
-                  color: "rgba(224,239,255,0.82)",
+                  color: theme.text.body,
                   maxWidth: 520,
                   textAlign: "left",
                 }}
@@ -598,7 +969,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 <Typography
                   variant="caption"
                   sx={{
-                    color: "rgba(255,210,210,0.92)",
+                    color: theme.warningText,
                     textAlign: "left",
                   }}
                 >
@@ -622,16 +993,16 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   width: 88,
                   height: 88,
                   borderRadius: "50%",
-                  border: "3px solid rgba(255,255,255,0.35)",
-                  background:
-                    "linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(99,213,245,0.35) 100%)",
-                  boxShadow: "0 26px 56px -28px rgba(12,38,96,0.8)",
-                  color: "#ffffff",
+                  border: theme.iconButton.border,
+                  background: theme.iconButton.background,
+                  boxShadow: theme.iconButton.shadow,
+                  color: theme.iconButton.color,
                   transition: "transform 160ms ease",
                   "&:hover": {
                     transform: "translateY(-4px) scale(1.02)",
-                    background:
-                      "linear-gradient(135deg, rgba(255,255,255,0.28) 0%, rgba(99,213,245,0.48) 100%)",
+                    background: theme.iconButton.hoverBackground,
+                    boxShadow: theme.iconButton.hoverShadow,
+                    color: theme.iconButton.hoverColor,
                   },
                 }}
               >
@@ -641,11 +1012,17 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   <PlayArrowIcon sx={{ fontSize: 48 }} />
                 )}
               </IconButton>
-              <Stack spacing={1} sx={{ color: "rgba(224,239,255,0.78)" }}>
-                <Typography variant="caption" sx={{ letterSpacing: 1 }}>
+              <Stack spacing={1}>
+                <Typography
+                  variant="caption"
+                  sx={{ letterSpacing: 1, color: theme.status.label }}
+                >
                   {statusCaptionLabel}
                 </Typography>
-                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ color: theme.status.description }}
+                >
                   {statusCaptionDescription}
                 </Typography>
               </Stack>
@@ -670,17 +1047,23 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   borderRadius: 999,
                   px: 3.5,
                   py: 1.5,
-                  boxShadow: "0 22px 48px -18px rgba(50,132,255,0.6)",
+                  boxShadow:
+                    primaryAction.variant === "contained"
+                      ? theme.primaryButton.shadow
+                      : undefined,
                   background:
                     primaryAction.variant === "contained"
-                      ? "linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #22d3ee 100%)"
+                      ? theme.primaryButton.background
+                      : undefined,
+                  color:
+                    primaryAction.variant === "contained"
+                      ? theme.primaryButton.textColor
                       : undefined,
                   "&:hover":
                     primaryAction.variant === "contained"
                       ? {
-                          background:
-                            "linear-gradient(135deg, #2563eb 0%, #3b82f6 45%, #06b6d4 100%)",
-                          boxShadow: "0 26px 56px -20px rgba(37,99,235,0.7)",
+                          background: theme.primaryButton.hoverBackground,
+                          boxShadow: theme.primaryButton.hoverShadow,
                         }
                       : undefined,
                 }}
@@ -701,17 +1084,18 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   py: 1.5,
                   borderColor:
                     secondaryAction.variant === "outlined"
-                      ? "rgba(255,255,255,0.4)"
+                      ? theme.secondaryButton.border
                       : undefined,
                   color:
                     secondaryAction.variant === "outlined"
-                      ? "rgba(255,255,255,0.92)"
+                      ? theme.secondaryButton.textColor
                       : undefined,
                   "&:hover":
                     secondaryAction.variant === "outlined"
                       ? {
-                          borderColor: "rgba(255,255,255,0.7)",
-                          backgroundColor: "rgba(255,255,255,0.12)",
+                          borderColor: theme.secondaryButton.hoverBorder,
+                          backgroundColor:
+                            theme.secondaryButton.hoverBackground,
                         }
                       : undefined,
                 }}
@@ -775,20 +1159,26 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   alignItems="center"
                   sx={{
                     p: 3,
-                    color: "rgba(224,239,255,0.85)",
+                    color: theme.fallback.text,
                     viewTransitionName: "auto-game-artwork-fallback",
                   }}
                 >
-                  <InfoOutlinedIcon sx={{ fontSize: 40, opacity: 0.75 }} />
+                  <InfoOutlinedIcon
+                    sx={{ fontSize: 40, color: theme.fallback.icon }}
+                  />
                   <Typography
                     variant="subtitle2"
-                    sx={{ textAlign: "center", fontWeight: 600 }}
+                    sx={{
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: theme.fallback.text,
+                    }}
                   >
                     {fallbackTitle}
                   </Typography>
                   <Typography
                     variant="caption"
-                    sx={{ textAlign: "center", opacity: 0.8 }}
+                    sx={{ textAlign: "center", color: theme.fallback.caption }}
                   >
                     {fallbackDescription}
                   </Typography>
@@ -802,10 +1192,10 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: "rgba(4,10,24,0.45)",
+                    backgroundColor: theme.progressOverlay,
                   }}
                 >
-                  <CircularProgress size={38} sx={{ color: "#d7f9ff" }} />
+                  <CircularProgress size={38} sx={{ color: theme.spinner }} />
                 </Box>
               ) : null}
             </Box>
@@ -819,6 +1209,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     const currentYear = new Date().getFullYear();
     const fallbackBackdrop =
       "linear-gradient(190deg, rgba(12,44,110,0.75) 0%, rgba(6,26,68,0.88) 55%, rgba(2,12,34,0.92) 100%)";
+    const theme = createAdaptiveTheme(null);
 
     return (
       <Box
@@ -847,6 +1238,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             position: "absolute",
             inset: 0,
             backdropFilter: "blur(12px)",
+            backgroundColor: theme.overlayTint,
             zIndex: 2,
             viewTransitionName: "auto-game-overlay",
           }}
@@ -882,7 +1274,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               spacing={1.5}
               alignItems="center"
               flexWrap="wrap"
-              sx={{ color: "#fff" }}
+              sx={{ color: theme.text.primary }}
             >
               <Chip
                 label="Modo automático"
@@ -890,8 +1282,13 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   fontWeight: 600,
                   letterSpacing: 1,
                   textTransform: "uppercase",
-                  backgroundColor: "rgba(255,255,255,0.16)",
-                  color: "#fff",
+                  backgroundColor: theme.chips.primary.background,
+                  color: theme.chips.primary.color,
+                  border: theme.chips.primary.borderColor
+                    ? `${theme.chips.primary.borderStyle ?? "solid"} 1px ${
+                        theme.chips.primary.borderColor
+                      }`
+                    : undefined,
                   backdropFilter: "blur(10px)",
                 }}
               />
@@ -901,9 +1298,13 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   fontWeight: 600,
                   letterSpacing: 1,
                   textTransform: "uppercase",
-                  backgroundColor: "rgba(13,148,255,0.2)",
-                  color: "rgba(212,239,255,0.95)",
-                  border: "1px solid rgba(148,197,255,0.35)",
+                  backgroundColor: theme.chips.secondary.background,
+                  color: theme.chips.secondary.color,
+                  border: theme.chips.secondary.borderColor
+                    ? `${theme.chips.secondary.borderStyle ?? "solid"} 1px ${
+                        theme.chips.secondary.borderColor
+                      }`
+                    : undefined,
                 }}
               />
               <Chip
@@ -912,9 +1313,13 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   fontWeight: 600,
                   letterSpacing: 1,
                   textTransform: "uppercase",
-                  backgroundColor: "rgba(255,255,255,0.12)",
-                  color: "rgba(230,243,255,0.92)",
-                  border: "1px dashed rgba(230,243,255,0.35)",
+                  backgroundColor: theme.chips.tertiary.background,
+                  color: theme.chips.tertiary.color,
+                  border: theme.chips.tertiary.borderColor
+                    ? `${theme.chips.tertiary.borderStyle ?? "solid"} 1px ${
+                        theme.chips.tertiary.borderColor
+                      }`
+                    : undefined,
                 }}
               />
             </Stack>
@@ -924,8 +1329,8 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 fontWeight: 800,
                 letterSpacing: "-0.015em",
                 textAlign: "left",
-                color: "#ffffff",
-                textShadow: "0 30px 60px rgba(0,0,0,0.55)",
+                color: theme.text.primary,
+                textShadow: theme.textShadow,
               }}
             >
               Vive la experiencia automática
@@ -934,7 +1339,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               variant="h4"
               sx={{
                 fontWeight: 600,
-                color: "rgba(204,231,255,0.92)",
+                color: theme.text.secondary,
                 textAlign: "left",
               }}
             >
@@ -943,7 +1348,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             <Typography
               variant="body1"
               sx={{
-                color: "rgba(224,239,255,0.82)",
+                color: theme.text.body,
                 maxWidth: 520,
                 textAlign: "left",
               }}
@@ -962,11 +1367,17 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 alignSelf: { xs: "stretch", md: "flex-start" },
               }}
             >
-              <Stack spacing={1} sx={{ color: "rgba(224,239,255,0.78)" }}>
-                <Typography variant="caption" sx={{ letterSpacing: 1 }}>
+              <Stack spacing={1}>
+                <Typography
+                  variant="caption"
+                  sx={{ letterSpacing: 1, color: theme.status.label }}
+                >
                   Listo para comenzar
                 </Typography>
-                <Typography variant="subtitle2" sx={{ opacity: 0.8 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ color: theme.status.description }}
+                >
                   Inicia o genera un año de referencia en segundos.
                 </Typography>
               </Stack>
@@ -991,13 +1402,12 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   borderRadius: 999,
                   px: 3.5,
                   py: 1.6,
-                  boxShadow: "0 22px 48px -18px rgba(50,132,255,0.6)",
-                  background:
-                    "linear-gradient(135deg, #3b82f6 0%, #60a5fa 50%, #22d3ee 100%)",
+                  boxShadow: theme.primaryButton.shadow,
+                  background: theme.primaryButton.background,
+                  color: theme.primaryButton.textColor,
                   "&:hover": {
-                    background:
-                      "linear-gradient(135deg, #2563eb 0%, #3b82f6 45%, #06b6d4 100%)",
-                    boxShadow: "0 26px 56px -20px rgba(37,99,235,0.7)",
+                    background: theme.primaryButton.hoverBackground,
+                    boxShadow: theme.primaryButton.hoverShadow,
                   },
                 }}
               >
@@ -1015,11 +1425,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   borderRadius: 999,
                   px: 3.5,
                   py: 1.6,
-                  borderColor: "rgba(255,255,255,0.4)",
-                  color: "rgba(255,255,255,0.92)",
+                  borderColor: theme.secondaryButton.border,
+                  color: theme.secondaryButton.textColor,
                   "&:hover": {
-                    borderColor: "rgba(255,255,255,0.7)",
-                    backgroundColor: "rgba(255,255,255,0.12)",
+                    borderColor: theme.secondaryButton.hoverBorder,
+                    backgroundColor: theme.secondaryButton.hoverBackground,
                   },
                 }}
               >
@@ -1029,7 +1439,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             <Typography
               variant="caption"
               sx={{
-                color: "rgba(204,231,255,0.72)",
+                color: theme.text.caption,
                 textAlign: "left",
               }}
             >
@@ -1074,17 +1484,26 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 alignItems="center"
                 sx={{
                   p: { xs: 3, md: 5 },
-                  color: "rgba(224,239,255,0.88)",
+                  color: theme.fallback.text,
                   textAlign: "center",
                 }}
               >
                 <InfoOutlinedIcon
-                  sx={{ fontSize: { xs: 48, md: 64 }, opacity: 0.82 }}
+                  sx={{
+                    fontSize: { xs: 48, md: 64 },
+                    color: theme.fallback.icon,
+                  }}
                 />
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 700, color: theme.fallback.text }}
+                >
                   Portada lista para desplegarse
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.82 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ color: theme.fallback.caption }}
+                >
                   Cuando empieces la partida automática, la carátula ocupará el
                   máximo espacio disponible para sumergirte por completo.
                 </Typography>
@@ -1097,6 +1516,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   };
 
   const renderControls = () => {
+    const theme = createAdaptiveTheme(artworkPalette);
     if (gameState === "idle") {
       return renderIdleLanding();
     }
@@ -1116,11 +1536,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             spacing={3}
             alignItems="center"
             sx={{
-              color: "rgba(255,255,255,0.9)",
+              color: theme.text.primary,
             }}
           >
-            <CircularProgress sx={{ color: "#d7f9ff" }} />
-            <Typography variant="body1">
+            <CircularProgress sx={{ color: theme.spinner }} />
+            <Typography variant="body1" sx={{ color: theme.text.body }}>
               Preparando la atmósfera para la próxima canción...
             </Typography>
           </Stack>
@@ -1152,9 +1572,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               icon={false}
               sx={{
                 width: "100%",
-                backgroundColor: "rgba(255,255,255,0.08)",
-                color: "rgba(255,255,255,0.94)",
-                border: "1px solid rgba(255,255,255,0.18)",
+                backgroundColor: theme.alert.background,
+                color: theme.alert.color,
+                border: `1px solid ${theme.alert.border}`,
                 backdropFilter: "blur(12px)",
                 fontWeight: 500,
                 textAlign: "left",
@@ -1173,6 +1593,16 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   minWidth: 200,
                   textTransform: "none",
                   fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.5,
+                  boxShadow: theme.primaryButton.shadow,
+                  background: theme.primaryButton.background,
+                  color: theme.primaryButton.textColor,
+                  "&:hover": {
+                    background: theme.primaryButton.hoverBackground,
+                    boxShadow: theme.primaryButton.hoverShadow,
+                  },
                 }}
               >
                 Reintentar partida
@@ -1186,11 +1616,14 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   minWidth: 200,
                   textTransform: "none",
                   fontWeight: 700,
-                  borderColor: "rgba(255,255,255,0.45)",
-                  color: "rgba(255,255,255,0.92)",
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.5,
+                  borderColor: theme.secondaryButton.border,
+                  color: theme.secondaryButton.textColor,
                   "&:hover": {
-                    borderColor: "rgba(255,255,255,0.7)",
-                    backgroundColor: "rgba(255,255,255,0.12)",
+                    borderColor: theme.secondaryButton.hoverBorder,
+                    backgroundColor: theme.secondaryButton.hoverBackground,
                   },
                 }}
               >
@@ -1229,7 +1662,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         alignItems: isExperienceMode
           ? { xs: "stretch", md: "center" }
           : "center",
-        color: "white",
+        color: rootTheme.text.primary,
         textAlign: "center",
         p: 0,
         pt: 0,

@@ -50,18 +50,39 @@ export function useViewTransition(): (
         return;
       }
 
-      const transition = startViewTransition.call(document, async () => {
-        await callback();
-      });
+      let updateRan = false;
 
       try {
-        await transition.finished;
+        const transition = startViewTransition.call(document, async () => {
+          updateRan = true;
+          await callback();
+        });
+
+        if (
+          transition &&
+          typeof transition.finished === "object" &&
+          typeof transition.finished.then === "function"
+        ) {
+          try {
+            await transition.finished;
+          } catch (error) {
+            console.info(
+              `[view-transition] status=aborted message="${
+                error instanceof Error ? error.message : String(error)
+              }"`
+            );
+          }
+        }
       } catch (error) {
         console.info(
-          `[view-transition] status=aborted message="${
+          `[view-transition] status=failed message="${
             error instanceof Error ? error.message : String(error)
           }"`
         );
+      }
+
+      if (!updateRan) {
+        await callback();
       }
     },
     [reducedMotion, supported]

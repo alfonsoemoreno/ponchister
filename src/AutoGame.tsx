@@ -94,7 +94,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         setYearSpotlightVisible(false);
         setSpotlightYear(null);
         yearSpotlightTimerRef.current = null;
-      }, 3400);
+      }, 4600);
     },
     [clearYearSpotlightTimeout]
   );

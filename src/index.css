@@ -390,27 +390,30 @@ button:focus-visible {
 }
 
 @supports (view-transition-name: auto) {
-  .year-spotlight {
+  html[data-view-transitions="enabled"] .year-spotlight {
     animation: none !important;
   }
 
-  .year-spotlight__label,
-  .year-spotlight__value {
+  html[data-view-transitions="enabled"] .year-spotlight__label,
+  html[data-view-transitions="enabled"] .year-spotlight__value {
     animation: none !important;
   }
 
-  ::view-transition-group(auto-game-spotlight) {
+  html[data-view-transitions="enabled"]
+    ::view-transition-group(auto-game-spotlight) {
     animation-duration: 4200ms;
   }
 
-  ::view-transition-new(auto-game-spotlight) {
+  html[data-view-transitions="enabled"]
+    ::view-transition-new(auto-game-spotlight) {
     transform-origin: 50% 50%;
     animation: year-spotlight-view-enter 4200ms
       cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
     mix-blend-mode: normal;
   }
 
-  ::view-transition-old(auto-game-spotlight) {
+  html[data-view-transitions="enabled"]
+    ::view-transition-old(auto-game-spotlight) {
     animation: year-spotlight-view-exit 2000ms cubic-bezier(0.22, 0.61, 0.36, 1)
       forwards;
   }

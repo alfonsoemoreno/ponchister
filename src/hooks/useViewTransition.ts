@@ -1,10 +1,7 @@
 import { useCallback, useMemo } from "react";
+import { shouldEnableViewTransitions } from "../lib/browser";
 
 export type ViewTransitionCallback = () => void | Promise<void>;
-
-function isViewTransitionSupported(): boolean {
-  return typeof document !== "undefined" && "startViewTransition" in document;
-}
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") {
@@ -25,7 +22,7 @@ type StartViewTransition = (
 export function useViewTransition(): (
   callback: ViewTransitionCallback
 ) => Promise<void> {
-  const supported = useMemo(isViewTransitionSupported, []);
+  const supported = useMemo(shouldEnableViewTransitions, []);
   const reducedMotion = useMemo(prefersReducedMotion, []);
 
   return useCallback(

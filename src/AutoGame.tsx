@@ -511,19 +511,18 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     setSpotlightYear(null);
   }, []);
 
-  const triggerYearSpotlight = useCallback(
-    (year: number) => {
-      clearYearSpotlightTimeout();
-      setSpotlightYear(year);
-      setYearSpotlightVisible(true);
-      yearSpotlightTimerRef.current = setTimeout(() => {
-        setYearSpotlightVisible(false);
-        setSpotlightYear(null);
-        yearSpotlightTimerRef.current = null;
-      }, 4600);
-    },
-    [clearYearSpotlightTimeout]
-  );
+  const triggerYearSpotlight = useCallback((year: number) => {
+    if (yearSpotlightTimerRef.current) {
+      return;
+    }
+    setSpotlightYear(year);
+    setYearSpotlightVisible(true);
+    yearSpotlightTimerRef.current = setTimeout(() => {
+      setYearSpotlightVisible(false);
+      setSpotlightYear(null);
+      yearSpotlightTimerRef.current = null;
+    }, 4600);
+  }, []);
 
   const playerOptions = useMemo<YouTubeProps["opts"]>(() => {
     const origin =
@@ -642,6 +641,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   }, [advanceToNextSong]);
 
   const handleReveal = useCallback(() => {
+    if (yearSpotlightTimerRef.current) {
+      return;
+    }
     void runViewTransition(() => {
       setGameState("revealed");
       if (currentSong && typeof currentSong.year === "number") {
@@ -651,6 +653,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   }, [currentSong, runViewTransition, triggerYearSpotlight]);
 
   const handleRandomYearReveal = useCallback(() => {
+    if (yearSpotlightTimerRef.current) {
+      return;
+    }
     const currentYear = new Date().getFullYear();
     const minYear = 1950;
     const randomYear =
@@ -786,6 +791,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           onClick: handleNextAfterReveal,
           variant: "contained" as const,
           color: "primary" as const,
+          disabled: false,
         }
       : {
           icon: <InfoOutlinedIcon />,
@@ -793,6 +799,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           onClick: handleReveal,
           variant: "contained" as const,
           color: "primary" as const,
+          disabled: yearSpotlightVisible,
         };
 
     const secondaryAction = showDetails
@@ -1113,6 +1120,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 color={primaryAction.color}
                 startIcon={primaryAction.icon}
                 onClick={primaryAction.onClick}
+                disabled={primaryAction.disabled}
                 sx={{
                   minWidth: 200,
                   textTransform: "none",
@@ -1495,6 +1503,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 color="inherit"
                 startIcon={<CalendarMonthIcon />}
                 onClick={handleRandomYearReveal}
+                disabled={yearSpotlightVisible}
                 sx={{
                   minWidth: 220,
                   textTransform: "none",

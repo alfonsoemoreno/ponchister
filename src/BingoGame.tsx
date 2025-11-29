@@ -7,8 +7,14 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -17,6 +23,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import CasinoIcon from "@mui/icons-material/Casino";
+import ClearIcon from "@mui/icons-material/Clear";
 // import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 
 import { fetchAllSongs } from "./services/songService";
@@ -59,6 +66,7 @@ type BingoPhase =
   | "spinning"
   | "playing"
   | "revealed"
+  | "card-editor"
   | "error";
 
 type PlayerRef = YouTube | null;
@@ -623,6 +631,70 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
   const categories = selectedMode ? BINGO_MODES[selectedMode] : [];
   const modeLabel = selectedMode ? MODE_LABELS[selectedMode] : null;
 
+  // Card editor state: 5x5 grid and editor text
+  type CardCell = { color: string; checked: boolean };
+  const [cardCells, setCardCells] = useState<CardCell[] | null>(null);
+  const [editorText, setEditorText] = useState<string>("");
+  const [confirmRandomizeOpen, setConfirmRandomizeOpen] = useState(false);
+  const [confirmBackOpen, setConfirmBackOpen] = useState(false);
+
+  const randomizeCard = (mode: BingoMode) => {
+    const palette = BINGO_MODES[mode].map((c) => c.color);
+    const cells: CardCell[] = Array.from({ length: 25 }).map(() => ({
+      color: palette[Math.floor(Math.random() * palette.length)],
+      checked: false,
+    }));
+    setCardCells(cells);
+    try {
+      localStorage.setItem(
+        `ponchister_carton_${mode}`,
+        JSON.stringify({ cells, text: editorText ?? "" })
+      );
+    } catch {
+      // ignore storage errors
+    }
+  };
+
+  const handleOpenCardEditor = (mode: BingoMode) => {
+    setSelectedMode(mode);
+    randomizeCard(mode);
+    setEditorText("");
+    setPhase("card-editor");
+  };
+
+  const toggleCell = (index: number) => {
+    if (!cardCells) return;
+    const next = cardCells.slice();
+    next[index] = { ...next[index], checked: !next[index].checked };
+    setCardCells(next);
+    if (selectedMode) {
+      try {
+        localStorage.setItem(
+          `ponchister_carton_${selectedMode}`,
+          JSON.stringify({ cells: next, text: editorText ?? "" })
+        );
+      } catch {
+        /* noop */
+      }
+    }
+  };
+
+  const clearEditorText = () => setEditorText("");
+
+  // persist text changes
+  useEffect(() => {
+    if (!selectedMode) return;
+    if (!cardCells) return;
+    try {
+      localStorage.setItem(
+        `ponchister_carton_${selectedMode}`,
+        JSON.stringify({ cells: cardCells, text: editorText ?? "" })
+      );
+    } catch {
+      /* noop */
+    }
+  }, [editorText, cardCells, selectedMode]);
+
   const renderModeSelection = () => (
     <Stack
       spacing={6}
@@ -736,6 +808,24 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
               >
                 Elegir{" "}
                 {mode === "beginner" ? "modo principiantes" : "modo experto"}
+              </Button>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={() => handleOpenCardEditor(mode)}
+                sx={{
+                  mt: 1,
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.2,
+                  alignSelf: "flex-start",
+                  color: "rgba(255,255,255,0.92)",
+                  borderColor: "rgba(255,255,255,0.16)",
+                }}
+              >
+                Ir a mi cartón
               </Button>
             </Stack>
           </Box>
@@ -921,6 +1011,168 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     </Stack>
   );
 
+  const handleCloseCardEditor = () => {
+    setCardCells(null);
+    setEditorText("");
+    setPhase("select-mode");
+  };
+
+  const renderCardEditor = () => {
+    if (!cardCells) {
+      return (
+        <Stack spacing={2} alignItems="center" sx={{ width: "100%", py: 6 }}>
+          <CircularProgress size={64} sx={{ color: "#d7f9ff" }} />
+          <Typography>Todavía preparando el cartón…</Typography>
+          <Button onClick={() => selectedMode && randomizeCard(selectedMode)}>
+            Generar
+          </Button>
+        </Stack>
+      );
+    }
+
+    return (
+      <Stack
+        spacing={2}
+        sx={{ width: "100%", px: 2.5, py: 2, alignItems: "center" }}
+      >
+        <Box
+          sx={{
+            width: "min(760px, 96vw)",
+            display: "flex",
+            flexDirection: "column",
+            height: "calc(70vh)",
+          }}
+        >
+          <Box
+            sx={{
+              flex: "0 0 auto",
+              display: "grid",
+              gridTemplateColumns: "repeat(5, 1fr)",
+              gap: 1.5,
+              width: "100%",
+            }}
+          >
+            {cardCells.map((cell, i) => (
+              <Box
+                key={i}
+                onClick={() => toggleCell(i)}
+                role="button"
+                aria-pressed={cell.checked}
+                sx={{
+                  background: hexToRgba(cell.color, 0.92),
+                  borderRadius: 1.2,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  outline: cell.checked
+                    ? `4px solid ${hexToRgba("#ffffff", 0.18)}`
+                    : `2px solid rgba(0,0,0,0.12)`,
+                  position: "relative",
+                  userSelect: "none",
+                  aspectRatio: "1 / 1",
+                  minWidth: 48,
+                  minHeight: 48,
+                }}
+              >
+                {cell.checked && (
+                  <Typography
+                    sx={{
+                      color: "#fff",
+                      fontWeight: 900,
+                      fontSize: "clamp(1.6rem, 6vw, 3.2rem)",
+                      lineHeight: 1,
+                      textShadow: "0 6px 14px rgba(0,0,0,0.45)",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    X
+                  </Typography>
+                )}
+              </Box>
+            ))}
+          </Box>
+
+          <Box sx={{ flex: "1 1 auto", mt: 1 }}>
+            <TextField
+              multiline
+              rows={4}
+              value={editorText}
+              onChange={(e) => setEditorText(e.target.value)}
+              placeholder="Escribe algo visible para los demás..."
+              variant="outlined"
+              fullWidth
+              inputProps={{
+                style: {
+                  fontSize: 72,
+                  fontWeight: 700,
+                  textAlign: "center",
+                  color: "#fff",
+                  lineHeight: 1.05,
+                },
+              }}
+              sx={{
+                height: "100%",
+                backgroundColor: "rgba(255,255,255,0.03)",
+                borderRadius: 2,
+                "& .MuiOutlinedInput-root": { height: "100%" },
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "rgba(255,255,255,0.08)",
+                },
+              }}
+            />
+          </Box>
+
+          <Box sx={{ flex: "0 0 auto", mt: 1 }}>
+            <Stack direction="row" spacing={1.2} justifyContent="space-between">
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="contained"
+                  onClick={() => setConfirmBackOpen(true)}
+                  sx={{ textTransform: "none" }}
+                >
+                  Volver
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => setConfirmRandomizeOpen(true)}
+                  sx={{ textTransform: "none" }}
+                >
+                  Randomizar
+                </Button>
+              </Stack>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<ClearIcon />}
+                  onClick={clearEditorText}
+                  sx={{ textTransform: "none" }}
+                >
+                  Borrar texto
+                </Button>
+              </Stack>
+            </Stack>
+          </Box>
+        </Box>
+      </Stack>
+    );
+  };
+
+  const handleConfirmRandomize = () => {
+    if (selectedMode) randomizeCard(selectedMode);
+    setConfirmRandomizeOpen(false);
+  };
+
+  const handleCancelRandomize = () => setConfirmRandomizeOpen(false);
+
+  const handleConfirmBack = () => {
+    handleCloseCardEditor();
+    setConfirmBackOpen(false);
+  };
+
+  const handleCancelBack = () => setConfirmBackOpen(false);
+
   const renderErrorView = () => (
     <Stack
       spacing={3.5}
@@ -1005,6 +1257,8 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
       </Stack>
     </Stack>
   );
+
+  // Confirmation dialogs for card editor actions (declared later before return)
 
   const renderExperienceView = (mode: "guess" | "reveal") => {
     if (!currentSong || !currentCategory) {
@@ -1407,6 +1661,10 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
       return renderModeSelection();
     }
 
+    if (phase === "card-editor") {
+      return renderCardEditor();
+    }
+
     if (phase === "loading") {
       return renderLoadingView();
     }
@@ -1427,6 +1685,41 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
   };
 
   const isExperienceMode = phase === "playing" || phase === "revealed";
+  // Confirmation dialogs for card editor actions
+  const confirmationDialogs = (
+    <>
+      <Dialog open={confirmRandomizeOpen} onClose={handleCancelRandomize}>
+        <DialogTitle>Randomizar cartón</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Estás seguro de que quieres randomizar el cartón? Se perderán las
+            marcas actuales.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelRandomize}>Cancelar</Button>
+          <Button onClick={handleConfirmRandomize} autoFocus>
+            Randomizar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={confirmBackOpen} onClose={handleCancelBack}>
+        <DialogTitle>Volver</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Deseas volver al menú? Se perderá el cartón no guardado.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelBack}>Cancelar</Button>
+          <Button onClick={handleConfirmBack} autoFocus>
+            Volver
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
 
   return (
     <Box
@@ -1459,38 +1752,42 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
         viewTransitionName: "bingo-game-root",
       }}
     >
-      <Box
-        sx={{
-          position: "fixed",
-          top: 24,
-          right: 24,
-          zIndex: 9999,
-          pointerEvents: "none",
-        }}
-      >
-        <span style={{ pointerEvents: "auto" }}>
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={handleExit}
-            startIcon={<ExitToAppIcon />}
-            sx={{
-              fontWeight: "bold",
-              textTransform: "none",
-              color: "#FFF !important",
-              border: "2px solid #FFF",
-              backgroundColor: "rgba(0,0,0,0.05) !important",
-              "&:hover": {
-                backgroundColor: "#FFF !important",
-                color: "#28518C !important",
+      {phase !== "card-editor" && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: 24,
+            right: 24,
+            zIndex: 9999,
+            pointerEvents: "none",
+          }}
+        >
+          <span style={{ pointerEvents: "auto" }}>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={handleExit}
+              startIcon={<ExitToAppIcon />}
+              sx={{
+                fontWeight: "bold",
+                textTransform: "none",
+                color: "#FFF !important",
                 border: "2px solid #FFF",
-              },
-            }}
-          >
-            Salir
-          </Button>
-        </span>
-      </Box>
+                backgroundColor: "rgba(0,0,0,0.05) !important",
+                "&:hover": {
+                  backgroundColor: "#FFF !important",
+                  color: "#28518C !important",
+                  border: "2px solid #FFF",
+                },
+              }}
+            >
+              Salir
+            </Button>
+          </span>
+        </Box>
+      )}
+
+      {confirmationDialogs}
 
       {videoId && (
         <Box
@@ -1508,7 +1805,7 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
         >
           <YouTube
             key={playerKey}
-            videoId={videoId}
+            videoId={videoId ?? undefined}
             opts={playerOptions}
             ref={playerRef}
             onReady={handlePlayerReady}

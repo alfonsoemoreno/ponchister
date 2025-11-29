@@ -114,30 +114,10 @@ const Welcome: React.FC<WelcomeProps> = ({
         overflowX: "hidden",
         overflowY: "auto",
         fontFamily: "'Poppins', 'Fredoka', Arial, sans-serif",
-        background:
-          "linear-gradient(190deg, #0a2a6f 0%, #051d4a 52%, #030c26 100%)",
+        background: "#051d4a",
       }}
     >
-      <Box
-        sx={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "radial-gradient(circle at 24% 12%, rgba(56,136,255,0.32), rgba(6,18,44,0) 38%)",
-          opacity: 0.9,
-          zIndex: 0,
-        }}
-      />
-      <Box
-        sx={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(125deg, rgba(4,10,24,0.82) 0%, rgba(4,18,50,0.78) 52%, rgba(16,46,112,0.7) 100%)",
-          backdropFilter: "blur(18px)",
-          zIndex: 1,
-        }}
-      />
+      {/* Fondo uniforme para toda la vista; no usar capas absolutas que limiten el scroll */}
       {neonLines}
       <Box
         sx={{
@@ -300,7 +280,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                     },
                   }}
                 >
-                  Comenzar con QR
+                  Modo clásico
                 </Button>
                 <Button
                   variant="outlined"
@@ -322,7 +302,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                     },
                   }}
                 >
-                  Activar modo automático
+                  Modo automático
                 </Button>
                 <Button
                   variant="outlined"
@@ -344,7 +324,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                     },
                   }}
                 >
-                  Activar modo bingo
+                  Modo bingo
                 </Button>
                 <Button
                   variant="outlined"
@@ -379,6 +359,44 @@ const Welcome: React.FC<WelcomeProps> = ({
                 Sugerencia: activa pantalla completa para disfrutar al máximo
                 las animaciones y el ambiente sonoro.
               </Typography>
+              <Box
+                sx={{
+                  mt: 2,
+                  backgroundColor: "rgba(255,255,255,0.02)",
+                  borderRadius: 2,
+                  p: 2,
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Modos de juego
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ color: "rgba(224,239,255,0.82)", mt: 1 }}
+                >
+                  <strong>Modo clásico:</strong> Escanea un código QR para
+                  reproducir una pista concreta. Ideal para jugar por rondas con
+                  cartones físicos o cuando quieres controlar exactamente qué
+                  canciones se reproducen.
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ color: "rgba(224,239,255,0.82)", mt: 1 }}
+                >
+                  <strong>Modo automático:</strong> El sistema selecciona
+                  canciones equilibradas, muestra portadas y crea atmósferas
+                  visuales sin intervención. Perfecto para sesiones continuas y
+                  ambientación.
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ color: "rgba(224,239,255,0.82)", mt: 1 }}
+                >
+                  <strong>Modo bingo:</strong> Gira la ruleta para elegir
+                  categorías y desafiar a los jugadores. Incluye ruleta,
+                  revelaciones y soporte para cartones interactivos.
+                </Typography>
+              </Box>
             </Stack>
           </Stack>
         </Stack>

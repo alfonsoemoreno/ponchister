@@ -622,13 +622,24 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
       <Stack spacing={1.5} alignItems="center" textAlign="center">
         <Typography
           variant="h3"
-          sx={{ fontWeight: 800, letterSpacing: "-0.01em" }}
+          sx={{
+            fontWeight: 800,
+            letterSpacing: "-0.01em",
+            fontSize: { xs: "2.1rem", sm: "2.6rem", md: "3rem" },
+            lineHeight: { xs: 1.12, sm: 1.15 },
+          }}
         >
           Bingo Ponchister
         </Typography>
         <Typography
           variant="h6"
-          sx={{ color: "rgba(224,239,255,0.82)", maxWidth: 720 }}
+          sx={{
+            color: "rgba(224,239,255,0.82)",
+            maxWidth: 720,
+            fontSize: { xs: "1rem", sm: "1.1rem", md: "1.2rem" },
+            lineHeight: { xs: 1.45, sm: 1.5 },
+            px: { xs: 2, sm: 0 },
+          }}
         >
           Elige la dificultad, gira la ruleta y responde a la categoría
           seleccionada antes de revelar la canción. En el modo bingo no puedes
@@ -638,7 +649,11 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
       <Stack
         direction={{ xs: "column", md: "row" }}
         spacing={3.5}
-        sx={{ width: "min(960px, 92vw)" }}
+        sx={{
+          width: "min(960px, 92vw)",
+          mx: "auto",
+          justifyContent: { md: "center" },
+        }}
       >
         {(Object.keys(BINGO_MODES) as BingoMode[]).map((mode) => (
           <Box

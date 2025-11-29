@@ -53,8 +53,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerKey, setPlayerKey] = useState(0);
   const playerRef = useRef<PlayerRef>(null);
-  const [yearSpotlightVisible, setYearSpotlightVisible] = useState(false);
-  const [spotlightYear, setSpotlightYear] = useState<number | null>(null);
+  const [spotlightVisible, setSpotlightVisible] = useState(false);
+  const [spotlightValue, setSpotlightValue] = useState<string | number | null>(
+    null
+  );
+  const [spotlightLabel, setSpotlightLabel] = useState<string>("Año");
   const yearSpotlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
@@ -85,22 +88,28 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       clearTimeout(yearSpotlightTimerRef.current);
       yearSpotlightTimerRef.current = null;
     }
-    setYearSpotlightVisible(false);
-    setSpotlightYear(null);
+    setSpotlightVisible(false);
+    setSpotlightValue(null);
+    setSpotlightLabel("Año");
   }, []);
 
-  const triggerYearSpotlight = useCallback((year: number) => {
-    if (yearSpotlightTimerRef.current) {
-      return;
-    }
-    setSpotlightYear(year);
-    setYearSpotlightVisible(true);
-    yearSpotlightTimerRef.current = setTimeout(() => {
-      setYearSpotlightVisible(false);
-      setSpotlightYear(null);
-      yearSpotlightTimerRef.current = null;
-    }, 4600);
-  }, []);
+  const triggerSpotlight = useCallback(
+    (label: string, value: string | number) => {
+      if (yearSpotlightTimerRef.current) {
+        return;
+      }
+      setSpotlightLabel(label);
+      setSpotlightValue(value);
+      setSpotlightVisible(true);
+      yearSpotlightTimerRef.current = setTimeout(() => {
+        setSpotlightVisible(false);
+        setSpotlightValue(null);
+        setSpotlightLabel("Año");
+        yearSpotlightTimerRef.current = null;
+      }, 4600);
+    },
+    []
+  );
 
   const playerOptions = useMemo<YouTubeProps["opts"]>(() => {
     const origin =
@@ -225,10 +234,10 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     void runViewTransition(() => {
       setGameState("revealed");
       if (currentSong && typeof currentSong.year === "number") {
-        triggerYearSpotlight(currentSong.year);
+        triggerSpotlight("Año", currentSong.year);
       }
     });
-  }, [currentSong, runViewTransition, triggerYearSpotlight]);
+  }, [currentSong, runViewTransition, triggerSpotlight]);
 
   const handleRandomYearReveal = useCallback(() => {
     if (yearSpotlightTimerRef.current) {
@@ -239,9 +248,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     const randomYear =
       Math.floor(Math.random() * (currentYear - minYear + 1)) + minYear;
     void runViewTransition(() => {
-      triggerYearSpotlight(randomYear);
+      triggerSpotlight("Año", randomYear);
     });
-  }, [runViewTransition, triggerYearSpotlight]);
+  }, [runViewTransition, triggerSpotlight]);
 
   const handleNextAfterReveal = useCallback(() => {
     advanceToNextSong();
@@ -264,8 +273,6 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
       setGameState("idle");
       setErrorMessage(null);
       setIsPlaying(false);
-      setYearSpotlightVisible(false);
-      setSpotlightYear(null);
       clearYearSpotlightTimeout();
       onExit();
     });
@@ -377,7 +384,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           onClick: handleReveal,
           variant: "contained" as const,
           color: "primary" as const,
-          disabled: yearSpotlightVisible,
+          disabled: spotlightVisible,
         };
 
     const secondaryAction = showDetails
@@ -413,16 +420,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     const fallbackBackdrop =
       "linear-gradient(190deg, rgba(12,44,110,0.75) 0%, rgba(6,26,68,0.88) 55%, rgba(2,12,34,0.92) 100%)";
     const shouldDisplayArtwork = showDetails && Boolean(artworkUrl);
-    const hasNumericYear = typeof currentSong.year === "number";
-    const spotlightDisplayYear =
-      spotlightYear !== null
-        ? spotlightYear
-        : hasNumericYear
-        ? currentSong.year
-        : null;
     const theme = createAdaptiveTheme(
       shouldDisplayArtwork ? artworkPalette : null
     );
+    const spotlightDisplayValue = spotlightValue;
+    const spotlightDisplayLabel = spotlightLabel;
 
     return (
       <Box
@@ -466,8 +468,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           sx={{ zIndex: 3, viewTransitionName: "auto-game-neon" }}
         />
         <YearSpotlight
-          visible={yearSpotlightVisible && spotlightDisplayYear !== null}
-          year={spotlightDisplayYear}
+          visible={spotlightVisible && spotlightDisplayValue !== null}
+          value={spotlightDisplayValue}
+          label={spotlightDisplayLabel}
           styles={theme.spotlight}
         />
         <Stack
@@ -903,8 +906,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         />
         <NeonLines sx={{ zIndex: 3, viewTransitionName: "auto-game-neon" }} />
         <YearSpotlight
-          visible={yearSpotlightVisible}
-          year={spotlightYear}
+          visible={spotlightVisible && spotlightValue !== null}
+          value={spotlightValue}
+          label={spotlightLabel}
           styles={theme.spotlight}
         />
         <Stack
@@ -1080,7 +1084,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                 color="inherit"
                 startIcon={<CalendarMonthIcon />}
                 onClick={handleRandomYearReveal}
-                disabled={yearSpotlightVisible}
+                disabled={spotlightVisible}
                 sx={{
                   minWidth: 220,
                   textTransform: "none",

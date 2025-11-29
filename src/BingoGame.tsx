@@ -164,8 +164,11 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerKey, setPlayerKey] = useState(0);
-  const [yearSpotlightVisible, setYearSpotlightVisible] = useState(false);
-  const [spotlightYear, setSpotlightYear] = useState<number | null>(null);
+  const [spotlightVisible, setSpotlightVisible] = useState(false);
+  const [spotlightValue, setSpotlightValue] = useState<string | number | null>(
+    null
+  );
+  const [spotlightLabel, setSpotlightLabel] = useState<string>("Año");
 
   const playerRef = useRef<PlayerRef>(null);
   const spinIntervalRef = useRef<number | null>(null);
@@ -208,22 +211,28 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
       clearTimeout(yearSpotlightTimerRef.current);
       yearSpotlightTimerRef.current = null;
     }
-    setYearSpotlightVisible(false);
-    setSpotlightYear(null);
+    setSpotlightVisible(false);
+    setSpotlightValue(null);
+    setSpotlightLabel("Año");
   }, []);
 
-  const triggerYearSpotlight = useCallback((year: number) => {
-    if (yearSpotlightTimerRef.current) {
-      return;
-    }
-    setSpotlightYear(year);
-    setYearSpotlightVisible(true);
-    yearSpotlightTimerRef.current = setTimeout(() => {
-      setYearSpotlightVisible(false);
-      setSpotlightYear(null);
-      yearSpotlightTimerRef.current = null;
-    }, 4600);
-  }, []);
+  const triggerSpotlight = useCallback(
+    (label: string, value: string | number) => {
+      if (yearSpotlightTimerRef.current) {
+        return;
+      }
+      setSpotlightLabel(label);
+      setSpotlightValue(value);
+      setSpotlightVisible(true);
+      yearSpotlightTimerRef.current = setTimeout(() => {
+        setSpotlightVisible(false);
+        setSpotlightValue(null);
+        setSpotlightLabel("Año");
+        yearSpotlightTimerRef.current = null;
+      }, 4600);
+    },
+    []
+  );
 
   const stopPlayback = useCallback(() => {
     const internalPlayer =
@@ -272,15 +281,19 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     setIsPlaying(false);
     setErrorMessage(null);
     clearYearSpotlightTimeout();
-    if (
-      selectedMode &&
-      phase !== "playing" &&
-      phase !== "revealed" &&
-      phase !== "spinning"
-    ) {
-      setPhase("roulette");
+    if (selectedMode) {
+      setPhase((prevPhase) => {
+        if (
+          prevPhase === "playing" ||
+          prevPhase === "revealed" ||
+          prevPhase === "spinning"
+        ) {
+          return prevPhase;
+        }
+        return "roulette";
+      });
     }
-  }, [currentSong, clearYearSpotlightTimeout, phase, selectedMode]);
+  }, [currentSong, clearYearSpotlightTimeout, selectedMode]);
 
   useEffect(() => {
     if (!selectedMode) {
@@ -380,7 +393,6 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     setPhase("spinning");
     setCurrentCategory(null);
     setErrorMessage(null);
-    setYearSpotlightVisible(false);
 
     let index = Math.floor(Math.random() * categories.length);
     setHighlightedCategory(categories[index]);
@@ -412,11 +424,53 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     }
     void runViewTransition(() => {
       setPhase("revealed");
-      if (typeof currentSong.year === "number") {
-        triggerYearSpotlight(currentSong.year);
+      let label: string | null = null;
+      let value: string | number | null = null;
+
+      if (currentCategory) {
+        const categoryId = currentCategory.id;
+        const songYear =
+          typeof currentSong.year === "number" ? currentSong.year : null;
+
+        if (
+          categoryId === "plus-minus-4" ||
+          categoryId === "plus-minus-2" ||
+          categoryId === "plus-minus-3" ||
+          categoryId === "exact-year"
+        ) {
+          if (songYear !== null) {
+            label = "Año";
+            value = songYear;
+          }
+        } else if (categoryId === "before-2000") {
+          if (songYear !== null) {
+            label = "¿Antes del 2000?";
+            value = songYear < 2000 ? "Sí" : "No";
+          }
+        } else if (categoryId === "decade") {
+          if (songYear !== null) {
+            const decadeStart = Math.floor(songYear / 10) * 10;
+            label = "Década";
+            value = `${decadeStart}s`;
+          }
+        } else if (categoryId === "artist-name") {
+          if (currentSong.artist) {
+            label = "Artista";
+            value = currentSong.artist;
+          }
+        } else if (categoryId === "song-title") {
+          if (currentSong.title) {
+            label = "Canción";
+            value = currentSong.title;
+          }
+        }
+      }
+
+      if (label && value !== null && value !== "") {
+        triggerSpotlight(label, value);
       }
     });
-  }, [currentSong, runViewTransition, triggerYearSpotlight]);
+  }, [currentCategory, currentSong, runViewTransition, triggerSpotlight]);
 
   const handleRandomYearReveal = useCallback(() => {
     if (yearSpotlightTimerRef.current) {
@@ -427,9 +481,9 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     const randomYear =
       Math.floor(Math.random() * (currentYear - minYear + 1)) + minYear;
     void runViewTransition(() => {
-      triggerYearSpotlight(randomYear);
+      triggerSpotlight("Año", randomYear);
     });
-  }, [runViewTransition, triggerYearSpotlight]);
+  }, [runViewTransition, triggerSpotlight]);
 
   const handleReturnToRoulette = useCallback(() => {
     if (!selectedMode) {
@@ -491,8 +545,9 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
       setPhase("select-mode");
       setErrorMessage(null);
       setIsPlaying(false);
-      setYearSpotlightVisible(false);
-      setSpotlightYear(null);
+      setSpotlightVisible(false);
+      setSpotlightValue(null);
+      setSpotlightLabel("Año");
       onExit();
     });
   }, [
@@ -991,7 +1046,7 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
           onClick: handleReveal,
           variant: "contained" as const,
           color: "primary" as const,
-          disabled: yearSpotlightVisible,
+          disabled: spotlightVisible,
         };
 
     const secondaryAction = {
@@ -1019,14 +1074,6 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     const fallbackBackdrop =
       "linear-gradient(190deg, rgba(12,44,110,0.75) 0%, rgba(6,26,68,0.88) 55%, rgba(2,12,34,0.92) 100%)";
     const shouldDisplayArtwork = showDetails && Boolean(artworkUrl);
-    const hasNumericYear = typeof currentSong.year === "number";
-    const spotlightDisplayYear =
-      spotlightYear !== null
-        ? spotlightYear
-        : hasNumericYear
-        ? currentSong.year
-        : null;
-
     return (
       <Box
         sx={{
@@ -1069,8 +1116,9 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
           sx={{ zIndex: 3, viewTransitionName: "bingo-game-neon" }}
         />
         <YearSpotlight
-          visible={yearSpotlightVisible && spotlightDisplayYear !== null}
-          year={spotlightDisplayYear}
+          visible={spotlightVisible}
+          value={spotlightValue}
+          label={spotlightLabel}
           styles={theme.spotlight}
         />
         <Stack
@@ -1229,6 +1277,7 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
                 </Button>
                 <IconButton
                   onClick={handleRandomYearReveal}
+                  disabled={spotlightVisible}
                   sx={{
                     width: 56,
                     height: 56,

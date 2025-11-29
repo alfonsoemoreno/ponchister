@@ -27,20 +27,24 @@ const DEFAULT_STYLE: YearSpotlightStyle = {
 
 interface YearSpotlightProps {
   visible: boolean;
-  year: number | null;
+  value: string | number | null;
+  label?: string;
   styles?: YearSpotlightStyle;
 }
 
 export const YearSpotlight: FC<YearSpotlightProps> = ({
   visible,
-  year,
+  value,
+  label,
   styles,
 }) => {
-  if (!visible || year === null) {
+  if (!visible || value === null || value === "") {
     return null;
   }
 
   const palette = styles ?? DEFAULT_STYLE;
+  const effectiveLabel = label ?? "Año";
+  const displayValue = typeof value === "number" ? value.toString() : value;
 
   return (
     <Box
@@ -113,7 +117,7 @@ export const YearSpotlight: FC<YearSpotlightProps> = ({
               "year-spotlight-label-fallback 4200ms cubic-bezier(0.3, 0.8, 0.42, 1) forwards",
           }}
         >
-          Año
+          {effectiveLabel}
         </Typography>
         <Typography
           variant="h1"
@@ -131,9 +135,13 @@ export const YearSpotlight: FC<YearSpotlightProps> = ({
             },
             animation:
               "year-spotlight-value-fallback 4200ms cubic-bezier(0.18, 0.82, 0.34, 1) forwards",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textTransform: typeof value === "string" ? "none" : undefined,
           }}
         >
-          {year}
+          {displayValue}
         </Typography>
       </Box>
     </Box>

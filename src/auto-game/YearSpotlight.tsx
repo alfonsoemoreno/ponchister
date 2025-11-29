@@ -1,15 +1,46 @@
 import { Box, Typography } from "@mui/material";
 import type { FC } from "react";
 
+export interface YearSpotlightStyle {
+  background: string;
+  halo: string;
+  borderColor: string;
+  borderGlow: string;
+  frameShadow: string;
+  labelColor: string;
+  valueColor: string;
+  valueShadow: string;
+}
+
+const DEFAULT_STYLE: YearSpotlightStyle = {
+  background:
+    "radial-gradient(circle at 50% 52%, rgba(255,255,255,0.25) 0%, rgba(10,24,66,0.92) 68%, rgba(3,8,24,0.96) 100%)",
+  halo: "radial-gradient(circle at 50% 50%, rgba(86,199,255,0.28) 0%, rgba(25,109,255,0.12) 45%, rgba(0,0,0,0) 70%)",
+  borderColor: "rgba(173,215,255,0.22)",
+  borderGlow: "0 0 42px rgba(32,139,255,0.25)",
+  frameShadow:
+    "0 40px 96px -32px rgba(4,12,42,0.76), inset 0 0 42px rgba(45,132,255,0.18)",
+  labelColor: "rgba(255,255,255,0.86)",
+  valueColor: "#ffffff",
+  valueShadow: "0 48px 94px rgba(0,0,0,0.78)",
+};
+
 interface YearSpotlightProps {
   visible: boolean;
   year: number | null;
+  styles?: YearSpotlightStyle;
 }
 
-export const YearSpotlight: FC<YearSpotlightProps> = ({ visible, year }) => {
+export const YearSpotlight: FC<YearSpotlightProps> = ({
+  visible,
+  year,
+  styles,
+}) => {
   if (!visible || year === null) {
     return null;
   }
+
+  const palette = styles ?? DEFAULT_STYLE;
 
   return (
     <Box
@@ -34,11 +65,9 @@ export const YearSpotlight: FC<YearSpotlightProps> = ({ visible, year }) => {
           minWidth: 240,
           minHeight: 240,
           borderRadius: { xs: 6, md: 10 },
-          background:
-            "radial-gradient(circle at 50% 52%, rgba(255,255,255,0.25) 0%, rgba(10,24,66,0.92) 68%, rgba(3,8,24,0.96) 100%)",
-          boxShadow:
-            "0 40px 96px -32px rgba(4,12,42,0.76), inset 0 0 42px rgba(45,132,255,0.18)",
-          color: "#ffffff",
+          background: palette.background,
+          boxShadow: palette.frameShadow,
+          color: palette.valueColor,
           textAlign: "center",
           display: "flex",
           flexDirection: "column",
@@ -55,8 +84,7 @@ export const YearSpotlight: FC<YearSpotlightProps> = ({ visible, year }) => {
             position: "absolute",
             inset: { xs: -28, md: -38 },
             borderRadius: "inherit",
-            background:
-              "radial-gradient(circle at 50% 50%, rgba(86,199,255,0.28) 0%, rgba(25,109,255,0.12) 45%, rgba(0,0,0,0) 70%)",
+            background: palette.halo,
             filter: "blur(18px)",
             opacity: 0,
           },
@@ -65,8 +93,8 @@ export const YearSpotlight: FC<YearSpotlightProps> = ({ visible, year }) => {
             position: "absolute",
             inset: { xs: -8, md: -12 },
             borderRadius: "inherit",
-            border: "1px solid rgba(173,215,255,0.22)",
-            boxShadow: "0 0 42px rgba(32,139,255,0.25)",
+            border: `1px solid ${palette.borderColor}`,
+            boxShadow: palette.borderGlow,
             opacity: 0.6,
           },
         }}
@@ -80,6 +108,7 @@ export const YearSpotlight: FC<YearSpotlightProps> = ({ visible, year }) => {
             opacity: 0.86,
             fontWeight: 600,
             fontSize: { xs: "1.05rem", sm: "1.35rem" },
+            color: palette.labelColor,
             animation:
               "year-spotlight-label-fallback 4200ms cubic-bezier(0.3, 0.8, 0.42, 1) forwards",
           }}
@@ -93,7 +122,8 @@ export const YearSpotlight: FC<YearSpotlightProps> = ({ visible, year }) => {
             fontWeight: 800,
             lineHeight: 0.92,
             letterSpacing: "-0.03em",
-            textShadow: "0 48px 94px rgba(0,0,0,0.78)",
+            color: palette.valueColor,
+            textShadow: palette.valueShadow,
             fontSize: {
               xs: "clamp(3.8rem, 18vw, 9rem)",
               sm: "clamp(5rem, 16vw, 10.5rem)",

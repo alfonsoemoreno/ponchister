@@ -25,7 +25,10 @@ import { useAutoGameQueue } from "./hooks/useAutoGameQueue";
 import { useArtworkLookup } from "./hooks/useArtworkLookup";
 import { useArtworkPalette } from "./hooks/useArtworkPalette";
 import { NeonLines } from "./auto-game/NeonLines";
-import { YearSpotlight } from "./auto-game/YearSpotlight";
+import {
+  YearSpotlight,
+  type YearSpotlightStyle,
+} from "./auto-game/YearSpotlight";
 import { useViewTransition } from "./hooks/useViewTransition";
 import { darken, lighten, rgbToCss } from "./lib/color";
 
@@ -121,6 +124,7 @@ interface AdaptiveTheme {
   fallback: FallbackTheme;
   warningText: string;
   progressOverlay: string;
+  spotlight: YearSpotlightStyle;
 }
 
 const DEFAULT_THEME: AdaptiveTheme = {
@@ -196,6 +200,18 @@ const DEFAULT_THEME: AdaptiveTheme = {
   },
   warningText: "rgba(255,210,210,0.92)",
   progressOverlay: "rgba(4,10,24,0.45)",
+  spotlight: {
+    background:
+      "radial-gradient(circle at 50% 52%, rgba(255,255,255,0.25) 0%, rgba(10,24,66,0.92) 68%, rgba(3,8,24,0.96) 100%)",
+    halo: "radial-gradient(circle at 50% 50%, rgba(86,199,255,0.28) 0%, rgba(25,109,255,0.12) 45%, rgba(0,0,0,0) 70%)",
+    borderColor: "rgba(173,215,255,0.22)",
+    borderGlow: "0 0 42px rgba(32,139,255,0.25)",
+    frameShadow:
+      "0 40px 96px -32px rgba(4,12,42,0.76), inset 0 0 42px rgba(45,132,255,0.18)",
+    labelColor: "rgba(255,255,255,0.86)",
+    valueColor: "#ffffff",
+    valueShadow: "0 48px 94px rgba(0,0,0,0.78)",
+  },
 };
 
 const adjustBaseTone = (colorValue: number): number =>
@@ -231,6 +247,9 @@ const createAdaptiveTheme = (
     const deepTone = darken(adjustedBase, 0.45);
     const hoverTone = darken(adjustedBase, 0.55);
     const lightTone = darken(adjustedBase, 0.15);
+    const spotlightInner = lighten(adjustedBase, 0.38);
+    const spotlightCore = darken(adjustedBase, 0.32);
+    const spotlightOuter = darken(adjustedBase, 0.58);
 
     return {
       ...DEFAULT_THEME,
@@ -319,6 +338,31 @@ const createAdaptiveTheme = (
       },
       warningText: "rgba(172,58,58,0.88)",
       progressOverlay: rgbToCss(darken(adjustedBase, 0.6), 0.45),
+      spotlight: {
+        background: `radial-gradient(circle at 50% 52%, ${rgbToCss(
+          spotlightInner,
+          0.34
+        )} 0%, ${rgbToCss(spotlightCore, 0.94)} 68%, ${rgbToCss(
+          spotlightOuter,
+          0.98
+        )} 100%)`,
+        halo: `radial-gradient(circle at 50% 50%, ${rgbToCss(
+          lighten(adjustedBase, 0.52),
+          0.26
+        )} 0%, ${rgbToCss(
+          lighten(adjustedBase, 0.32),
+          0.14
+        )} 45%, rgba(0,0,0,0) 70%)`,
+        borderColor: rgbToCss(lighten(adjustedBase, 0.4), 0.45),
+        borderGlow: `0 0 42px ${rgbToCss(lighten(adjustedBase, 0.38), 0.28)}`,
+        frameShadow: `0 40px 96px -32px ${rgbToCss(
+          darken(adjustedBase, 0.72),
+          0.7
+        )}, inset 0 0 42px ${rgbToCss(lighten(adjustedBase, 0.18), 0.26)}`,
+        labelColor: rgbToCss(darken(adjustedBase, 0.68), 0.92),
+        valueColor: rgbToCss(darken(adjustedBase, 0.78)),
+        valueShadow: `0 48px 94px ${rgbToCss(darken(adjustedBase, 0.9), 0.42)}`,
+      },
     };
   }
 
@@ -329,6 +373,9 @@ const createAdaptiveTheme = (
   const accentHover = darken(accentBase, 0.32);
   const accentShadow = rgbToCss(darken(accentBase, 0.58), 0.58);
   const accentHoverShadow = rgbToCss(darken(accentBase, 0.64), 0.64);
+  const spotlightInner = lighten(accentBase, 0.6);
+  const spotlightCore = darken(accentBase, 0.25);
+  const spotlightOuter = darken(accentBase, 0.55);
 
   return {
     ...DEFAULT_THEME,
@@ -394,6 +441,31 @@ const createAdaptiveTheme = (
     },
     warningText: DEFAULT_THEME.warningText,
     progressOverlay: DEFAULT_THEME.progressOverlay,
+    spotlight: {
+      background: `radial-gradient(circle at 50% 52%, ${rgbToCss(
+        spotlightInner,
+        0.32
+      )} 0%, ${rgbToCss(spotlightCore, 0.94)} 68%, ${rgbToCss(
+        spotlightOuter,
+        0.98
+      )} 100%)`,
+      halo: `radial-gradient(circle at 50% 50%, ${rgbToCss(
+        lighten(accentBase, 0.45),
+        0.28
+      )} 0%, ${rgbToCss(
+        lighten(accentBase, 0.22),
+        0.14
+      )} 45%, rgba(0,0,0,0) 70%)`,
+      borderColor: rgbToCss(lighten(accentBase, 0.58), 0.24),
+      borderGlow: `0 0 42px ${rgbToCss(lighten(accentBase, 0.58), 0.23)}`,
+      frameShadow: `0 40px 96px -32px ${rgbToCss(
+        darken(accentBase, 0.65),
+        0.76
+      )}, inset 0 0 42px ${rgbToCss(lighten(accentBase, 0.22), 0.32)}`,
+      labelColor: "rgba(255,255,255,0.86)",
+      valueColor: "#ffffff",
+      valueShadow: `0 48px 94px ${rgbToCss(darken(accentBase, 0.85), 0.7)}`,
+    },
   };
 };
 
@@ -811,6 +883,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
         <YearSpotlight
           visible={yearSpotlightVisible && spotlightDisplayYear !== null}
           year={spotlightDisplayYear}
+          styles={theme.spotlight}
         />
         <Stack
           direction={{ xs: "column-reverse", md: "row" }}
@@ -1244,7 +1317,11 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           }}
         />
         <NeonLines sx={{ zIndex: 3, viewTransitionName: "auto-game-neon" }} />
-        <YearSpotlight visible={yearSpotlightVisible} year={spotlightYear} />
+        <YearSpotlight
+          visible={yearSpotlightVisible}
+          year={spotlightYear}
+          styles={theme.spotlight}
+        />
         <Stack
           direction={{ xs: "column-reverse", md: "row" }}
           spacing={{ xs: 3, md: 5 }}

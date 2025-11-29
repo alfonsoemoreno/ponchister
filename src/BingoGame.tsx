@@ -25,6 +25,7 @@ import { useAutoGameQueue } from "./hooks/useAutoGameQueue";
 import { useArtworkLookup } from "./hooks/useArtworkLookup";
 import { useArtworkPalette } from "./hooks/useArtworkPalette";
 import { NeonLines } from "./auto-game/NeonLines";
+// import NeonRouletteLights from "./auto-game/NeonRouletteLights";
 import { YearSpotlight } from "./auto-game/YearSpotlight";
 import { useViewTransition } from "./hooks/useViewTransition";
 import { createAdaptiveTheme } from "./auto-game/theme";
@@ -154,6 +155,27 @@ const hexToRgba = (hex: string, alpha = 1): string => {
 };
 
 const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
+  // Inyecta los keyframes de animación solo una vez en el navegador
+  useEffect(() => {
+    if (
+      typeof document !== "undefined" &&
+      !document.getElementById("roulette-glow-keyframes")
+    ) {
+      const style = document.createElement("style");
+      style.id = "roulette-glow-keyframes";
+      style.innerHTML = `
+@keyframes roulette-glow {
+  0% { box-shadow: 0 0 32px 8px #fffbe7, 0 0 64px 0px #fffbe7, 0 0 0 4px rgba(255,255,180,0.25); }
+  100% { box-shadow: 0 0 64px 24px #fffbe7, 0 0 128px 0px #fffbe7, 0 0 0 8px rgba(255,255,180,0.32); }
+}
+@keyframes roulette-flash {
+  0% { opacity: 0.7; }
+  100% { opacity: 0.2; }
+}
+`;
+      document.head.appendChild(style);
+    }
+  }, []);
   const [phase, setPhase] = useState<BingoPhase>("select-mode");
   const [selectedMode, setSelectedMode] = useState<BingoMode | null>(null);
   const [currentCategory, setCurrentCategory] = useState<BingoCategory | null>(
@@ -751,7 +773,12 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
       spacing={4}
       alignItems="center"
       justifyContent="center"
-      sx={{ width: "100%", py: { xs: 6, md: 8 } }}
+      sx={{
+        width: "100%",
+        py: { xs: 6, md: 8 },
+        position: "relative",
+        minHeight: 320,
+      }}
     >
       {modeLabel && (
         <Chip
@@ -787,42 +814,85 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
               key={category.id}
               sx={{
                 borderRadius: 999,
-                border: `2px solid ${hexToRgba(
+                border: `2.5px solid ${hexToRgba(
                   category.color,
-                  isActive ? 0.9 : 0.45
+                  isActive ? 1 : 0.45
                 )}`,
                 background: isActive
-                  ? `linear-gradient(135deg, ${hexToRgba(
+                  ? `radial-gradient(circle at 20% 50%, #fffbe7 0%, ${hexToRgba(
                       category.color,
-                      0.65
-                    )} 0%, rgba(4,12,26,0.65) 100%)`
+                      0.85
+                    )} 60%, rgba(4,12,26,0.85) 100%)`
                   : `linear-gradient(135deg, ${hexToRgba(
                       category.color,
                       0.22
                     )} 0%, rgba(4,12,26,0.55) 100%)`,
                 boxShadow: isActive
-                  ? `0 22px 48px -20px ${hexToRgba(category.color, 0.55)}`
+                  ? `0 0 32px 8px ${hexToRgba(
+                      category.color,
+                      0.55
+                    )}, 0 0 64px 0px #fffbe7, 0 0 0 4px ${hexToRgba(
+                      category.color,
+                      0.25
+                    )}`
                   : "none",
-                transition: "all 180ms ease-out",
+                transition:
+                  "box-shadow 220ms cubic-bezier(.4,2,.6,1), background 220ms cubic-bezier(.4,2,.6,1), border 180ms",
                 px: 3,
                 py: 1.6,
+                position: "relative",
+                overflow: "hidden",
+                animation: isActive
+                  ? "roulette-glow 0.7s cubic-bezier(.4,2,.6,1) alternate infinite"
+                  : "none",
+                zIndex: isActive ? 2 : 1,
               }}
             >
-              <Stack spacing={0.3}>
+              {isActive && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: "100%",
+                    height: "100%",
+                    pointerEvents: "none",
+                    zIndex: 1,
+                    background:
+                      "radial-gradient(circle at 60% 50%, #fffbe7 0%, rgba(255,255,180,0.18) 60%, transparent 100%)",
+                    opacity: 0.7,
+                    filter: "blur(2.5px)",
+                    animation:
+                      "roulette-flash 0.5s cubic-bezier(.4,2,.6,1) alternate infinite",
+                  }}
+                />
+              )}
+              <Stack spacing={0.3} sx={{ position: "relative", zIndex: 2 }}>
                 <Typography
                   variant="subtitle1"
                   sx={{
-                    fontWeight: 700,
-                    color: "#fff",
+                    fontWeight: 800,
+                    color: isActive ? "#fffbe7" : "#fff",
                     letterSpacing: 0.4,
                     textTransform: "uppercase",
+                    textShadow: isActive
+                      ? "0 0 12px #fffbe7, 0 0 32px #fffbe7, 0 0 2px #fff"
+                      : "none",
+                    transition: "color 180ms, text-shadow 220ms",
                   }}
                 >
                   {category.label}
                 </Typography>
                 <Typography
                   variant="body2"
-                  sx={{ color: "rgba(224,239,255,0.78)" }}
+                  sx={{
+                    color: isActive ? "#fffbe7" : "rgba(224,239,255,0.78)",
+                    textShadow: isActive
+                      ? "0 0 8px #fffbe7, 0 0 2px #fff"
+                      : "none",
+                    fontWeight: isActive ? 700 : 400,
+                    transition: "color 180ms, text-shadow 220ms",
+                  }}
                 >
                   {category.description}
                 </Typography>

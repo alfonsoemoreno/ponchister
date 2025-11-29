@@ -819,54 +819,19 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
                   isActive ? 1 : 0.45
                 )}`,
                 background: isActive
-                  ? `radial-gradient(circle at 20% 50%, #fffbe7 0%, ${hexToRgba(
-                      category.color,
-                      0.85
-                    )} 60%, rgba(4,12,26,0.85) 100%)`
-                  : `linear-gradient(135deg, ${hexToRgba(
-                      category.color,
-                      0.22
-                    )} 0%, rgba(4,12,26,0.55) 100%)`,
-                boxShadow: isActive
-                  ? `0 0 32px 8px ${hexToRgba(
-                      category.color,
-                      0.55
-                    )}, 0 0 64px 0px #fffbe7, 0 0 0 4px ${hexToRgba(
-                      category.color,
-                      0.25
-                    )}`
-                  : "none",
+                  ? hexToRgba(category.color, 0.85)
+                  : hexToRgba(category.color, 0.22),
+                boxShadow: "none",
                 transition:
-                  "box-shadow 220ms cubic-bezier(.4,2,.6,1), background 220ms cubic-bezier(.4,2,.6,1), border 180ms",
+                  "background 220ms cubic-bezier(.4,2,.6,1), border 180ms",
                 px: 3,
                 py: 1.6,
                 position: "relative",
                 overflow: "hidden",
-                animation: isActive
-                  ? "roulette-glow 0.7s cubic-bezier(.4,2,.6,1) alternate infinite"
-                  : "none",
+                animation: "none",
                 zIndex: isActive ? 2 : 1,
               }}
             >
-              {isActive && (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    width: "100%",
-                    height: "100%",
-                    pointerEvents: "none",
-                    zIndex: 1,
-                    background:
-                      "radial-gradient(circle at 60% 50%, #fffbe7 0%, rgba(255,255,180,0.18) 60%, transparent 100%)",
-                    opacity: 0.7,
-                    filter: "blur(2.5px)",
-                    animation:
-                      "roulette-flash 0.5s cubic-bezier(.4,2,.6,1) alternate infinite",
-                  }}
-                />
-              )}
               <Stack spacing={0.3} sx={{ position: "relative", zIndex: 2 }}>
                 <Typography
                   variant="subtitle1"
@@ -875,10 +840,8 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
                     color: isActive ? "#fffbe7" : "#fff",
                     letterSpacing: 0.4,
                     textTransform: "uppercase",
-                    textShadow: isActive
-                      ? "0 0 12px #fffbe7, 0 0 32px #fffbe7, 0 0 2px #fff"
-                      : "none",
-                    transition: "color 180ms, text-shadow 220ms",
+                    textShadow: "none",
+                    transition: "color 180ms",
                   }}
                 >
                   {category.label}
@@ -887,11 +850,9 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
                   variant="body2"
                   sx={{
                     color: isActive ? "#fffbe7" : "rgba(224,239,255,0.78)",
-                    textShadow: isActive
-                      ? "0 0 8px #fffbe7, 0 0 2px #fff"
-                      : "none",
+                    textShadow: "none",
                     fontWeight: isActive ? 700 : 400,
-                    transition: "color 180ms, text-shadow 220ms",
+                    transition: "color 180ms",
                   }}
                 >
                   {category.description}

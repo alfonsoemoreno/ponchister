@@ -1498,27 +1498,37 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
         viewTransitionName: "bingo-game-root",
       }}
     >
-      <Box sx={{ position: "absolute", top: 24, right: 24, zIndex: 10 }}>
-        <Button
-          variant="outlined"
-          color="error"
-          onClick={handleExit}
-          startIcon={<ExitToAppIcon />}
-          sx={{
-            fontWeight: "bold",
-            textTransform: "none",
-            color: "#FFF !important",
-            border: "2px solid #FFF",
-            backgroundColor: "rgba(0,0,0,0.05) !important",
-            "&:hover": {
-              backgroundColor: "#FFF !important",
-              color: "#28518C !important",
+      <Box
+        sx={{
+          position: "fixed",
+          top: 24,
+          right: 24,
+          zIndex: 9999,
+          pointerEvents: "none",
+        }}
+      >
+        <span style={{ pointerEvents: "auto" }}>
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={handleExit}
+            startIcon={<ExitToAppIcon />}
+            sx={{
+              fontWeight: "bold",
+              textTransform: "none",
+              color: "#FFF !important",
               border: "2px solid #FFF",
-            },
-          }}
-        >
-          Salir
-        </Button>
+              backgroundColor: "rgba(0,0,0,0.05) !important",
+              "&:hover": {
+                backgroundColor: "#FFF !important",
+                color: "#28518C !important",
+                border: "2px solid #FFF",
+              },
+            }}
+          >
+            Salir
+          </Button>
+        </span>
       </Box>
 
       {videoId && (

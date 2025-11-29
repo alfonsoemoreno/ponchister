@@ -17,7 +17,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import CasinoIcon from "@mui/icons-material/Casino";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+// import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 
 import { fetchAllSongs } from "./services/songService";
 import { extractYoutubeId } from "./lib/autoGameQueue";
@@ -472,18 +472,7 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     });
   }, [currentCategory, currentSong, runViewTransition, triggerSpotlight]);
 
-  const handleRandomYearReveal = useCallback(() => {
-    if (yearSpotlightTimerRef.current) {
-      return;
-    }
-    const currentYear = new Date().getFullYear();
-    const minYear = 1950;
-    const randomYear =
-      Math.floor(Math.random() * (currentYear - minYear + 1)) + minYear;
-    void runViewTransition(() => {
-      triggerSpotlight("Año", randomYear);
-    });
-  }, [runViewTransition, triggerSpotlight]);
+  // handleRandomYearReveal removido porque el botón de calendario ya no está en la vista
 
   const handleReturnToRoulette = useCallback(() => {
     if (!selectedMode) {
@@ -621,17 +610,6 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     >
       <Stack spacing={1.5} alignItems="center" textAlign="center">
         <Typography
-          variant="h3"
-          sx={{
-            fontWeight: 800,
-            letterSpacing: "-0.01em",
-            fontSize: { xs: "2.1rem", sm: "2.6rem", md: "3rem" },
-            lineHeight: { xs: 1.12, sm: 1.15 },
-          }}
-        >
-          Bingo Ponchister
-        </Typography>
-        <Typography
           variant="h6"
           sx={{
             color: "rgba(224,239,255,0.82)",
@@ -640,11 +618,7 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
             lineHeight: { xs: 1.45, sm: 1.5 },
             px: { xs: 2, sm: 0 },
           }}
-        >
-          Elige la dificultad, gira la ruleta y responde a la categoría
-          seleccionada antes de revelar la canción. En el modo bingo no puedes
-          saltar canciones, cada pista cuenta para completar tu cartón.
-        </Typography>
+        ></Typography>
       </Stack>
       <Stack
         direction={{ xs: "column", md: "row" }}
@@ -1064,13 +1038,7 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
           disabled: spotlightVisible,
         };
 
-    const secondaryAction = {
-      icon: <ExitToAppIcon />,
-      label: "Salir del bingo",
-      onClick: handleExit,
-      variant: "outlined" as const,
-      color: "inherit" as const,
-    };
+    // secondaryAction removido porque el botón 'Salir del bingo' ya no está en la vista
 
     const fallbackTitle = showDetails
       ? "Visual a la espera"
@@ -1093,10 +1061,14 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
       <Box
         sx={{
           position: "relative",
-          width: "100%",
-          height: { xs: "auto", md: "100%" },
-          minHeight: { xs: 520, md: 640 },
+          width: "100vw",
+          height: { xs: "auto", md: "100vh" },
+          minHeight: { xs: 520, md: "100vh" },
           overflow: { xs: "visible", md: "hidden" },
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: "center",
+          justifyContent: "center",
           viewTransitionName: "bingo-game-canvas",
         }}
       >
@@ -1138,20 +1110,28 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
         />
         <Stack
           direction={{ xs: "column-reverse", md: "row" }}
-          spacing={{ xs: 3, md: 5 }}
+          spacing={{ xs: 3, md: 8 }}
           sx={{
-            position: "relative",
+            position: { xs: "relative", md: "absolute" },
+            top: { md: "50%" },
+            left: { md: "50%" },
+            transform: { md: "translate(-50%, -50%)" },
             zIndex: 3,
             minHeight: { xs: "auto", md: 640 },
-            px: { xs: 2.5, sm: 4, md: 6 },
-            py: { xs: 6, sm: 7, md: 8 },
-            alignItems: { xs: "stretch", md: "center" },
-            justifyContent: "space-between",
+            px: { xs: 2.5, sm: 4, md: 0 },
+            py: { xs: 6, sm: 7, md: 0 },
+            alignItems: "center",
+            justifyContent: "center",
+            width: { xs: "100%", md: "auto" },
+            maxWidth: { md: "100vw" },
+            mx: { xs: "auto", md: 0 },
+            flex: 1,
+            gap: { xs: 3, md: 8 },
           }}
         >
           <Stack
             spacing={{ xs: 2.4, md: 3 }}
-            sx={{ flex: { xs: "auto", md: 1 }, maxWidth: { md: 420 } }}
+            sx={{ flex: { xs: "auto", md: 1.25 }, maxWidth: { md: 520 } }}
           >
             <Stack spacing={1.2}>
               <Chip
@@ -1268,46 +1248,7 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
                   {primaryAction.label}
                 </Button>
               </Stack>
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <Button
-                  variant={secondaryAction.variant}
-                  color={secondaryAction.color}
-                  startIcon={secondaryAction.icon}
-                  onClick={secondaryAction.onClick}
-                  sx={{
-                    textTransform: "none",
-                    fontWeight: 700,
-                    borderRadius: 999,
-                    px: 3,
-                    py: 1.3,
-                    borderColor: theme.secondaryButton.border,
-                    color: theme.secondaryButton.textColor,
-                    "&:hover": {
-                      borderColor: theme.secondaryButton.hoverBorder,
-                      backgroundColor: theme.secondaryButton.hoverBackground,
-                    },
-                  }}
-                >
-                  {secondaryAction.label}
-                </Button>
-                <IconButton
-                  onClick={handleRandomYearReveal}
-                  disabled={spotlightVisible}
-                  sx={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: "50%",
-                    border: "2px dashed rgba(255,255,255,0.4)",
-                    color: theme.text.caption,
-                    backgroundColor: "rgba(255,255,255,0.08)",
-                    "&:hover": {
-                      backgroundColor: "rgba(255,255,255,0.16)",
-                    },
-                  }}
-                >
-                  <CalendarMonthIcon />
-                </IconButton>
-              </Stack>
+              {/* Botones 'Salir del bingo' y calendario removidos de la vista de reproducción */}
             </Stack>
             <Stack spacing={0.4}>
               <Typography
@@ -1346,11 +1287,13 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
           <Box
             sx={{
               position: "relative",
-              flex: { xs: "auto", md: 1.1 },
-              minHeight: { xs: 320, md: 420 },
+              flex: { xs: "auto", md: 1.2 },
+              minHeight: { xs: 320, md: 640 },
+              height: { xs: "auto", md: "80vh" },
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              alignSelf: { xs: "stretch", md: "center" },
               viewTransitionName: "bingo-game-visual",
             }}
           >
@@ -1360,21 +1303,33 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
                 src={artworkUrl ?? undefined}
                 alt={currentSong.title}
                 sx={{
-                  width: { xs: "80%", sm: "72%", md: "78%" },
-                  maxWidth: 440,
-                  borderRadius: 4,
-                  boxShadow:
-                    "0 38px 84px -32px rgba(5,18,52,0.72), 0 0 0 1px rgba(255,255,255,0.18)",
+                  width: {
+                    xs: "90vw",
+                    sm: 360,
+                    md: "min(56vw, 88vh)",
+                  },
+                  maxWidth: { xs: 540, md: 720 },
+                  aspectRatio: "1 / 1",
+                  borderRadius: { xs: 4, md: 5 },
+                  boxShadow: "0 38px 78px -32px rgba(5,18,52,0.82)",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  background:
+                    "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(148,197,255,0.12) 100%)",
                   objectFit: "cover",
+                  display: "block",
                 }}
               />
             ) : (
               <Box
                 sx={{
-                  width: { xs: "80%", sm: "70%", md: "74%" },
-                  maxWidth: 420,
-                  aspectRatio: "1/1",
-                  borderRadius: 4,
+                  width: {
+                    xs: "90vw",
+                    sm: 360,
+                    md: "min(56vw, 88vh)",
+                  },
+                  maxWidth: { xs: 540, md: 720 },
+                  aspectRatio: "1 / 1",
+                  borderRadius: { xs: 4, md: 5 },
                   border: "1px dashed rgba(255,255,255,0.32)",
                   display: "flex",
                   alignItems: "center",

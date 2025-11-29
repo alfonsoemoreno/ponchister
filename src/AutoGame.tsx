@@ -867,7 +867,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
             backgroundSize: shouldDisplayArtwork ? "cover" : "140% 140%",
             backgroundPosition: shouldDisplayArtwork ? "center" : "45% 40%",
             filter: shouldDisplayArtwork ? "blur(22px)" : "none",
-            transform: shouldDisplayArtwork ? "scale(1.12)" : "none",
+            transform: "none",
             opacity: shouldDisplayArtwork ? 0.95 : 1,
             zIndex: 1,
             viewTransitionName: "auto-game-background",
@@ -1193,7 +1193,6 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               justifyContent: "center",
               alignItems: "center",
               height: { xs: "auto", md: "100%" },
-              minHeight: { md: 0 },
               viewTransitionName: "auto-game-artwork-frame",
             }}
           >
@@ -1541,61 +1540,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
               justifyContent: "center",
               alignItems: "center",
               height: { xs: "auto", md: "100%" },
-              minHeight: { md: 0 },
               viewTransitionName: "auto-game-artwork-frame",
             }}
-          >
-            <Box
-              sx={{
-                position: "relative",
-                width: {
-                  xs: "72%",
-                  sm: 300,
-                  md: "min(48vw, 78vh)",
-                },
-                aspectRatio: "1 / 1",
-                borderRadius: { xs: 4, md: 5 },
-                overflow: "hidden",
-                boxShadow: "0 38px 78px -32px rgba(5,18,52,0.82)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                background:
-                  "linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(99,213,245,0.26) 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Stack
-                spacing={2}
-                alignItems="center"
-                sx={{
-                  p: { xs: 3, md: 5 },
-                  color: theme.fallback.text,
-                  textAlign: "center",
-                }}
-              >
-                <InfoOutlinedIcon
-                  sx={{
-                    fontSize: { xs: 48, md: 64 },
-                    color: theme.fallback.icon,
-                  }}
-                />
-                <Typography
-                  variant="h6"
-                  sx={{ fontWeight: 700, color: theme.fallback.text }}
-                >
-                  Portada lista para desplegarse
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ color: theme.fallback.caption }}
-                >
-                  Cuando empieces la partida automática, la carátula ocupará el
-                  máximo espacio disponible para sumergirte por completo.
-                </Typography>
-              </Stack>
-            </Box>
-          </Box>
+          ></Box>
         </Stack>
       </Box>
     );
@@ -1822,7 +1769,6 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
           justifyContent: "center",
           zIndex: 2,
           width: "100%",
-          minHeight: 0,
         }}
       >
         {renderControls()}

@@ -2,11 +2,13 @@ import React from "react";
 import { Box, Button, Chip, Stack, Typography } from "@mui/material";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import CasinoIcon from "@mui/icons-material/Casino";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 interface WelcomeProps {
   onAccept: () => void;
   onStartAuto: () => void;
+  onStartBingo: () => void;
 }
 
 const requestFullscreen = () => {
@@ -23,7 +25,11 @@ const requestFullscreen = () => {
   }
 };
 
-const Welcome: React.FC<WelcomeProps> = ({ onAccept, onStartAuto }) => {
+const Welcome: React.FC<WelcomeProps> = ({
+  onAccept,
+  onStartAuto,
+  onStartBingo,
+}) => {
   const currentYear = new Date().getFullYear();
 
   const handleStartScan = () => {
@@ -34,6 +40,11 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept, onStartAuto }) => {
   const handleStartAutoMode = () => {
     requestFullscreen();
     onStartAuto();
+  };
+
+  const handleStartBingoMode = () => {
+    requestFullscreen();
+    onStartBingo();
   };
 
   const handleOpenCards = () => {
@@ -263,7 +274,10 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept, onStartAuto }) => {
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={2}
-                sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+                sx={{
+                  alignSelf: { xs: "stretch", sm: "flex-start" },
+                  flexWrap: "wrap",
+                }}
               >
                 <Button
                   variant="contained"
@@ -309,6 +323,28 @@ const Welcome: React.FC<WelcomeProps> = ({ onAccept, onStartAuto }) => {
                   }}
                 >
                   Activar modo automático
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<CasinoIcon />}
+                  onClick={handleStartBingoMode}
+                  sx={{
+                    minWidth: 220,
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    px: 3.5,
+                    py: 1.6,
+                    borderColor: "rgba(34,197,94,0.4)",
+                    color: "rgba(212,255,244,0.92)",
+                    "&:hover": {
+                      borderColor: "rgba(34,197,94,0.7)",
+                      backgroundColor: "rgba(34,197,94,0.12)",
+                    },
+                  }}
+                >
+                  Activar modo bingo
                 </Button>
                 <Button
                   variant="outlined"

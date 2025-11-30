@@ -1099,11 +1099,12 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
               rows={4}
               value={editorText}
               onChange={(e) => setEditorText(e.target.value)}
-              placeholder="Escribe algo visible para los demás..."
+              placeholder=""
               variant="outlined"
               fullWidth
               inputProps={{
                 style: {
+                  padding: "16px 12px",
                   fontSize: 72,
                   fontWeight: 700,
                   textAlign: "center",

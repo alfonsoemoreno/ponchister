@@ -14,7 +14,7 @@ export interface YearSpotlightStyle {
 
 const DEFAULT_STYLE: YearSpotlightStyle = {
   background:
-    "radial-gradient(circle at 50% 52%, rgba(255,255,255,0.25) 0%, rgba(10,24,66,0.92) 68%, rgba(3,8,24,0.96) 100%)",
+    "radial-gradient(circle at 50% 52%, rgba(10,24,66,0.15) 0%, rgba(10,24,66,0.92) 68%, rgba(3,8,24,0.96) 100%)",
   halo: "radial-gradient(circle at 50% 50%, rgba(86,199,255,0.28) 0%, rgba(25,109,255,0.12) 45%, rgba(0,0,0,0) 70%)",
   borderColor: "rgba(173,215,255,0.22)",
   borderGlow: "0 0 42px rgba(32,139,255,0.25)",

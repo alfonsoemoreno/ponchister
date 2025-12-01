@@ -162,7 +162,7 @@ export const DEFAULT_THEME: AdaptiveTheme = {
   progressOverlay: "rgba(4,10,24,0.45)",
   spotlight: {
     background:
-      "radial-gradient(circle at 50% 52%, rgba(255,255,255,0.25) 0%, rgba(10,24,66,0.92) 68%, rgba(3,8,24,0.96) 100%)",
+      "radial-gradient(circle at 50% 52%, rgba(10,24,66,0.15) 0%, rgba(10,24,66,0.92) 68%, rgba(3,8,24,0.96) 100%)",
     halo: "radial-gradient(circle at 50% 50%, rgba(86,199,255,0.28) 0%, rgba(25,109,255,0.12) 45%, rgba(0,0,0,0) 70%)",
     borderColor: "rgba(173,215,255,0.22)",
     borderGlow: "0 0 42px rgba(32,139,255,0.25)",
@@ -190,15 +190,14 @@ export const createAdaptiveTheme = (
     brightness < 0.22
       ? lighten(safeBase, 0.32)
       : brightness > 0.82
-      ? darken(safeBase, 0.22)
-      : safeBase;
+        ? darken(safeBase, 0.22)
+        : safeBase;
 
   if (brightness > 0.62) {
     const midTone = darken(adjustedBase, 0.25);
     const deepTone = darken(adjustedBase, 0.45);
     const hoverTone = darken(adjustedBase, 0.55);
     const lightTone = darken(adjustedBase, 0.15);
-    const spotlightInner = lighten(adjustedBase, 0.38);
     const spotlightCore = darken(adjustedBase, 0.32);
     const spotlightOuter = darken(adjustedBase, 0.58);
 
@@ -291,8 +290,8 @@ export const createAdaptiveTheme = (
       progressOverlay: rgbToCss(darken(adjustedBase, 0.6), 0.45),
       spotlight: {
         background: `radial-gradient(circle at 50% 52%, ${rgbToCss(
-          spotlightInner,
-          0.34
+          spotlightCore,
+          0.24
         )} 0%, ${rgbToCss(spotlightCore, 0.94)} 68%, ${rgbToCss(
           spotlightOuter,
           0.98
@@ -324,7 +323,6 @@ export const createAdaptiveTheme = (
   const accentHover = darken(accentBase, 0.32);
   const accentShadow = rgbToCss(darken(accentBase, 0.58), 0.58);
   const accentHoverShadow = rgbToCss(darken(accentBase, 0.64), 0.64);
-  const spotlightInner = lighten(accentBase, 0.6);
   const spotlightCore = darken(accentBase, 0.25);
   const spotlightOuter = darken(accentBase, 0.55);
 
@@ -394,8 +392,8 @@ export const createAdaptiveTheme = (
     progressOverlay: DEFAULT_THEME.progressOverlay,
     spotlight: {
       background: `radial-gradient(circle at 50% 52%, ${rgbToCss(
-        spotlightInner,
-        0.32
+        spotlightCore,
+        0.22
       )} 0%, ${rgbToCss(spotlightCore, 0.94)} 68%, ${rgbToCss(
         spotlightOuter,
         0.98

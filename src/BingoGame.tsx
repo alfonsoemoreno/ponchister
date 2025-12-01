@@ -1033,7 +1033,7 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     return (
       <Stack
         spacing={2}
-        sx={{ width: "100%", px: 2.5, py: 2, alignItems: "center" }}
+        sx={{ width: "100%", px: 4, py: 3, alignItems: "center" }}
       >
         <Box
           sx={{
@@ -1274,9 +1274,9 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
 
     const overlayBackground = currentCategory
       ? `linear-gradient(135deg, ${hexToRgba(
-          currentCategory.color,
-          0.56
-        )} 0%, ${theme.overlayTint} 55%, rgba(3,10,24,0.88) 100%)`
+        currentCategory.color,
+        0.56
+      )} 0%, ${theme.overlayTint} 55%, rgba(3,10,24,0.88) 100%)`
       : theme.overlayTint;
 
     const primaryChipLabel = currentCategory.label;
@@ -1308,21 +1308,21 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
 
     const primaryAction = showDetails
       ? {
-          icon: <CasinoIcon />,
-          label: "Volver a la ruleta",
-          onClick: handleReturnToRoulette,
-          variant: "contained" as const,
-          color: "primary" as const,
-          disabled: false,
-        }
+        icon: <CasinoIcon />,
+        label: "Volver a la ruleta",
+        onClick: handleReturnToRoulette,
+        variant: "contained" as const,
+        color: "primary" as const,
+        disabled: false,
+      }
       : {
-          icon: <InfoOutlinedIcon />,
-          label: "Mostrar artista y canción",
-          onClick: handleReveal,
-          variant: "contained" as const,
-          color: "primary" as const,
-          disabled: spotlightVisible,
-        };
+        icon: <InfoOutlinedIcon />,
+        label: "Mostrar artista y canción",
+        onClick: handleReveal,
+        variant: "contained" as const,
+        color: "primary" as const,
+        disabled: spotlightVisible,
+      };
 
     // secondaryAction removido porque el botón 'Salir del bingo' ya no está en la vista
 

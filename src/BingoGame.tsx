@@ -1031,132 +1031,211 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     }
 
     return (
-      <Stack
-        spacing={2}
-        sx={{ width: "100%", px: 4, py: 3, alignItems: "center" }}
+      <Box
+        sx={{
+          width: "100%",
+          height: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          px: { xs: 2, sm: 3, md: 4 },
+          py: { xs: 2, sm: 2.5, md: 3 },
+          overflow: "hidden",
+        }}
       >
         <Box
           sx={{
-            width: "min(760px, 96vw)",
+            width: "100%",
+            maxWidth: { xs: "100%", md: 1200 },
+            mx: "auto",
             display: "flex",
-            flexDirection: "column",
-            height: "calc(70vh)",
+            flexDirection: { xs: "column", md: "row" },
+            height: "100%",
+            gap: { xs: 2, md: 4 },
+            alignItems: { xs: "center", md: "center" },
+            justifyContent: { xs: "flex-start", md: "center" },
           }}
         >
+          {/* Grid de 5x5 - tamaño fijo */}
           <Box
             sx={{
               flex: "0 0 auto",
-              display: "grid",
-              gridTemplateColumns: "repeat(5, 1fr)",
-              gap: 1.5,
-              width: "100%",
+              width: {
+                xs: "min(90vw, 400px)",
+                sm: "min(70vw, 450px)",
+                md: 450,
+              },
+              maxHeight: {
+                xs: "min(90vw, 400px)",
+                sm: "min(70vw, 450px)",
+                md: 450,
+              },
+              aspectRatio: "1 / 1",
             }}
           >
-            {cardCells.map((cell, i) => (
-              <Box
-                key={i}
-                onClick={() => toggleCell(i)}
-                role="button"
-                aria-pressed={cell.checked}
-                sx={{
-                  background: hexToRgba(cell.color, 0.92),
-                  borderRadius: 1.2,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  outline: cell.checked
-                    ? `4px solid ${hexToRgba("#ffffff", 0.18)}`
-                    : `2px solid rgba(0,0,0,0.12)`,
-                  position: "relative",
-                  userSelect: "none",
-                  aspectRatio: "1 / 1",
-                  minWidth: 48,
-                  minHeight: 48,
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(5, 1fr)",
+                gap: { xs: 1.2, md: 1.5 },
+                width: "100%",
+                height: "100%",
+              }}
+            >
+              {cardCells.map((cell, i) => (
+                <Box
+                  key={i}
+                  onClick={() => toggleCell(i)}
+                  role="button"
+                  aria-pressed={cell.checked}
+                  sx={{
+                    background: hexToRgba(cell.color, 0.92),
+                    borderRadius: { xs: 1, md: 1.2 },
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    outline: cell.checked
+                      ? `4px solid ${hexToRgba("#ffffff", 0.18)}`
+                      : `2px solid rgba(0,0,0,0.12)`,
+                    position: "relative",
+                    userSelect: "none",
+                    aspectRatio: "1 / 1",
+                  }}
+                >
+                  {cell.checked && (
+                    <Typography
+                      sx={{
+                        color: "#fff",
+                        fontWeight: 900,
+                        fontSize: "clamp(1.6rem, 6vw, 3.2rem)",
+                        lineHeight: 1,
+                        textShadow: "0 6px 14px rgba(0,0,0,0.45)",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      X
+                    </Typography>
+                  )}
+                </Box>
+              ))}
+            </Box>
+          </Box>
+
+          {/* Campo de texto y botones - se adaptan al espacio restante */}
+          <Box
+            sx={{
+              flex: "1 1 auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: { xs: 1.5, md: 2 },
+              minHeight: 0,
+              minWidth: 0,
+              width: { xs: "100%", md: "auto" },
+              height: { xs: "auto", md: 450 },
+              maxHeight: { xs: "auto", md: 450 },
+            }}
+          >
+            {/* Campo de texto que crece */}
+            <Box
+              sx={{
+                flex: "1 1 auto",
+                minHeight: 0,
+                overflow: { xs: "hidden", md: "auto" },
+                maxHeight: { xs: "none", md: 450 },
+                // El Box contendrá el scroll en desktop
+              }}
+            >
+              <TextField
+                multiline
+                value={editorText}
+                onChange={(e) => setEditorText(e.target.value)}
+                placeholder=""
+                variant="outlined"
+                fullWidth
+                inputProps={{
+                  style: {
+                    padding: "16px 12px",
+                    fontSize: "clamp(32px, 8vw, 72px)",
+                    fontWeight: 700,
+                    textAlign: "center",
+                    color: "#fff",
+                    lineHeight: 1.05,
+                    height: "100%",
+                    overflow: "auto",
+                    maxHeight: 450,
+                  },
                 }}
+                sx={{
+                  height: "100%",
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  borderRadius: 2,
+                  overflow: { xs: "hidden", md: "auto" },
+                  maxHeight: { xs: "none", md: 450 },
+                  "& .MuiOutlinedInput-root": {
+                    height: "100%",
+                    alignItems: "flex-start",
+                    overflow: { xs: "hidden", md: "auto" },
+                    maxHeight: { xs: "none", md: 450 },
+                  },
+                  "& .MuiOutlinedInput-input": {
+                    overflow: { xs: "hidden", md: "auto" },
+                    maxHeight: { xs: "none", md: 450 },
+                  },
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(255,255,255,0.08)",
+                  },
+                }}
+              />
+            </Box>
+
+            {/* Botones */}
+            <Box sx={{ flex: "0 0 auto" }}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.2}
+                justifyContent="space-between"
               >
-                {cell.checked && (
-                  <Typography
+                <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                  <Button
+                    variant="contained"
+                    onClick={() => setConfirmBackOpen(true)}
                     sx={{
-                      color: "#fff",
-                      fontWeight: 900,
-                      fontSize: "clamp(1.6rem, 6vw, 3.2rem)",
-                      lineHeight: 1,
-                      textShadow: "0 6px 14px rgba(0,0,0,0.45)",
-                      pointerEvents: "none",
+                      textTransform: "none",
+                      minWidth: { xs: 100, sm: 120 },
                     }}
                   >
-                    X
-                  </Typography>
-                )}
-              </Box>
-            ))}
-          </Box>
-
-          <Box sx={{ flex: "1 1 auto", mt: 1 }}>
-            <TextField
-              multiline
-              rows={4}
-              value={editorText}
-              onChange={(e) => setEditorText(e.target.value)}
-              placeholder=""
-              variant="outlined"
-              fullWidth
-              inputProps={{
-                style: {
-                  padding: "16px 12px",
-                  fontSize: 72,
-                  fontWeight: 700,
-                  textAlign: "center",
-                  color: "#fff",
-                  lineHeight: 1.05,
-                },
-              }}
-              sx={{
-                height: "100%",
-                backgroundColor: "rgba(255,255,255,0.03)",
-                borderRadius: 2,
-                "& .MuiOutlinedInput-root": { height: "100%" },
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(255,255,255,0.08)",
-                },
-              }}
-            />
-          </Box>
-
-          <Box sx={{ flex: "0 0 auto", mt: 1 }}>
-            <Stack direction="row" spacing={1.2} justifyContent="space-between">
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="contained"
-                  onClick={() => setConfirmBackOpen(true)}
-                  sx={{ textTransform: "none" }}
-                >
-                  Volver
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={() => setConfirmRandomizeOpen(true)}
-                  sx={{ textTransform: "none" }}
-                >
-                  Randomizar
-                </Button>
+                    Volver
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => setConfirmRandomizeOpen(true)}
+                    sx={{
+                      textTransform: "none",
+                      minWidth: { xs: 100, sm: 120 },
+                    }}
+                  >
+                    Randomizar
+                  </Button>
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="outlined"
+                    color="inherit"
+                    startIcon={<ClearIcon />}
+                    onClick={clearEditorText}
+                    sx={{
+                      textTransform: "none",
+                      minWidth: { xs: 100, sm: 140 },
+                    }}
+                  >
+                    Borrar texto
+                  </Button>
+                </Stack>
               </Stack>
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<ClearIcon />}
-                  onClick={clearEditorText}
-                  sx={{ textTransform: "none" }}
-                >
-                  Borrar texto
-                </Button>
-              </Stack>
-            </Stack>
+            </Box>
           </Box>
         </Box>
-      </Stack>
+      </Box>
     );
   };
 
@@ -1274,9 +1353,9 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
 
     const overlayBackground = currentCategory
       ? `linear-gradient(135deg, ${hexToRgba(
-        currentCategory.color,
-        0.56
-      )} 0%, ${theme.overlayTint} 55%, rgba(3,10,24,0.88) 100%)`
+          currentCategory.color,
+          0.56
+        )} 0%, ${theme.overlayTint} 55%, rgba(3,10,24,0.88) 100%)`
       : theme.overlayTint;
 
     const primaryChipLabel = currentCategory.label;
@@ -1308,21 +1387,21 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
 
     const primaryAction = showDetails
       ? {
-        icon: <CasinoIcon />,
-        label: "Volver a la ruleta",
-        onClick: handleReturnToRoulette,
-        variant: "contained" as const,
-        color: "primary" as const,
-        disabled: false,
-      }
+          icon: <CasinoIcon />,
+          label: "Volver a la ruleta",
+          onClick: handleReturnToRoulette,
+          variant: "contained" as const,
+          color: "primary" as const,
+          disabled: false,
+        }
       : {
-        icon: <InfoOutlinedIcon />,
-        label: "Mostrar artista y canción",
-        onClick: handleReveal,
-        variant: "contained" as const,
-        color: "primary" as const,
-        disabled: spotlightVisible,
-      };
+          icon: <InfoOutlinedIcon />,
+          label: "Mostrar artista y canción",
+          onClick: handleReveal,
+          variant: "contained" as const,
+          color: "primary" as const,
+          disabled: spotlightVisible,
+        };
 
     // secondaryAction removido porque el botón 'Salir del bingo' ya no está en la vista
 

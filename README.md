@@ -17,11 +17,15 @@
 
 ## Visión general
 
-Ponchister es una PWA construida con React, TypeScript y Vite. Ofrece una experiencia inmersiva optimizada para móviles, animaciones ligeras y reproducción de canciones alojadas en YouTube. Gestiona el catálogo mediante Supabase y proporciona dos flujos de juego: reproducción dirigida vía códigos QR y modo automático con rotación continua de pistas.
+Ponchister es una PWA construida con React, TypeScript y Vite. Ofrece una experiencia inmersiva optimizada para móviles, animaciones ligeras y reproducción de canciones alojadas en YouTube. Gestiona el catálogo mediante Supabase y proporciona tres flujos de juego: reproducción dirigida vía códigos QR, modo automático con rotación continua de pistas y un nuevo modo Bingo con ruleta interactiva.
 
 ## Características principales
 
-- **Doble modalidad**: modo QR para cargar una pista específica y modo automático con controles de reproducción, saltos y revelado de información.
+- **Triple modalidad**:
+  - **Modo Clásico (QR)**: escanea códigos para reproducir pistas específicas.
+  - **Modo Automático**: rotación continua con controles de reproducción y revelado.
+  - **Modo Bingo**: ruleta interactiva para selección de categorías y soporte para cartones.
+- **Generador de recursos**: enlace directo a `ponchistercards` para crear tarjetas y fichas de juego.
 - **Integración con Supabase**: acceso seguro a la tabla `songs`, cacheo local del conteo y políticas RLS preparadas para producción.
 - **Optimización móvil**: interfaz full-screen, mitigaciones para reducir uso de CPU/GPU y animaciones fluidas incluso en dispositivos modestos.
 - **Componentes reutilizables**: servicios tipados, reproductor centralizado y utilidades compartidas para parsing de URLs y control de estado.
@@ -46,7 +50,8 @@ ponchister/
 │  ├─ App.tsx                  # Router y selección de flujo principal
 │  ├─ AudioPlayer.tsx          # Reproductor controlado para modo QR
 │  ├─ AutoGame.tsx             # Lógica del modo automático con Supabase
-│  ├─ Welcome.tsx              # Pantalla de acceso y CTA principales
+│  ├─ BingoGame.tsx            # Modo bingo con ruleta y editor de cartones
+│  ├─ Welcome.tsx              # Pantalla de acceso, selección de modo y enlaces
 │  ├─ services/songService.ts  # Capa de datos tipada + caching
 │  ├─ lib/supabaseClient.ts    # Cliente inicializado desde variables Vite
 │  └─ assets / styles          # Tipografías, animaciones y recursos visuales

@@ -24,6 +24,8 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import CasinoIcon from "@mui/icons-material/Casino";
 import ClearIcon from "@mui/icons-material/Clear";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ShuffleIcon from "@mui/icons-material/Shuffle";
 // import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 
 import { fetchAllSongs } from "./services/songService";
@@ -1038,7 +1040,12 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
           display: "flex",
           flexDirection: "column",
           px: { xs: 2, sm: 3, md: 4 },
-          py: { xs: 2, sm: 2.5, md: 3 },
+          pt: {
+            xs: "calc(env(safe-area-inset-top, 0px) + 48px)",
+            sm: 2.5,
+            md: 3,
+          },
+          pb: { xs: 2, sm: 2.5, md: 3 },
           overflow: "hidden",
         }}
       >
@@ -1191,46 +1198,91 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
             {/* Botones */}
             <Box sx={{ flex: "0 0 auto" }}>
               <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1.2}
-                justifyContent="space-between"
+                direction="row"
+                spacing={1}
+                justifyContent={{ xs: "center", sm: "space-between" }}
+                alignItems="center"
+                flexWrap="nowrap"
               >
-                <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-                  <Button
-                    variant="contained"
-                    onClick={() => setConfirmBackOpen(true)}
-                    sx={{
-                      textTransform: "none",
-                      minWidth: { xs: 100, sm: 120 },
-                    }}
+                <Button
+                  variant="contained"
+                  onClick={() => setConfirmBackOpen(true)}
+                  startIcon={<ArrowBackIcon />}
+                  aria-label="Volver"
+                  sx={{
+                    textTransform: "none",
+                    justifyContent: "center",
+                    minWidth: { xs: "48px", sm: "120px" },
+                    width: { xs: "48px", sm: "auto" },
+                    height: { xs: "48px", sm: "auto" },
+                    px: { xs: 0, sm: 2.5 },
+                    borderRadius: { xs: "50%", sm: 999 },
+                    "& .MuiButton-startIcon": {
+                      marginRight: { xs: 0, sm: 0.75 },
+                      marginLeft: { xs: 0, sm: -0.5 },
+                    },
+                  }}
+                >
+                  <Box
+                    component="span"
+                    sx={{ display: { xs: "none", sm: "inline" } }}
                   >
                     Volver
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() => setConfirmRandomizeOpen(true)}
-                    sx={{
-                      textTransform: "none",
-                      minWidth: { xs: 100, sm: 120 },
-                    }}
+                  </Box>
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => setConfirmRandomizeOpen(true)}
+                  startIcon={<ShuffleIcon />}
+                  aria-label="Randomizar"
+                  sx={{
+                    textTransform: "none",
+                    justifyContent: "center",
+                    minWidth: { xs: "48px", sm: "120px" },
+                    width: { xs: "48px", sm: "auto" },
+                    height: { xs: "48px", sm: "auto" },
+                    px: { xs: 0, sm: 2.5 },
+                    borderRadius: { xs: "50%", sm: 999 },
+                    "& .MuiButton-startIcon": {
+                      marginRight: { xs: 0, sm: 0.75 },
+                      marginLeft: { xs: 0, sm: -0.5 },
+                    },
+                  }}
+                >
+                  <Box
+                    component="span"
+                    sx={{ display: { xs: "none", sm: "inline" } }}
                   >
                     Randomizar
-                  </Button>
-                </Stack>
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    variant="outlined"
-                    color="inherit"
-                    startIcon={<ClearIcon />}
-                    onClick={clearEditorText}
-                    sx={{
-                      textTransform: "none",
-                      minWidth: { xs: 100, sm: 140 },
-                    }}
+                  </Box>
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<ClearIcon />}
+                  onClick={clearEditorText}
+                  aria-label="Borrar texto"
+                  sx={{
+                    textTransform: "none",
+                    justifyContent: "center",
+                    minWidth: { xs: "48px", sm: "140px" },
+                    width: { xs: "48px", sm: "auto" },
+                    height: { xs: "48px", sm: "auto" },
+                    px: { xs: 0, sm: 2.5 },
+                    borderRadius: { xs: "50%", sm: 999 },
+                    "& .MuiButton-startIcon": {
+                      marginRight: { xs: 0, sm: 0.75 },
+                      marginLeft: { xs: 0, sm: -0.5 },
+                    },
+                  }}
+                >
+                  <Box
+                    component="span"
+                    sx={{ display: { xs: "none", sm: "inline" } }}
                   >
                     Borrar texto
-                  </Button>
-                </Stack>
+                  </Box>
+                </Button>
               </Stack>
             </Box>
           </Box>

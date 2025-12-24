@@ -38,6 +38,7 @@ import { NeonLines } from "./auto-game/NeonLines";
 import { YearSpotlight } from "./auto-game/YearSpotlight";
 import { useViewTransition } from "./hooks/useViewTransition";
 import { createAdaptiveTheme } from "./auto-game/theme";
+import type { YearRange } from "./types";
 
 interface InternalPlayer {
   playVideo?: () => void;
@@ -51,6 +52,7 @@ interface InternalPlayer {
 
 interface BingoGameProps {
   onExit: () => void;
+  yearRange: YearRange;
 }
 
 interface BingoCategory {
@@ -164,7 +166,7 @@ const hexToRgba = (hex: string, alpha = 1): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
+const BingoGame: React.FC<BingoGameProps> = ({ onExit, yearRange }) => {
   // Inyecta los keyframes de animación solo una vez en el navegador
   useEffect(() => {
     if (
@@ -209,6 +211,15 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     null
   );
 
+  const fetchSongsForRange = useCallback(
+    () =>
+      fetchAllSongs({
+        minYear: yearRange.min,
+        maxYear: yearRange.max,
+      }),
+    [yearRange.max, yearRange.min]
+  );
+
   const {
     status: queueStatus,
     error: queueError,
@@ -216,7 +227,7 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     startQueue,
     advanceQueue,
     resetQueue,
-  } = useAutoGameQueue({ fetchSongs: fetchAllSongs });
+  } = useAutoGameQueue({ fetchSongs: fetchSongsForRange });
 
   const {
     artworkUrl,

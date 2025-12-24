@@ -1,15 +1,20 @@
-import React from "react";
-import { Box, Button, Chip, Stack, Typography } from "@mui/material";
+import React, { useEffect, useMemo, useState } from "react";
+import { Box, Button, Chip, Slider, Stack, Typography } from "@mui/material";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import CasinoIcon from "@mui/icons-material/Casino";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import type { YearRange } from "./types";
 
 interface WelcomeProps {
   onAccept: () => void;
   onStartAuto: () => void;
   onStartBingo: () => void;
+  yearRange: YearRange;
+  onYearRangeChange: (range: YearRange) => void;
 }
+
+const MIN_YEAR = 1950;
 
 const requestFullscreen = () => {
   const el = document.documentElement as HTMLElement & {
@@ -29,8 +34,31 @@ const Welcome: React.FC<WelcomeProps> = ({
   onAccept,
   onStartAuto,
   onStartBingo,
+  yearRange,
+  onYearRangeChange,
 }) => {
   const currentYear = new Date().getFullYear();
+  const [localRange, setLocalRange] = useState<YearRange>(yearRange);
+  const defaultRange = useMemo(
+    () => ({ min: MIN_YEAR, max: currentYear }),
+    [currentYear]
+  );
+
+  useEffect(() => {
+    setLocalRange(yearRange);
+  }, [yearRange]);
+
+  const sliderMarks = useMemo(() => {
+    const midpoint =
+      Math.round((defaultRange.min + defaultRange.max) / 2 / 10) * 10;
+    return [
+      { value: defaultRange.min, label: `${defaultRange.min}` },
+      midpoint > defaultRange.min && midpoint < defaultRange.max
+        ? { value: midpoint, label: `${midpoint}` }
+        : null,
+      { value: defaultRange.max, label: `${defaultRange.max}` },
+    ].filter(Boolean) as { value: number; label: string }[];
+  }, [defaultRange.max, defaultRange.min]);
 
   const handleStartScan = () => {
     requestFullscreen();
@@ -49,6 +77,28 @@ const Welcome: React.FC<WelcomeProps> = ({
 
   const handleOpenCards = () => {
     window.open("https://ponchistercards.vercel.app", "_blank");
+  };
+
+  const handleRangePreview = (_event: Event, value: number | number[]) => {
+    if (!Array.isArray(value) || value.length !== 2) return;
+    const [min, max] = value;
+    setLocalRange({ min, max });
+  };
+
+  const handleRangeCommit = (
+    _event: Event | React.SyntheticEvent,
+    value: number | number[]
+  ) => {
+    if (!Array.isArray(value) || value.length !== 2) return;
+    const [min, max] = value;
+    const next = { min, max };
+    setLocalRange(next);
+    onYearRangeChange(next);
+  };
+
+  const handleResetRange = () => {
+    setLocalRange(defaultRange);
+    onYearRangeChange(defaultRange);
   };
 
   const neonLines = (
@@ -196,7 +246,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                 }}
               />
               <Chip
-                label={`Canciones ${1950} - ${currentYear}`}
+                label={`Canciones ${yearRange.min} - ${yearRange.max}`}
                 sx={{
                   fontWeight: 600,
                   letterSpacing: 1,
@@ -250,6 +300,109 @@ const Welcome: React.FC<WelcomeProps> = ({
                 que la música te sorprenda.
               </Typography>
             </Stack>
+            <Box
+              sx={{
+                background: "rgba(5,24,64,0.42)",
+                borderRadius: 3,
+                border: "1px solid rgba(99,216,255,0.18)",
+                boxShadow: "0 24px 64px -28px rgba(5,18,52,0.65)",
+                p: { xs: 3, sm: 3.5 },
+                backdropFilter: "blur(18px)",
+              }}
+            >
+              <Stack spacing={2.2}>
+                <Stack spacing={0.4}>
+                  <Typography
+                    variant="overline"
+                    sx={{
+                      letterSpacing: 2,
+                      fontWeight: 700,
+                      color: "rgba(148,216,255,0.86)",
+                    }}
+                  >
+                    Modo configuración
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 700,
+                      color: "#fff",
+                    }}
+                  >
+                    Rango de años
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "rgba(204,231,255,0.78)", maxWidth: 540 }}
+                  >
+                    Ajusta el catálogo musical para enfocarte en décadas
+                    específicas o amplía la selección para mezclar toda la
+                    historia de Ponchister.
+                  </Typography>
+                </Stack>
+                <Slider
+                  value={[localRange.min, localRange.max]}
+                  onChange={handleRangePreview}
+                  onChangeCommitted={handleRangeCommit}
+                  min={defaultRange.min}
+                  max={defaultRange.max}
+                  step={1}
+                  marks={sliderMarks}
+                  valueLabelDisplay="auto"
+                  getAriaLabel={() => "Rango de años"}
+                  sx={{
+                    color: "#5eead4",
+                    height: 4,
+                    "& .MuiSlider-thumb": {
+                      width: 20,
+                      height: 20,
+                      boxShadow: "0 6px 16px rgba(6,18,52,0.4)",
+                    },
+                    "& .MuiSlider-valueLabel": {
+                      backgroundColor: "rgba(5,24,64,0.9)",
+                      borderRadius: 1,
+                    },
+                  }}
+                />
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={{ xs: 1, sm: 2.5 }}
+                  alignItems={{ xs: "flex-start", sm: "center" }}
+                  justifyContent="space-between"
+                >
+                  <Typography
+                    variant="subtitle1"
+                    sx={{
+                      fontWeight: 700,
+                      color: "rgba(212,239,255,0.92)",
+                    }}
+                  >
+                    Estás listo para jugar entre {localRange.min} y{" "}
+                    {localRange.max}.
+                  </Typography>
+                  {(localRange.min !== defaultRange.min ||
+                    localRange.max !== defaultRange.max) && (
+                    <Button
+                      variant="text"
+                      color="inherit"
+                      onClick={handleResetRange}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 600,
+                        px: 0,
+                        color: "rgba(148,216,255,0.9)",
+                        "&:hover": {
+                          color: "#5eead4",
+                          backgroundColor: "transparent",
+                        },
+                      }}
+                    >
+                      Usar todo el catálogo
+                    </Button>
+                  )}
+                </Stack>
+              </Stack>
+            </Box>
             <Stack spacing={3} sx={{ maxWidth: 640 }}>
               <Stack
                 direction={{ xs: "column", sm: "row" }}

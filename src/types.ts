@@ -5,3 +5,8 @@ export interface Song {
   year: number | null;
   youtube_url: string;
 }
+
+export interface YearRange {
+  min: number;
+  max: number;
+}

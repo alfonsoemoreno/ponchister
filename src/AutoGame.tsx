@@ -28,6 +28,7 @@ import { NeonLines } from "./auto-game/NeonLines";
 import { YearSpotlight } from "./auto-game/YearSpotlight";
 import { useViewTransition } from "./hooks/useViewTransition";
 import { createAdaptiveTheme } from "./auto-game/theme";
+import type { YearRange } from "./types";
 
 interface InternalPlayer {
   playVideo?: () => void;
@@ -41,13 +42,14 @@ interface InternalPlayer {
 
 interface AutoGameProps {
   onExit: () => void;
+  yearRange: YearRange;
 }
 
 type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
 
 type PlayerRef = YouTube | null;
 
-const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
+const AutoGame: React.FC<AutoGameProps> = ({ onExit, yearRange }) => {
   const [gameState, setGameState] = useState<GameState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -62,6 +64,15 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     null
   );
 
+  const fetchSongsForRange = useCallback(
+    () =>
+      fetchAllSongs({
+        minYear: yearRange.min,
+        maxYear: yearRange.max,
+      }),
+    [yearRange.max, yearRange.min]
+  );
+
   const {
     status: queueStatus,
     error: queueError,
@@ -69,7 +80,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     startQueue,
     advanceQueue,
     resetQueue,
-  } = useAutoGameQueue({ fetchSongs: fetchAllSongs });
+  } = useAutoGameQueue({ fetchSongs: fetchSongsForRange });
 
   const {
     artworkUrl,

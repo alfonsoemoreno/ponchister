@@ -94,16 +94,33 @@ export async function fetchRandomSong(): Promise<Song> {
   );
 }
 
-export async function fetchAllSongs(): Promise<Song[]> {
+export async function fetchAllSongs(options?: {
+  minYear?: number | null;
+  maxYear?: number | null;
+}): Promise<Song[]> {
+  const minYear =
+    typeof options?.minYear === "number" ? Math.floor(options.minYear) : null;
+  const maxYear =
+    typeof options?.maxYear === "number" ? Math.floor(options.maxYear) : null;
+  const hasYearFilter =
+    typeof minYear === "number" || typeof maxYear === "number";
   const collected: Song[] = [];
 
   for (let from = 0; ; from += BULK_FETCH_PAGE_SIZE) {
     const to = from + BULK_FETCH_PAGE_SIZE - 1;
-    const { data, error } = await supabase
+    let query = supabase
       .from("songs")
       .select(SONG_FIELDS)
-      .order("id", { ascending: true })
-      .range(from, to);
+      .order("id", { ascending: true });
+
+    if (typeof minYear === "number") {
+      query = query.gte("year", minYear);
+    }
+    if (typeof maxYear === "number") {
+      query = query.lte("year", maxYear);
+    }
+
+    const { data, error } = await query.range(from, to);
 
     if (error) {
       throw new Error(
@@ -120,6 +137,12 @@ export async function fetchAllSongs(): Promise<Song[]> {
     if (batch.length < BULK_FETCH_PAGE_SIZE) {
       break;
     }
+  }
+
+  if (!collected.length && hasYearFilter) {
+    throw new Error(
+      "No hay canciones dentro del rango de años seleccionado. Ajusta la configuración para continuar."
+    );
   }
 
   return collected;

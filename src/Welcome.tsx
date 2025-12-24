@@ -412,6 +412,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                 sx={{
                   alignSelf: { xs: "stretch", sm: "flex-start" },
                   flexWrap: "wrap",
+                  rowGap: "10px",
                 }}
               >
                 <Button

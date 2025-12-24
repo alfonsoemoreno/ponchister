@@ -51,6 +51,13 @@ export interface AlertTheme {
   border: string;
 }
 
+export interface YearBadgeTheme {
+  background: string;
+  color: string;
+  border: string;
+  shadow: string;
+}
+
 export interface AdaptiveTheme {
   overlayTint: string;
   text: {
@@ -76,6 +83,7 @@ export interface AdaptiveTheme {
   warningText: string;
   progressOverlay: string;
   spotlight: YearSpotlightStyle;
+  yearBadge: YearBadgeTheme;
 }
 
 const adjustBaseTone = (colorValue: number): number =>
@@ -172,6 +180,13 @@ export const DEFAULT_THEME: AdaptiveTheme = {
     valueColor: "#ffffff",
     valueShadow: "0 48px 94px rgba(0,0,0,0.78)",
   },
+  yearBadge: {
+    background:
+      "linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(99,213,245,0.38) 100%)",
+    color: "#ffffff",
+    border: "1px solid rgba(255,255,255,0.32)",
+    shadow: "0 24px 48px -20px rgba(6,20,60,0.65)",
+  },
 };
 
 export const createAdaptiveTheme = (
@@ -190,8 +205,8 @@ export const createAdaptiveTheme = (
     brightness < 0.22
       ? lighten(safeBase, 0.32)
       : brightness > 0.82
-        ? darken(safeBase, 0.22)
-        : safeBase;
+      ? darken(safeBase, 0.22)
+      : safeBase;
 
   if (brightness > 0.62) {
     const midTone = darken(adjustedBase, 0.25);
@@ -328,6 +343,15 @@ export const createAdaptiveTheme = (
 
   return {
     ...DEFAULT_THEME,
+    yearBadge: {
+      background: `linear-gradient(135deg, ${rgbToCss(
+        lighten(accentBase, 0.42),
+        0.42
+      )} 0%, ${rgbToCss(lighten(accentBase, 0.18), 0.6)} 100%)`,
+      color: "#ffffff",
+      border: `1px solid ${rgbToCss(lighten(accentBase, 0.18), 0.35)}`,
+      shadow: `0 24px 48px -20px ${accentShadow}`,
+    },
     overlayTint:
       brightness < 0.28 ? "rgba(2, 8, 22, 0.55)" : DEFAULT_THEME.overlayTint,
     chips: {
@@ -414,6 +438,15 @@ export const createAdaptiveTheme = (
       labelColor: "rgba(255,255,255,0.86)",
       valueColor: "#ffffff",
       valueShadow: `0 48px 94px ${rgbToCss(darken(accentBase, 0.85), 0.7)}`,
+    },
+    yearBadge: {
+      background: `linear-gradient(135deg, ${rgbToCss(
+        lighten(accentBase, 0.35),
+        0.4
+      )} 0%, ${rgbToCss(lighten(accentBase, 0.12), 0.6)} 100%)`,
+      color: "#ffffff",
+      border: `1px solid ${rgbToCss(lighten(accentBase, 0.18), 0.32)}`,
+      shadow: `0 24px 48px -20px ${accentShadow}`,
     },
   };
 };

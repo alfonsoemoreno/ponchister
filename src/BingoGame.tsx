@@ -1398,6 +1398,8 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     }
 
     const showDetails = mode === "reveal";
+    const songYear =
+      typeof currentSong.year === "number" ? currentSong.year : null;
 
     const theme = createAdaptiveTheme(
       showDetails && artworkUrl ? artworkPalette : null
@@ -1412,8 +1414,8 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
 
     const primaryChipLabel = currentCategory.label;
     const secondaryChipLabel = showDetails
-      ? typeof currentSong.year === "number"
-        ? `Año ${currentSong.year}`
+      ? songYear !== null
+        ? `Año ${songYear}`
         : "Año no disponible"
       : currentCategory.description;
     const tertiaryChipLabel = showDetails
@@ -1426,6 +1428,7 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
     const subheading = showDetails
       ? currentSong.artist
       : "Escucha atentamente y anota tu respuesta antes de revelar la canción.";
+    const highlightedYear = showDetails && songYear !== null ? songYear : null;
     const description = showDetails
       ? "Comparte la respuesta, marca tu cartón y prepárate para volver a la ruleta."
       : "Cuando todos tengan su apuesta lista, pulsa el botón para revelar artista y canción.";
@@ -1583,13 +1586,14 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
               />
             </Stack>
             <Stack spacing={2.2}>
-              <Stack spacing={0.8}>
+              <Stack spacing={0.8} sx={{ alignItems: "flex-start" }}>
                 <Typography
                   variant="h3"
                   sx={{
                     fontWeight: 800,
                     letterSpacing: "-0.02em",
                     color: theme.text.primary,
+                    textAlign: "left",
                     textShadow: theme.textShadow,
                   }}
                 >
@@ -1600,10 +1604,42 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit }) => {
                   sx={{
                     fontWeight: 600,
                     color: theme.text.secondary,
+                    textAlign: "left",
                   }}
                 >
                   {subheading}
                 </Typography>
+                {highlightedYear ? (
+                  <Box
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      px: { xs: 1.6, sm: 2.2 },
+                      py: { xs: 0.5, sm: 0.7 },
+                      borderRadius: 999,
+                      background: theme.yearBadge.background,
+                      color: theme.yearBadge.color,
+                      border: theme.yearBadge.border,
+                      boxShadow: theme.yearBadge.shadow,
+                      mt: { xs: 0.4, sm: 0.6 },
+                    }}
+                  >
+                    <Typography
+                      variant="h4"
+                      sx={{
+                        fontWeight: 800,
+                        letterSpacing: "0.16em",
+                        textTransform: "uppercase",
+                        color: "inherit",
+                        lineHeight: 1,
+                        fontSize: { xs: "1.35rem", sm: "1.55rem" },
+                        minWidth: { xs: "fit-content", sm: "fit-content" },
+                      }}
+                    >
+                      {highlightedYear}
+                    </Typography>
+                  </Box>
+                ) : null}
               </Stack>
               <Typography
                 variant="body1"

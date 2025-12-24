@@ -342,10 +342,12 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     }
 
     const showDetails = mode === "reveal";
+    const songYear =
+      typeof currentSong.year === "number" ? currentSong.year : null;
     const baseChipLabel = showDetails ? "Ahora suena" : null;
     const secondaryChipLabel = showDetails
-      ? typeof currentSong.year === "number"
-        ? `Año ${currentSong.year}`
+      ? songYear !== null
+        ? `Año ${songYear}`
         : "Año desconocido"
       : "¿Qué año crees?";
     const tertiaryChipLabel = showDetails
@@ -361,6 +363,7 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
     const description = showDetails
       ? "Captura la magia del momento con visuales envolventes inspirados en tu canción. Sigue jugando para descubrir nuevas portadas y atmósferas impactantes."
       : 'Mantén el suspenso: cuando creas tener la respuesta, presiona "Mostrar artista y canción" para confirmar tu apuesta.';
+    const highlightedYear = showDetails && songYear !== null ? songYear : null;
 
     const statusCaptionLabel = showDetails
       ? "Reproduciendo"
@@ -594,28 +597,61 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit }) => {
                   </Stack>
                 ) : null}
               </Stack>
-              <Typography
-                variant="h3"
-                sx={{
-                  fontWeight: 800,
-                  letterSpacing: "-0.015em",
-                  textAlign: "left",
-                  color: theme.text.primary,
-                  textShadow: theme.textShadow,
-                }}
-              >
-                {heading}
-              </Typography>
-              <Typography
-                variant="h4"
-                sx={{
-                  fontWeight: 600,
-                  color: theme.text.secondary,
-                  textAlign: "left",
-                }}
-              >
-                {subheading}
-              </Typography>
+              <Stack spacing={0.8} sx={{ alignItems: "flex-start" }}>
+                <Typography
+                  variant="h3"
+                  sx={{
+                    fontWeight: 800,
+                    letterSpacing: "-0.015em",
+                    textAlign: "left",
+                    color: theme.text.primary,
+                    textShadow: theme.textShadow,
+                  }}
+                >
+                  {heading}
+                </Typography>
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 600,
+                    color: theme.text.secondary,
+                    textAlign: "left",
+                  }}
+                >
+                  {subheading}
+                </Typography>
+                {highlightedYear ? (
+                  <Box
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      px: { xs: 1.6, sm: 2.2 },
+                      py: { xs: 0.5, sm: 0.7 },
+                      borderRadius: 999,
+                      background: theme.yearBadge.background,
+                      color: theme.yearBadge.color,
+                      border: theme.yearBadge.border,
+                      boxShadow: theme.yearBadge.shadow,
+                      mt: { xs: 0.4, sm: 0.6 },
+                    }}
+                  >
+                    <Typography
+                      variant="h4"
+                      sx={{
+                        fontWeight: 800,
+                        letterSpacing: "0.16em",
+                        textTransform: "uppercase",
+                        color: "inherit",
+                        lineHeight: 1,
+                        fontSize: { xs: "1.35rem", sm: "1.55rem" },
+                        minWidth: { xs: "fit-content", sm: "fit-content" },
+                      }}
+                    >
+                      {highlightedYear}
+                    </Typography>
+                  </Box>
+                ) : null}
+              </Stack>
               <Typography
                 variant="body1"
                 sx={{

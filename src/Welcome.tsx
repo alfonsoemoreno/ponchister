@@ -361,6 +361,9 @@ const Welcome: React.FC<WelcomeProps> = ({
                       backgroundColor: "rgba(5,24,64,0.9)",
                       borderRadius: 1,
                     },
+                    "& .MuiSlider-markLabel": {
+                      color: "rgba(224,239,255,0.92)",
+                    },
                   }}
                 />
                 <Stack

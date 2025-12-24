@@ -11,10 +11,9 @@ interface WelcomeProps {
   onStartAuto: () => void;
   onStartBingo: () => void;
   yearRange: YearRange;
+  availableRange: YearRange;
   onYearRangeChange: (range: YearRange) => void;
 }
-
-const MIN_YEAR = 1950;
 
 const requestFullscreen = () => {
   const el = document.documentElement as HTMLElement & {
@@ -35,30 +34,30 @@ const Welcome: React.FC<WelcomeProps> = ({
   onStartAuto,
   onStartBingo,
   yearRange,
+  availableRange,
   onYearRangeChange,
 }) => {
-  const currentYear = new Date().getFullYear();
   const [localRange, setLocalRange] = useState<YearRange>(yearRange);
-  const defaultRange = useMemo(
-    () => ({ min: MIN_YEAR, max: currentYear }),
-    [currentYear]
-  );
 
   useEffect(() => {
     setLocalRange(yearRange);
   }, [yearRange]);
 
   const sliderMarks = useMemo(() => {
-    const midpoint =
-      Math.round((defaultRange.min + defaultRange.max) / 2 / 10) * 10;
-    return [
-      { value: defaultRange.min, label: `${defaultRange.min}` },
-      midpoint > defaultRange.min && midpoint < defaultRange.max
-        ? { value: midpoint, label: `${midpoint}` }
-        : null,
-      { value: defaultRange.max, label: `${defaultRange.max}` },
-    ].filter(Boolean) as { value: number; label: string }[];
-  }, [defaultRange.max, defaultRange.min]);
+    const marks: { value: number; label: string }[] = [
+      { value: availableRange.min, label: `${availableRange.min}` },
+    ];
+    const span = availableRange.max - availableRange.min;
+    if (span > 0) {
+      const midpoint =
+        Math.round((availableRange.min + availableRange.max) / 2 / 10) * 10;
+      if (midpoint > availableRange.min && midpoint < availableRange.max) {
+        marks.push({ value: midpoint, label: `${midpoint}` });
+      }
+      marks.push({ value: availableRange.max, label: `${availableRange.max}` });
+    }
+    return marks;
+  }, [availableRange]);
 
   const handleStartScan = () => {
     requestFullscreen();
@@ -97,8 +96,8 @@ const Welcome: React.FC<WelcomeProps> = ({
   };
 
   const handleResetRange = () => {
-    setLocalRange(defaultRange);
-    onYearRangeChange(defaultRange);
+    setLocalRange(availableRange);
+    onYearRangeChange(availableRange);
   };
 
   const neonLines = (
@@ -344,8 +343,8 @@ const Welcome: React.FC<WelcomeProps> = ({
                   value={[localRange.min, localRange.max]}
                   onChange={handleRangePreview}
                   onChangeCommitted={handleRangeCommit}
-                  min={defaultRange.min}
-                  max={defaultRange.max}
+                  min={availableRange.min}
+                  max={availableRange.max}
                   step={1}
                   marks={sliderMarks}
                   valueLabelDisplay="auto"
@@ -380,8 +379,8 @@ const Welcome: React.FC<WelcomeProps> = ({
                     Estás listo para jugar entre {localRange.min} y{" "}
                     {localRange.max}.
                   </Typography>
-                  {(localRange.min !== defaultRange.min ||
-                    localRange.max !== defaultRange.max) && (
+                  {(localRange.min !== availableRange.min ||
+                    localRange.max !== availableRange.max) && (
                     <Button
                       variant="text"
                       color="inherit"

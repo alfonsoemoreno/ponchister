@@ -1,7 +1,8 @@
 import { supabase } from "../lib/supabaseClient";
-import type { Song } from "../types";
+import type { Song, YearRange } from "../types";
 
 let cachedSongCount: number | null = null;
+let cachedYearBounds: YearRange | null = null;
 
 const SONG_FIELDS = "id, artist, title, year, youtube_url";
 const MAX_RANDOM_ATTEMPTS = 5;
@@ -59,6 +60,10 @@ export function invalidateSongCount(): void {
   cachedSongCount = null;
 }
 
+export function invalidateSongYearBounds(): void {
+  cachedYearBounds = null;
+}
+
 async function fetchSongByOffset(offset: number): Promise<Song | null> {
   const { data, error } = await supabase
     .from("songs")
@@ -92,6 +97,57 @@ export async function fetchRandomSong(): Promise<Song> {
   throw new Error(
     "No se encontró una canción reproducible tras varios intentos. Verifica los datos cargados."
   );
+}
+
+export async function fetchSongYearBounds(options?: {
+  forceRefresh?: boolean;
+}): Promise<YearRange> {
+  if (!options?.forceRefresh && cachedYearBounds) {
+    return cachedYearBounds;
+  }
+
+  const fallbackMin = 1950;
+  const fallbackMax = new Date().getFullYear();
+
+  const { data, error } = await supabase
+    .from("songs")
+    .select("min:year.min(), max:year.max()")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      error.message || "No se pudieron obtener los límites de años disponibles."
+    );
+  }
+
+  let minYear: number | null =
+    typeof data?.min === "number" && Number.isFinite(data.min)
+      ? Math.trunc(data.min)
+      : null;
+  let maxYear: number | null =
+    typeof data?.max === "number" && Number.isFinite(data.max)
+      ? Math.trunc(data.max)
+      : null;
+
+  if (minYear === null && maxYear !== null) {
+    minYear = maxYear;
+  } else if (maxYear === null && minYear !== null) {
+    maxYear = minYear;
+  }
+
+  if (minYear === null || maxYear === null) {
+    minYear = fallbackMin;
+    maxYear = fallbackMax;
+  }
+
+  if (minYear > maxYear) {
+    const temp = minYear;
+    minYear = maxYear;
+    maxYear = temp;
+  }
+
+  cachedYearBounds = { min: minYear, max: maxYear };
+  return cachedYearBounds;
 }
 
 export async function fetchAllSongs(options?: {

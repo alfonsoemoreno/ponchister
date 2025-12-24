@@ -88,7 +88,7 @@ function App() {
 
     const loadBounds = async () => {
       try {
-        const bounds = await fetchSongYearBounds();
+        const bounds = await fetchSongYearBounds({ forceRefresh: true });
         if (cancelled) return;
         setAvailableRange(bounds);
         setYearRange((prev) => {

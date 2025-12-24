@@ -109,25 +109,55 @@ export async function fetchSongYearBounds(options?: {
   const fallbackMin = 1950;
   const fallbackMax = new Date().getFullYear();
 
-  const { data, error } = await supabase
-    .from("songs")
-    .select("min:year.min(), max:year.max()")
-    .maybeSingle();
+  const coerceBound = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return Math.trunc(value);
+    }
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const parsed = Number.parseInt(trimmed, 10);
+      return Number.isNaN(parsed) ? null : parsed;
+    }
+    return null;
+  };
 
-  if (error) {
-    throw new Error(
-      error.message || "No se pudieron obtener los límites de años disponibles."
-    );
+  let minYear: number | null = null;
+  let maxYear: number | null = null;
+
+  for (let from = 0; ; from += BULK_FETCH_PAGE_SIZE) {
+    const to = from + BULK_FETCH_PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from("songs")
+      .select("year")
+      .order("id", { ascending: true })
+      .range(from, to);
+
+    if (error) {
+      throw new Error(
+        error.message ||
+          "No se pudieron obtener los límites de años disponibles."
+      );
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    for (const row of rows) {
+      const year = coerceBound((row as Record<string, unknown>)?.year);
+      if (year === null) {
+        continue;
+      }
+      if (minYear === null || year < minYear) {
+        minYear = year;
+      }
+      if (maxYear === null || year > maxYear) {
+        maxYear = year;
+      }
+    }
+
+    if (rows.length < BULK_FETCH_PAGE_SIZE) {
+      break;
+    }
   }
-
-  let minYear: number | null =
-    typeof data?.min === "number" && Number.isFinite(data.min)
-      ? Math.trunc(data.min)
-      : null;
-  let maxYear: number | null =
-    typeof data?.max === "number" && Number.isFinite(data.max)
-      ? Math.trunc(data.max)
-      : null;
 
   if (minYear === null && maxYear !== null) {
     minYear = maxYear;

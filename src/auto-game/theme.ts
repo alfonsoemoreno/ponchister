@@ -439,14 +439,5 @@ export const createAdaptiveTheme = (
       valueColor: "#ffffff",
       valueShadow: `0 48px 94px ${rgbToCss(darken(accentBase, 0.85), 0.7)}`,
     },
-    yearBadge: {
-      background: `linear-gradient(135deg, ${rgbToCss(
-        lighten(accentBase, 0.35),
-        0.4
-      )} 0%, ${rgbToCss(lighten(accentBase, 0.12), 0.6)} 100%)`,
-      color: "#ffffff",
-      border: `1px solid ${rgbToCss(lighten(accentBase, 0.18), 0.32)}`,
-      shadow: `0 24px 48px -20px ${accentShadow}`,
-    },
   };
 };

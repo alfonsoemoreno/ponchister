@@ -15,3 +15,11 @@ All notable changes to this project will be documented in this file. See [standa
 ## 2.0.3 (2025-12-25)
 
 - Se agrega sección de novedades.
+
+## 2.0.2 (2025-12-25)
+
+- Se agrega posibilidad de establecer rango de años para modo automático y bingo.
+
+## 2.0.1 (2025-12-25)
+
+- Se agrega año en tamaño más grande bajo el nombre del artista en modo automático y bingo.

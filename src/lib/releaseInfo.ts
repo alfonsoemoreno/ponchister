@@ -16,35 +16,55 @@ export interface ReleaseInfo {
   entries: ReleaseNoteEntry[];
 }
 
+function normalizeLineEndings(value: string): string {
+  return value.replace(/\r\n/g, "\n");
+}
+
 function parseChangelog(raw: string, limit = 3): ReleaseNoteEntry[] {
   const entries: ReleaseNoteEntry[] = [];
-  const entryRegex = /^##\s+(.+?)\n([\s\S]*?)(?=^##\s|Z)/gm;
+  const lines = normalizeLineEndings(raw).split("\n");
 
-  let match: RegExpExecArray | null;
-  while ((match = entryRegex.exec(raw)) !== null) {
-    const header = match[1].trim();
-    const body = match[2].trim();
-    const { version, date } = extractHeaderInfo(header);
+  let currentHeader: string | null = null;
+  let currentBody: string[] = [];
 
+  const commitCurrent = () => {
+    if (!currentHeader) {
+      return;
+    }
+    const { version, date } = extractHeaderInfo(currentHeader);
     if (!version) {
-      continue;
+      return;
     }
 
     entries.push({
       version,
       date,
-      body,
+      body: currentBody.join("\n").trim(),
     });
+  };
 
-    if (entries.length === limit) {
-      break;
+  for (const line of lines) {
+    if (line.startsWith("## ")) {
+      if (currentHeader) {
+        commitCurrent();
+        if (entries.length === limit) {
+          return entries;
+        }
+      }
+      currentHeader = line.slice(3).trim();
+      currentBody = [];
+      continue;
+    }
+
+    if (currentHeader) {
+      currentBody.push(line);
     }
   }
 
-  return entries;
-}
+  commitCurrent();
 
-const changeLogCache = parseChangelog(changelogRaw);
+  return entries.slice(0, limit);
+}
 
 function extractHeaderInfo(header: string): {
   version: string | null;
@@ -66,9 +86,10 @@ function extractHeaderInfo(header: string): {
 
 export function getReleaseInfo(): ReleaseInfo {
   const version = (packageJson as PackageJson).version ?? "0.0.0";
+  const entries = parseChangelog(changelogRaw);
 
   return {
     version,
-    entries: changeLogCache,
+    entries,
   };
 }

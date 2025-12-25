@@ -15,7 +15,6 @@ import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import CasinoIcon from "@mui/icons-material/Casino";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import type { YearRange } from "./types";
 import { getReleaseInfo } from "./lib/releaseInfo";
 
@@ -427,28 +426,6 @@ const Welcome: React.FC<WelcomeProps> = ({
                     </Button>
                   )}
                 </Stack>
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<InfoOutlinedIcon />}
-                  onClick={handleOpenReleaseNotes}
-                  sx={{
-                    alignSelf: { xs: "stretch", sm: "flex-start" },
-                    textTransform: "none",
-                    fontWeight: 600,
-                    borderRadius: 999,
-                    px: 3,
-                    py: 1.2,
-                    borderColor: "rgba(255,255,255,0.35)",
-                    color: "rgba(224,239,255,0.92)",
-                    "&:hover": {
-                      borderColor: "rgba(255,255,255,0.65)",
-                      backgroundColor: "rgba(255,255,255,0.1)",
-                    },
-                  }}
-                >
-                  Ver novedades recientes
-                </Button>
               </Stack>
             </Box>
             <Stack spacing={3} sx={{ maxWidth: 640 }}>
@@ -599,6 +576,26 @@ const Welcome: React.FC<WelcomeProps> = ({
                   revelaciones y soporte para cartones interactivos.
                 </Typography>
               </Box>
+              <Button
+                variant="text"
+                color="inherit"
+                onClick={handleOpenReleaseNotes}
+                sx={{
+                  alignSelf: "flex-start",
+                  textTransform: "none",
+                  fontWeight: 500,
+                  px: 0,
+                  py: 0.5,
+                  color: "rgba(148,216,255,0.65)",
+                  minHeight: "auto",
+                  "&:hover": {
+                    color: "#5eead4",
+                    backgroundColor: "transparent",
+                  },
+                }}
+              >
+                Ver novedades recientes
+              </Button>
             </Stack>
           </Stack>
         </Stack>
@@ -675,6 +672,7 @@ const Welcome: React.FC<WelcomeProps> = ({
           <Button
             variant="contained"
             color="inherit"
+            onClick={handleCloseReleaseNotes}
             sx={{
               textTransform: "none",
               fontWeight: 600,

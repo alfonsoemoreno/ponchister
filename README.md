@@ -119,6 +119,16 @@ Para sincronizar el catálogo desde Excel utiliza el script `scripts/seed-songs.
 - `pnpm build` – compila TypeScript y genera la PWA lista en `dist/`.
 - `pnpm preview` – sirve el build para validar antes de desplegar.
 - `pnpm lint` – ejecuta ESLint con la configuración alineada a React 19.
+- `pnpm release` – aplica `standard-version`, incrementa `package.json` y actualiza `CHANGELOG.md`.
+
+## Versionado y notas de lanzamiento
+
+1. Escribe tus commits siguiendo [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/) (`feat:`, `fix:`, `chore:`...).
+2. Ejecuta `pnpm release` para generar automáticamente la nueva versión, actualizar `CHANGELOG.md` y crear la tag local.
+3. Revisa los archivos modificados y realiza `git push --follow-tags` cuando quieras compartir la versión.
+4. Durante el primer corte ejecuta `pnpm release -- --first-release` para crear la base del changelog sin publicar tags previas.
+
+> La pantalla Welcome muestra un modal con las tres últimas entradas del changelog; actualízalo con `pnpm release` antes de comunicar novedades.
 
 ## Checklist de calidad
 

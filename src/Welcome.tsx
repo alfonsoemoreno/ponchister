@@ -1,10 +1,23 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Button, Chip, Slider, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Slider,
+  Stack,
+  Typography,
+} from "@mui/material";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import CasinoIcon from "@mui/icons-material/Casino";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import type { YearRange } from "./types";
+import { getReleaseInfo } from "./lib/releaseInfo";
 
 interface WelcomeProps {
   onAccept: () => void;
@@ -38,6 +51,9 @@ const Welcome: React.FC<WelcomeProps> = ({
   onYearRangeChange,
 }) => {
   const [localRange, setLocalRange] = useState<YearRange>(yearRange);
+  const [releaseModalOpen, setReleaseModalOpen] = useState(false);
+  const releaseInfo = useMemo(() => getReleaseInfo(), []);
+  const releaseEntries = releaseInfo.entries;
 
   useEffect(() => {
     setLocalRange(yearRange);
@@ -76,6 +92,14 @@ const Welcome: React.FC<WelcomeProps> = ({
 
   const handleOpenCards = () => {
     window.open("https://ponchistercards.vercel.app", "_blank");
+  };
+
+  const handleOpenReleaseNotes = () => {
+    setReleaseModalOpen(true);
+  };
+
+  const handleCloseReleaseNotes = () => {
+    setReleaseModalOpen(false);
   };
 
   const handleRangePreview = (_event: Event, value: number | number[]) => {
@@ -403,6 +427,28 @@ const Welcome: React.FC<WelcomeProps> = ({
                     </Button>
                   )}
                 </Stack>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<InfoOutlinedIcon />}
+                  onClick={handleOpenReleaseNotes}
+                  sx={{
+                    alignSelf: { xs: "stretch", sm: "flex-start" },
+                    textTransform: "none",
+                    fontWeight: 600,
+                    borderRadius: 999,
+                    px: 3,
+                    py: 1.2,
+                    borderColor: "rgba(255,255,255,0.35)",
+                    color: "rgba(224,239,255,0.92)",
+                    "&:hover": {
+                      borderColor: "rgba(255,255,255,0.65)",
+                      backgroundColor: "rgba(255,255,255,0.1)",
+                    },
+                  }}
+                >
+                  Ver novedades recientes
+                </Button>
               </Stack>
             </Box>
             <Stack spacing={3} sx={{ maxWidth: 640 }}>
@@ -557,6 +603,96 @@ const Welcome: React.FC<WelcomeProps> = ({
           </Stack>
         </Stack>
       </Box>
+      <Dialog
+        open={releaseModalOpen}
+        onClose={handleCloseReleaseNotes}
+        fullWidth
+        maxWidth="sm"
+        sx={{
+          "& .MuiPaper-root": {
+            background: "rgba(5,24,64,0.92)",
+            borderRadius: 3,
+            border: "1px solid rgba(99,216,255,0.24)",
+            backdropFilter: "blur(18px)",
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, color: "#fff" }}>
+          Novedades recientes
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2.5}>
+            <Typography
+              variant="body2"
+              sx={{ color: "rgba(148,216,255,0.88)", fontWeight: 600 }}
+            >
+              Versión actual: {releaseInfo.version}
+            </Typography>
+            {releaseEntries.length > 0 ? (
+              releaseEntries.map((entry, index) => (
+                <Box
+                  key={`${entry.version}-${index}`}
+                  sx={{
+                    borderRadius: 2,
+                    backgroundColor: "rgba(13,45,92,0.6)",
+                    border: "1px solid rgba(99,216,255,0.18)",
+                    p: 2,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    sx={{
+                      fontWeight: 700,
+                      color: "rgba(212,239,255,0.95)",
+                    }}
+                  >
+                    {entry.version}
+                    {entry.date ? ` · ${entry.date}` : ""}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "rgba(224,239,255,0.82)",
+                      whiteSpace: "pre-wrap",
+                      mt: 1,
+                    }}
+                  >
+                    {entry.body || "Sin detalles disponibles."}
+                  </Typography>
+                </Box>
+              ))
+            ) : (
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(224,239,255,0.82)" }}
+              >
+                Aún no hay notas registradas.
+              </Typography>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            variant="contained"
+            color="inherit"
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: 999,
+              px: 3,
+              background:
+                "linear-gradient(135deg, rgba(148,216,255,0.26), rgba(94,234,212,0.32))",
+              color: "#fff",
+              "&:hover": {
+                background:
+                  "linear-gradient(135deg, rgba(148,216,255,0.35), rgba(94,234,212,0.42))",
+              },
+            }}
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

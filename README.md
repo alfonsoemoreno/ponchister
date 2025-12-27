@@ -96,6 +96,7 @@ create table if not exists public.songs (
   title text not null,
   year integer,
   youtube_url text not null,
+  isspanish boolean not null default false,
   created_at timestamptz default timezone('utc', now())
 );
 
@@ -109,6 +110,10 @@ create policy "Allow read for anon"
   for select
   to anon
   using (true);
+
+-- Si la tabla ya existe, añade la columna así:
+alter table public.songs
+  add column if not exists isspanish boolean not null default false;
 ```
 
 Para sincronizar el catálogo desde Excel utiliza el script `scripts/seed-songs.mjs` del proyecto `ponchocards`, que realiza `upserts` basados en `youtube_url`.

@@ -4,6 +4,7 @@ export interface Song {
   title: string;
   year: number | null;
   youtube_url: string;
+  isSpanish: boolean;
 }
 
 export interface YearRange {

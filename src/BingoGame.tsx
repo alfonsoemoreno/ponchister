@@ -53,6 +53,7 @@ interface InternalPlayer {
 interface BingoGameProps {
   onExit: () => void;
   yearRange: YearRange;
+  onlySpanish: boolean;
 }
 
 interface BingoCategory {
@@ -166,7 +167,11 @@ const hexToRgba = (hex: string, alpha = 1): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const BingoGame: React.FC<BingoGameProps> = ({ onExit, yearRange }) => {
+const BingoGame: React.FC<BingoGameProps> = ({
+  onExit,
+  yearRange,
+  onlySpanish,
+}) => {
   // Inyecta los keyframes de animación solo una vez en el navegador
   useEffect(() => {
     if (
@@ -216,8 +221,9 @@ const BingoGame: React.FC<BingoGameProps> = ({ onExit, yearRange }) => {
       fetchAllSongs({
         minYear: yearRange.min,
         maxYear: yearRange.max,
+        onlySpanish,
       }),
-    [yearRange.max, yearRange.min]
+    [onlySpanish, yearRange.max, yearRange.min]
   );
 
   const {

@@ -43,13 +43,18 @@ interface InternalPlayer {
 interface AutoGameProps {
   onExit: () => void;
   yearRange: YearRange;
+  onlySpanish: boolean;
 }
 
 type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
 
 type PlayerRef = YouTube | null;
 
-const AutoGame: React.FC<AutoGameProps> = ({ onExit, yearRange }) => {
+const AutoGame: React.FC<AutoGameProps> = ({
+  onExit,
+  yearRange,
+  onlySpanish,
+}) => {
   const [gameState, setGameState] = useState<GameState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -69,8 +74,9 @@ const AutoGame: React.FC<AutoGameProps> = ({ onExit, yearRange }) => {
       fetchAllSongs({
         minYear: yearRange.min,
         maxYear: yearRange.max,
+        onlySpanish,
       }),
-    [yearRange.max, yearRange.min]
+    [onlySpanish, yearRange.max, yearRange.min]
   );
 
   const {

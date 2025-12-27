@@ -9,6 +9,7 @@ import type { YearRange } from "./types";
 import { fetchSongYearBounds } from "./services/songService";
 
 const YEAR_RANGE_STORAGE_KEY = "ponchister_year_range";
+const LANGUAGE_FILTER_STORAGE_KEY = "ponchister_language_filter";
 
 const getDefaultYearRange = (): YearRange => ({
   min: 1950,
@@ -55,6 +56,19 @@ const readStoredYearRange = (): YearRange => {
   }
 };
 
+const readStoredLanguageMode = (): boolean => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    const stored = window.localStorage.getItem(LANGUAGE_FILTER_STORAGE_KEY);
+    if (stored === null) return false;
+    return stored === "true";
+  } catch {
+    return false;
+  }
+};
+
 function App() {
   const [view, setView] = useState<
     "welcome" | "scan" | "audio" | "auto" | "bingo"
@@ -64,6 +78,9 @@ function App() {
   const [availableRange, setAvailableRange] = useState<YearRange | null>(null);
   const [yearRange, setYearRange] = useState<YearRange>(() =>
     readStoredYearRange()
+  );
+  const [onlySpanish, setOnlySpanish] = useState<boolean>(() =>
+    readStoredLanguageMode()
   );
 
   const effectiveLimits = availableRange ?? fallbackRange;
@@ -82,6 +99,16 @@ function App() {
       JSON.stringify(normalizedYearRange)
     );
   }, [normalizedYearRange, availableRange]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(
+      LANGUAGE_FILTER_STORAGE_KEY,
+      onlySpanish ? "true" : "false"
+    );
+  }, [onlySpanish]);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +175,10 @@ function App() {
     setView("welcome");
   };
 
+  const handleLanguageModeChange = (spanishOnly: boolean) => {
+    setOnlySpanish(spanishOnly);
+  };
+
   if (view === "welcome")
     return (
       <Welcome
@@ -157,16 +188,28 @@ function App() {
         yearRange={normalizedYearRange}
         availableRange={effectiveLimits}
         onYearRangeChange={handleYearRangeChange}
+        isSpanishOnly={onlySpanish}
+        onLanguageModeChange={handleLanguageModeChange}
       />
     );
   if (view === "scan") return <QrScanner onScan={handleScan} />;
   if (view === "audio")
     return <AudioPlayer videoUrl={videoUrl} onBack={handleBack} />;
   if (view === "auto")
-    return <AutoGame onExit={handleExitAuto} yearRange={normalizedYearRange} />;
+    return (
+      <AutoGame
+        onExit={handleExitAuto}
+        yearRange={normalizedYearRange}
+        onlySpanish={onlySpanish}
+      />
+    );
   if (view === "bingo")
     return (
-      <BingoGame onExit={handleExitBingo} yearRange={normalizedYearRange} />
+      <BingoGame
+        onExit={handleExitBingo}
+        yearRange={normalizedYearRange}
+        onlySpanish={onlySpanish}
+      />
     );
   return null;
 }

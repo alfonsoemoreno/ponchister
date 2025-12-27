@@ -4,7 +4,7 @@ import type { Song, YearRange } from "../types";
 let cachedSongCount: number | null = null;
 let cachedYearBounds: YearRange | null = null;
 
-const SONG_FIELDS = "id, artist, title, year, youtube_url";
+const SONG_FIELDS = "id, artist, title, year, youtube_url, isspanish";
 const MAX_RANDOM_ATTEMPTS = 5;
 const BULK_FETCH_PAGE_SIZE = 1000;
 const YOUTUBE_ID_REGEX =
@@ -32,6 +32,7 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     title: String(raw.title ?? ""),
     year,
     youtube_url: String(raw.youtube_url ?? ""),
+    isSpanish: (raw as Record<string, unknown>).isspanish === true,
   };
 }
 
@@ -183,11 +184,13 @@ export async function fetchSongYearBounds(options?: {
 export async function fetchAllSongs(options?: {
   minYear?: number | null;
   maxYear?: number | null;
+  onlySpanish?: boolean;
 }): Promise<Song[]> {
   const minYear =
     typeof options?.minYear === "number" ? Math.floor(options.minYear) : null;
   const maxYear =
     typeof options?.maxYear === "number" ? Math.floor(options.maxYear) : null;
+  const onlySpanish = options?.onlySpanish === true;
   const hasYearFilter =
     typeof minYear === "number" || typeof maxYear === "number";
   const collected: Song[] = [];
@@ -204,6 +207,9 @@ export async function fetchAllSongs(options?: {
     }
     if (typeof maxYear === "number") {
       query = query.lte("year", maxYear);
+    }
+    if (onlySpanish) {
+      query = query.eq("isspanish", true);
     }
 
     const { data, error } = await query.range(from, to);

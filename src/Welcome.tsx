@@ -10,6 +10,7 @@ import {
   Slider,
   Stack,
   Typography,
+  Switch,
 } from "@mui/material";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
@@ -25,6 +26,8 @@ interface WelcomeProps {
   yearRange: YearRange;
   availableRange: YearRange;
   onYearRangeChange: (range: YearRange) => void;
+  isSpanishOnly: boolean;
+  onLanguageModeChange: (spanishOnly: boolean) => void;
 }
 
 const requestFullscreen = () => {
@@ -48,8 +51,12 @@ const Welcome: React.FC<WelcomeProps> = ({
   yearRange,
   availableRange,
   onYearRangeChange,
+  isSpanishOnly,
+  onLanguageModeChange,
 }) => {
   const [localRange, setLocalRange] = useState<YearRange>(yearRange);
+  const [localSpanishOnly, setLocalSpanishOnly] =
+    useState<boolean>(isSpanishOnly);
   const [releaseModalOpen, setReleaseModalOpen] = useState(false);
   const releaseInfo = useMemo(() => getReleaseInfo(), []);
   const releaseEntries = releaseInfo.entries;
@@ -57,6 +64,10 @@ const Welcome: React.FC<WelcomeProps> = ({
   useEffect(() => {
     setLocalRange(yearRange);
   }, [yearRange]);
+
+  useEffect(() => {
+    setLocalSpanishOnly(isSpanishOnly);
+  }, [isSpanishOnly]);
 
   const sliderMarks = useMemo(() => {
     const marks: { value: number; label: string }[] = [
@@ -121,6 +132,14 @@ const Welcome: React.FC<WelcomeProps> = ({
   const handleResetRange = () => {
     setLocalRange(availableRange);
     onYearRangeChange(availableRange);
+  };
+
+  const handleLanguageToggle = (
+    _event: React.ChangeEvent<HTMLInputElement>,
+    checked: boolean
+  ) => {
+    setLocalSpanishOnly(checked);
+    onLanguageModeChange(checked);
   };
 
   const neonLines = (
@@ -403,7 +422,8 @@ const Welcome: React.FC<WelcomeProps> = ({
                     }}
                   >
                     Estás listo para jugar entre {localRange.min} y{" "}
-                    {localRange.max}.
+                    {localRange.max}{" "}
+                    {localSpanishOnly ? "(solo en español)." : "(todo el catálogo)."}
                   </Typography>
                   {(localRange.min !== availableRange.min ||
                     localRange.max !== availableRange.max) && (
@@ -424,8 +444,75 @@ const Welcome: React.FC<WelcomeProps> = ({
                     >
                       Usar todo el catálogo
                     </Button>
-                  )}
+                    )}
                 </Stack>
+                <Box
+                  sx={{
+                    mt: 1,
+                    borderRadius: 2,
+                    border: "1px solid rgba(99,216,255,0.12)",
+                    px: 2,
+                    py: 1.5,
+                    backgroundColor: "rgba(5,24,64,0.24)",
+                  }}
+                >
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1.5}
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                    justifyContent="space-between"
+                  >
+                    <Box>
+                      <Typography
+                        variant="overline"
+                        sx={{
+                          letterSpacing: 2,
+                          fontWeight: 700,
+                          color: "rgba(148,216,255,0.86)",
+                        }}
+                      >
+                        Idioma
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "rgba(204,231,255,0.78)",
+                          maxWidth: 540,
+                        }}
+                      >
+                        Cambia entre todo el catálogo o solo canciones marcadas
+                        en español.
+                      </Typography>
+                    </Box>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{ color: "rgba(224,239,255,0.82)" }}
+                      >
+                        Todas
+                      </Typography>
+                      <Switch
+                        color="info"
+                        checked={localSpanishOnly}
+                        onChange={handleLanguageToggle}
+                        inputProps={{
+                          "aria-label": "Filtrar solo canciones en español",
+                        }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{ color: "rgba(224,239,255,0.9)", fontWeight: 700 }}
+                      >
+                        Solo en español
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Box>
               </Stack>
             </Box>
             <Stack spacing={3} sx={{ maxWidth: 640 }}>

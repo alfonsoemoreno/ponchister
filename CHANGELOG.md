@@ -23,7 +23,7 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [0.0.2](https://github.com-personal/alfonsoemoreno/ponchister/compare/v0.0.1...v0.0.2) (2025-12-25)
 
-## 2.1.0 (2025-12-25)
+## 2.1.0 (2025-12-27)
 
 - Se agrega opción de canciones solo en español.
 

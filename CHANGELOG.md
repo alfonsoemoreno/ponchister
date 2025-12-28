@@ -4,12 +4,11 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### [2.1.1](https://github.com-personal/alfonsoemoreno/ponchister/compare/v2.1.0...v2.1.1) (2025-12-28)
 
-
 ### Bug Fixes
 
-* **changelog:** clean up formatting and add Spanish song option for version 2.1.0 ([abf8eae](https://github.com-personal/alfonsoemoreno/ponchister/commit/abf8eaed688bb4ea3775073a3a91d03979b4ba85))
-* **changelog:** correct header level for version 2.1.0 ([966ab3e](https://github.com-personal/alfonsoemoreno/ponchister/commit/966ab3eb42b8ff9d1ed6eea3fd9f512356a20f13))
-* **changelog:** update release date for version 2.1.0 ([d22e26e](https://github.com-personal/alfonsoemoreno/ponchister/commit/d22e26ed52047f51f657876d7701f0c7fb78fe06))
+- **changelog:** clean up formatting and add Spanish song option for version 2.1.0 ([abf8eae](https://github.com-personal/alfonsoemoreno/ponchister/commit/abf8eaed688bb4ea3775073a3a91d03979b4ba85))
+- **changelog:** correct header level for version 2.1.0 ([966ab3e](https://github.com-personal/alfonsoemoreno/ponchister/commit/966ab3eb42b8ff9d1ed6eea3fd9f512356a20f13))
+- **changelog:** update release date for version 2.1.0 ([d22e26e](https://github.com-personal/alfonsoemoreno/ponchister/commit/d22e26ed52047f51f657876d7701f0c7fb78fe06))
 
 ### [2.1.0](https://github.com-personal/alfonsoemoreno/ponchister/compare/v2.0.3...v2.1.0) (2025-12-27)
 
@@ -31,6 +30,10 @@ All notable changes to this project will be documented in this file. See [standa
 ### [0.0.3](https://github.com-personal/alfonsoemoreno/ponchister/compare/v0.0.2...v0.0.3) (2025-12-25)
 
 ### [0.0.2](https://github.com-personal/alfonsoemoreno/ponchister/compare/v0.0.1...v0.0.2) (2025-12-25)
+
+## 2.1.1 (2025-12-28)
+
+- Se agrega opción de temporizador.
 
 ## 2.1.0 (2025-12-27)
 

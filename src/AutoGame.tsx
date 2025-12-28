@@ -44,16 +44,20 @@ interface AutoGameProps {
   onExit: () => void;
   yearRange: YearRange;
   onlySpanish: boolean;
+  timerEnabled: boolean;
 }
 
 type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
 
 type PlayerRef = YouTube | null;
 
+const TIMER_DURATION_SECONDS = 60;
+
 const AutoGame: React.FC<AutoGameProps> = ({
   onExit,
   yearRange,
   onlySpanish,
+  timerEnabled,
 }) => {
   const [gameState, setGameState] = useState<GameState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -68,6 +72,12 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const yearSpotlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const [timerRemaining, setTimerRemaining] = useState<number>(
+    TIMER_DURATION_SECONDS
+  );
+  const [timerLocked, setTimerLocked] = useState(false);
+  const [timerStarted, setTimerStarted] = useState(false);
+  const timerIntervalRef = useRef<number | null>(null);
 
   const fetchSongsForRange = useCallback(
     () =>
@@ -151,6 +161,29 @@ const AutoGame: React.FC<AutoGameProps> = ({
     };
   }, []);
 
+  const stopPlayback = useCallback(() => {
+    const internalPlayer =
+      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
+    if (internalPlayer && typeof internalPlayer.stopVideo === "function") {
+      internalPlayer.stopVideo();
+    }
+    setIsPlaying(false);
+  }, []);
+
+  const clearTimerInterval = useCallback(() => {
+    if (timerIntervalRef.current !== null) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+  }, []);
+
+  const resetTimerState = useCallback(() => {
+    clearTimerInterval();
+    setTimerRemaining(TIMER_DURATION_SECONDS);
+    setTimerLocked(false);
+    setTimerStarted(false);
+  }, [clearTimerInterval]);
+
   useEffect(() => {
     if (!currentSong) {
       return;
@@ -176,19 +209,60 @@ const AutoGame: React.FC<AutoGameProps> = ({
     }
   }, [currentSong, queueStatus]);
 
+  useEffect(() => {
+    resetTimerState();
+  }, [currentSong, resetTimerState]);
+
+  useEffect(() => {
+    if (
+      !timerEnabled ||
+      gameState !== "playing" ||
+      timerLocked ||
+      !timerStarted
+    ) {
+      clearTimerInterval();
+      if (!timerEnabled) {
+        setTimerRemaining(TIMER_DURATION_SECONDS);
+        setTimerLocked(false);
+      }
+      return;
+    }
+
+    if (timerIntervalRef.current !== null) {
+      return;
+    }
+
+    timerIntervalRef.current = window.setInterval(() => {
+      setTimerRemaining((prev) => {
+        if (prev <= 1) {
+          clearTimerInterval();
+          setTimerLocked(true);
+          stopPlayback();
+          setErrorMessage(
+            "Se acabó el tiempo. Revela la canción para continuar con la partida."
+          );
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearTimerInterval();
+    };
+  }, [
+    clearTimerInterval,
+    gameState,
+    stopPlayback,
+    timerEnabled,
+    timerLocked,
+    timerStarted,
+  ]);
+
   const videoId = useMemo(
     () => (currentSong ? extractYoutubeId(currentSong.youtube_url) : null),
     [currentSong]
   );
-
-  const stopPlayback = useCallback(() => {
-    const internalPlayer =
-      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
-    if (internalPlayer && typeof internalPlayer.stopVideo === "function") {
-      internalPlayer.stopVideo();
-    }
-    setIsPlaying(false);
-  }, []);
 
   const applyPlaybackOptimizations = useCallback(
     (player: InternalPlayer | null) => {
@@ -213,6 +287,13 @@ const AutoGame: React.FC<AutoGameProps> = ({
     [clearYearSpotlightTimeout]
   );
 
+  useEffect(
+    () => () => {
+      clearTimerInterval();
+    },
+    [clearTimerInterval]
+  );
+
   const advanceToNextSong = useCallback(() => {
     void runViewTransition(() => {
       setErrorMessage(null);
@@ -220,11 +301,13 @@ const AutoGame: React.FC<AutoGameProps> = ({
       setIsPlaying(false);
       stopPlayback();
       clearYearSpotlightTimeout();
+      resetTimerState();
       advanceQueue();
     });
   }, [
     advanceQueue,
     clearYearSpotlightTimeout,
+    resetTimerState,
     runViewTransition,
     stopPlayback,
   ]);
@@ -236,9 +319,16 @@ const AutoGame: React.FC<AutoGameProps> = ({
       setIsPlaying(false);
       stopPlayback();
       clearYearSpotlightTimeout();
+      resetTimerState();
       await startQueue();
     });
-  }, [clearYearSpotlightTimeout, runViewTransition, startQueue, stopPlayback]);
+  }, [
+    clearYearSpotlightTimeout,
+    resetTimerState,
+    runViewTransition,
+    startQueue,
+    stopPlayback,
+  ]);
 
   const handleSkip = useCallback(() => {
     advanceToNextSong();
@@ -250,11 +340,14 @@ const AutoGame: React.FC<AutoGameProps> = ({
     }
     void runViewTransition(() => {
       setGameState("revealed");
+      clearTimerInterval();
+      setTimerLocked(false);
+      setTimerStarted(false);
       if (currentSong && typeof currentSong.year === "number") {
         triggerSpotlight("Año", currentSong.year);
       }
     });
-  }, [currentSong, runViewTransition, triggerSpotlight]);
+  }, [clearTimerInterval, currentSong, runViewTransition, triggerSpotlight]);
 
   const handleRandomYearReveal = useCallback(() => {
     if (yearSpotlightTimerRef.current) {
@@ -291,11 +384,13 @@ const AutoGame: React.FC<AutoGameProps> = ({
       setErrorMessage(null);
       setIsPlaying(false);
       clearYearSpotlightTimeout();
+      resetTimerState();
       onExit();
     });
   }, [
     clearYearSpotlightTimeout,
     onExit,
+    resetTimerState,
     resetQueue,
     runViewTransition,
     stopPlayback,
@@ -306,9 +401,17 @@ const AutoGame: React.FC<AutoGameProps> = ({
       playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
     if (!internalPlayer) return;
 
+    if (timerEnabled && timerLocked && gameState === "playing") {
+      setErrorMessage(
+        "Se acabó el tiempo. Revela la canción para continuar con la partida."
+      );
+      return;
+    }
+
     if (isPlaying) {
       internalPlayer.pauseVideo?.();
     } else {
+      setTimerStarted(true);
       applyPlaybackOptimizations(internalPlayer);
       internalPlayer.unMute?.();
       internalPlayer.setVolume?.(100);
@@ -445,6 +548,11 @@ const AutoGame: React.FC<AutoGameProps> = ({
     );
     const spotlightDisplayValue = spotlightValue;
     const spotlightDisplayLabel = spotlightLabel;
+    const shouldShowTimer =
+      timerEnabled && gameState === "playing" && timerStarted;
+    const timerLabel = timerLocked
+      ? "Tiempo agotado"
+      : `Cronómetro 00:${String(timerRemaining).padStart(2, "0")}`;
 
     return (
       <Box
@@ -597,7 +705,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                       border: theme.chips.tertiary.borderColor
                         ? `${theme.chips.tertiary.borderStyle ?? "solid"} 1px ${
                             theme.chips.tertiary.borderColor
-                          }`
+                        }`
                         : undefined,
                     }}
                   />
@@ -703,6 +811,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
             >
               <IconButton
                 onClick={handlePlayPause}
+                disabled={timerEnabled && timerLocked && gameState === "playing"}
                 sx={{
                   width: 88,
                   height: 88,
@@ -890,6 +999,38 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   >
                     {fallbackTitle}
                   </Typography>
+                  {shouldShowTimer ? (
+                    <Box
+                      sx={{
+                        px: 3,
+                        py: 1.6,
+                        borderRadius: 999,
+                        backgroundColor: timerLocked
+                          ? "rgba(248,113,113,0.34)"
+                          : "rgba(94,234,212,0.26)",
+                        border: timerLocked
+                          ? "2px solid rgba(248,113,113,0.7)"
+                          : "2px solid rgba(125,211,252,0.68)",
+                        boxShadow: "0 10px 30px rgba(2,10,32,0.4)",
+                        color: timerLocked
+                          ? "rgba(254,226,226,0.96)"
+                          : "rgba(165,243,252,0.98)",
+                      }}
+                    >
+                      <Typography
+                        variant="h4"
+                        sx={{
+                          m: 0,
+                          fontWeight: 900,
+                          letterSpacing: 1.6,
+                          textTransform: "uppercase",
+                          fontSize: { xs: "1.5rem", sm: "1.8rem" },
+                        }}
+                      >
+                        {timerLabel}
+                      </Typography>
+                    </Box>
+                  ) : null}
                   <Typography
                     variant="caption"
                     sx={{ textAlign: "center", color: theme.fallback.caption }}

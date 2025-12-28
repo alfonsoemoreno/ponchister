@@ -10,6 +10,7 @@ import { fetchSongYearBounds } from "./services/songService";
 
 const YEAR_RANGE_STORAGE_KEY = "ponchister_year_range";
 const LANGUAGE_FILTER_STORAGE_KEY = "ponchister_language_filter";
+const TIMER_ENABLED_STORAGE_KEY = "ponchister_timer_enabled";
 
 const getDefaultYearRange = (): YearRange => ({
   min: 1950,
@@ -69,6 +70,19 @@ const readStoredLanguageMode = (): boolean => {
   }
 };
 
+const readStoredTimerEnabled = (): boolean => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  try {
+    const stored = window.localStorage.getItem(TIMER_ENABLED_STORAGE_KEY);
+    if (stored === null) return false;
+    return stored === "true";
+  } catch {
+    return false;
+  }
+};
+
 function App() {
   const [view, setView] = useState<
     "welcome" | "scan" | "audio" | "auto" | "bingo"
@@ -81,6 +95,9 @@ function App() {
   );
   const [onlySpanish, setOnlySpanish] = useState<boolean>(() =>
     readStoredLanguageMode()
+  );
+  const [timerEnabled, setTimerEnabled] = useState<boolean>(() =>
+    readStoredTimerEnabled()
   );
 
   const effectiveLimits = availableRange ?? fallbackRange;
@@ -109,6 +126,16 @@ function App() {
       onlySpanish ? "true" : "false"
     );
   }, [onlySpanish]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(
+      TIMER_ENABLED_STORAGE_KEY,
+      timerEnabled ? "true" : "false"
+    );
+  }, [timerEnabled]);
 
   useEffect(() => {
     let cancelled = false;
@@ -179,6 +206,10 @@ function App() {
     setOnlySpanish(spanishOnly);
   };
 
+  const handleTimerModeChange = (enabled: boolean) => {
+    setTimerEnabled(enabled);
+  };
+
   if (view === "welcome")
     return (
       <Welcome
@@ -190,6 +221,8 @@ function App() {
         onYearRangeChange={handleYearRangeChange}
         isSpanishOnly={onlySpanish}
         onLanguageModeChange={handleLanguageModeChange}
+        isTimerEnabled={timerEnabled}
+        onTimerModeChange={handleTimerModeChange}
       />
     );
   if (view === "scan") return <QrScanner onScan={handleScan} />;
@@ -201,6 +234,7 @@ function App() {
         onExit={handleExitAuto}
         yearRange={normalizedYearRange}
         onlySpanish={onlySpanish}
+        timerEnabled={timerEnabled}
       />
     );
   if (view === "bingo")
@@ -209,6 +243,7 @@ function App() {
         onExit={handleExitBingo}
         yearRange={normalizedYearRange}
         onlySpanish={onlySpanish}
+        timerEnabled={timerEnabled}
       />
     );
   return null;

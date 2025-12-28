@@ -54,6 +54,7 @@ interface BingoGameProps {
   onExit: () => void;
   yearRange: YearRange;
   onlySpanish: boolean;
+  timerEnabled: boolean;
 }
 
 interface BingoCategory {
@@ -84,6 +85,8 @@ const MODE_LABELS: ModeLabels = {
   beginner: "Modo principiantes",
   expert: "Modo experto",
 };
+
+const TIMER_DURATION_SECONDS = 60;
 
 const BINGO_MODES: ModeDictionary = {
   beginner: [
@@ -171,6 +174,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
   onExit,
   yearRange,
   onlySpanish,
+  timerEnabled,
 }) => {
   // Inyecta los keyframes de animación solo una vez en el navegador
   useEffect(() => {
@@ -208,6 +212,10 @@ const BingoGame: React.FC<BingoGameProps> = ({
     null
   );
   const [spotlightLabel, setSpotlightLabel] = useState<string>("Año");
+  const [, setTimerRemaining] = useState<number>(TIMER_DURATION_SECONDS);
+  const [timerLocked, setTimerLocked] = useState(false);
+  const [timerStarted, setTimerStarted] = useState(false);
+  const timerIntervalRef = useRef<number | null>(null);
 
   const playerRef = useRef<PlayerRef>(null);
   const spinIntervalRef = useRef<number | null>(null);
@@ -292,6 +300,20 @@ const BingoGame: React.FC<BingoGameProps> = ({
     setIsPlaying(false);
   }, []);
 
+  const clearTimerInterval = useCallback(() => {
+    if (timerIntervalRef.current !== null) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+  }, []);
+
+  const resetTimerState = useCallback(() => {
+    clearTimerInterval();
+    setTimerRemaining(TIMER_DURATION_SECONDS);
+    setTimerLocked(false);
+    setTimerStarted(false);
+  }, [clearTimerInterval]);
+
   const applyPlaybackOptimizations = useCallback(
     (player: InternalPlayer | null) => {
       if (!player) return;
@@ -322,6 +344,13 @@ const BingoGame: React.FC<BingoGameProps> = ({
     [stopPlayback]
   );
 
+  useEffect(
+    () => () => {
+      clearTimerInterval();
+    },
+    [clearTimerInterval]
+  );
+
   useEffect(() => {
     if (!currentSong) {
       return;
@@ -345,6 +374,10 @@ const BingoGame: React.FC<BingoGameProps> = ({
   }, [currentSong, clearYearSpotlightTimeout, selectedMode]);
 
   useEffect(() => {
+    resetTimerState();
+  }, [currentSong, resetTimerState]);
+
+  useEffect(() => {
     if (!selectedMode) {
       return;
     }
@@ -355,6 +388,52 @@ const BingoGame: React.FC<BingoGameProps> = ({
       setPhase("error");
     }
   }, [queueStatus, selectedMode, phase]);
+
+  useEffect(() => {
+    if (
+      !timerEnabled ||
+      phase !== "playing" ||
+      timerLocked ||
+      !timerStarted
+    ) {
+      clearTimerInterval();
+      if (!timerEnabled) {
+        setTimerRemaining(TIMER_DURATION_SECONDS);
+        setTimerLocked(false);
+      }
+      return;
+    }
+
+    if (timerIntervalRef.current !== null) {
+      return;
+    }
+
+    timerIntervalRef.current = window.setInterval(() => {
+      setTimerRemaining((prev) => {
+        if (prev <= 1) {
+          clearTimerInterval();
+          setTimerLocked(true);
+          stopPlayback();
+          setErrorMessage(
+            "Se acabó el tiempo. Revela la canción para continuar con la ronda."
+          );
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearTimerInterval();
+    };
+  }, [
+    clearTimerInterval,
+    phase,
+    stopPlayback,
+    timerEnabled,
+    timerLocked,
+    timerStarted,
+  ]);
 
   const videoId = useMemo(
     () => (currentSong ? extractYoutubeId(currentSong.youtube_url) : null),
@@ -396,12 +475,14 @@ const BingoGame: React.FC<BingoGameProps> = ({
         setIsPlaying(false);
         stopPlayback();
         clearYearSpotlightTimeout();
+        resetTimerState();
         await startQueue();
       });
     },
     [
       clearSpinScheduling,
       clearYearSpotlightTimeout,
+      resetTimerState,
       runViewTransition,
       startQueue,
       stopPlayback,
@@ -414,6 +495,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
       stopPlayback();
       resetQueue();
       clearYearSpotlightTimeout();
+      resetTimerState();
       setSelectedMode(null);
       setCurrentCategory(null);
       setHighlightedCategory(null);
@@ -424,6 +506,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
   }, [
     clearSpinScheduling,
     clearYearSpotlightTimeout,
+    resetTimerState,
     resetQueue,
     runViewTransition,
     stopPlayback,
@@ -439,6 +522,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
     }
     clearSpinScheduling();
     clearYearSpotlightTimeout();
+    resetTimerState();
     setPhase("spinning");
     setCurrentCategory(null);
     setErrorMessage(null);
@@ -464,6 +548,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
     clearYearSpotlightTimeout,
     currentSong,
     phase,
+    resetTimerState,
     selectedMode,
   ]);
 
@@ -473,6 +558,9 @@ const BingoGame: React.FC<BingoGameProps> = ({
     }
     void runViewTransition(() => {
       setPhase("revealed");
+      clearTimerInterval();
+      setTimerLocked(false);
+      setTimerStarted(false);
       let label: string | null = null;
       let value: string | number | null = null;
 
@@ -519,7 +607,13 @@ const BingoGame: React.FC<BingoGameProps> = ({
         triggerSpotlight(label, value);
       }
     });
-  }, [currentCategory, currentSong, runViewTransition, triggerSpotlight]);
+  }, [
+    clearTimerInterval,
+    currentCategory,
+    currentSong,
+    runViewTransition,
+    triggerSpotlight,
+  ]);
 
   // handleRandomYearReveal removido porque el botón de calendario ya no está en la vista
 
@@ -530,6 +624,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
     void runViewTransition(() => {
       clearSpinScheduling();
       clearYearSpotlightTimeout();
+      resetTimerState();
       setPhase("loading");
       setCurrentCategory(null);
       setHighlightedCategory(null);
@@ -542,6 +637,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
     advanceQueue,
     clearSpinScheduling,
     clearYearSpotlightTimeout,
+    resetTimerState,
     runViewTransition,
     selectedMode,
     stopPlayback,
@@ -557,6 +653,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
     if (selectedMode) {
       clearSpinScheduling();
       clearYearSpotlightTimeout();
+      resetTimerState();
       setPhase("loading");
       setCurrentCategory(null);
       setHighlightedCategory(null);
@@ -568,6 +665,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
     advanceQueue,
     clearSpinScheduling,
     clearYearSpotlightTimeout,
+    resetTimerState,
     selectedMode,
   ]);
 
@@ -576,6 +674,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
       clearSpinScheduling();
       clearYearSpotlightTimeout();
       stopPlayback();
+      resetTimerState();
       resetQueue();
       setSelectedMode(null);
       setCurrentCategory(null);
@@ -592,6 +691,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
     clearSpinScheduling,
     clearYearSpotlightTimeout,
     onExit,
+    resetTimerState,
     resetQueue,
     runViewTransition,
     stopPlayback,
@@ -625,9 +725,17 @@ const BingoGame: React.FC<BingoGameProps> = ({
       playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
     if (!internalPlayer) return;
 
+    if (timerEnabled && timerLocked && phase === "playing") {
+      setErrorMessage(
+        "Se acabó el tiempo. Revela la canción para continuar con la ronda."
+      );
+      return;
+    }
+
     if (isPlaying) {
       internalPlayer.pauseVideo?.();
     } else {
+      setTimerStarted(true);
       applyPlaybackOptimizations(internalPlayer);
       internalPlayer.unMute?.();
       internalPlayer.setVolume?.(100);
@@ -644,7 +752,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
         });
       }
     }
-  }, [applyPlaybackOptimizations, isPlaying]);
+  }, [applyPlaybackOptimizations, isPlaying, phase, timerEnabled, timerLocked]);
 
   const displayedError = errorMessage ?? queueError;
   const categories = selectedMode ? BINGO_MODES[selectedMode] : [];
@@ -1673,6 +1781,7 @@ const BingoGame: React.FC<BingoGameProps> = ({
                 <IconButton
                   size="large"
                   onClick={handlePlayPause}
+                  disabled={timerEnabled && timerLocked && phase === "playing"}
                   sx={{
                     width: 68,
                     height: 68,

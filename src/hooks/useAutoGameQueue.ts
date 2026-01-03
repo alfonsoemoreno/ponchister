@@ -1,5 +1,9 @@
 import { useCallback, useRef, useState } from "react";
 import { buildBalancedQueue, dedupePlayableSongs } from "../lib/autoGameQueue";
+import {
+  loadRecentSongIds,
+  rememberRecentSongIds,
+} from "../lib/recentSongsHistory";
 import type { Song } from "../types";
 
 export type QueueStatus = "idle" | "loading" | "ready" | "exhausted" | "error";
@@ -55,7 +59,10 @@ export function useAutoGameQueue({
 
     try {
       const songs = await fetchSongs();
-      const playableSongs = buildBalancedQueue(dedupePlayableSongs(songs));
+      const recentSongIds = loadRecentSongIds();
+      const playableSongs = buildBalancedQueue(dedupePlayableSongs(songs), {
+        recentSongIds,
+      });
 
       if (!playableSongs.length) {
         throw new Error(
@@ -75,6 +82,7 @@ export function useAutoGameQueue({
       }
 
       seenSongIdsRef.current.add(nextSong.id);
+      rememberRecentSongIds([nextSong.id]);
       setCurrentSong(nextSong);
       setStatus("ready");
       console.info(
@@ -112,6 +120,7 @@ export function useAutoGameQueue({
     }
 
     seenSongIdsRef.current.add(nextSong.id);
+    rememberRecentSongIds([nextSong.id]);
     setCurrentSong(nextSong);
     setStatus("ready");
     console.info(

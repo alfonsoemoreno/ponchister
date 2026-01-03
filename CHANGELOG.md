@@ -2,13 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-## [2.2.0](https://github.com-personal/alfonsoemoreno/ponchister/compare/v2.1.1...v2.2.0) (2026-01-03)
-
+### [2.2.0](https://github.com-personal/alfonsoemoreno/ponchister/compare/v2.1.1...v2.2.0) (2026-01-03)
 
 ### Features
 
-* **queue:** integrate recent song history management in AutoGame queue ([68bbc14](https://github.com-personal/alfonsoemoreno/ponchister/commit/68bbc14eaa73d79bb3eefce1b880af7c8b981a01))
-* **timer:** add timer functionality to AutoGame, BingoGame, and Welcome components ([a1a66b4](https://github.com-personal/alfonsoemoreno/ponchister/commit/a1a66b41c4983fb88caff160b3d67a7fe17b7241))
+- **queue:** integrate recent song history management in AutoGame queue ([68bbc14](https://github.com-personal/alfonsoemoreno/ponchister/commit/68bbc14eaa73d79bb3eefce1b880af7c8b981a01))
+- **timer:** add timer functionality to AutoGame, BingoGame, and Welcome components ([a1a66b4](https://github.com-personal/alfonsoemoreno/ponchister/commit/a1a66b41c4983fb88caff160b3d67a7fe17b7241))
 
 ### [2.1.1](https://github.com-personal/alfonsoemoreno/ponchister/compare/v2.1.0...v2.1.1) (2025-12-28)
 
@@ -38,6 +37,10 @@ All notable changes to this project will be documented in this file. See [standa
 ### [0.0.3](https://github.com-personal/alfonsoemoreno/ponchister/compare/v0.0.2...v0.0.3) (2025-12-25)
 
 ### [0.0.2](https://github.com-personal/alfonsoemoreno/ponchister/compare/v0.0.1...v0.0.2) (2025-12-25)
+
+## 2.2.0 (2026-01-03)
+
+- Mejoras en sistema de reproducción aleatoria.
 
 ## 2.1.1 (2025-12-28)
 

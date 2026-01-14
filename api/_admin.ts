@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { eq } from "drizzle-orm";
-import { adminUsers } from "../src/db/schema";
-import { db } from "./_db";
+import { adminUsers } from "../src/db/schema.ts";
+import { db } from "./_db.ts";
 import { getAdminSession, getClearSessionCookie } from "./_auth";
 
 type ResponseLike = Pick<ServerResponse, "statusCode" | "setHeader" | "end">;

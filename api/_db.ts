@@ -1,6 +1,9 @@
+import dotenv from "dotenv";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import * as schema from "../src/db/schema";
+import * as schema from "../src/db/schema.ts";
+
+dotenv.config({ path: ".env.local" });
 
 const databaseUrl = process.env.DATABASE_URL;
 

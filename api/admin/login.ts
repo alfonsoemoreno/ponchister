@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { adminUsers } from "../../src/db/schema";
-import { db } from "../_db";
+import { adminUsers } from "../../src/db/schema.ts";
+import { db } from "../_db.ts";
 import { createSessionToken, getSessionCookie } from "../_auth";
 
 const parseBody = async (req: IncomingMessage): Promise<Record<string, unknown>> => {

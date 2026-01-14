@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Welcome from "./Welcome";
 import AutoGame from "./AutoGame";
+import AdminApp from "./admin/AdminApp";
 import "./App.css";
 import type { YearRange } from "./types";
 import { fetchSongYearBounds } from "./services/songService";
@@ -81,7 +82,7 @@ const readStoredTimerEnabled = (): boolean => {
 };
 
 function App() {
-  const [view, setView] = useState<"welcome" | "auto">("welcome");
+  const [view, setView] = useState<"welcome" | "auto" | "admin">("welcome");
   const fallbackRange = useMemo(() => getDefaultYearRange(), []);
   const [availableRange, setAvailableRange] = useState<YearRange | null>(null);
   const [yearRange, setYearRange] = useState<YearRange>(() =>
@@ -175,7 +176,15 @@ function App() {
   };
 
   const handleStartAuto = () => setView("auto");
+  const handleOpenAdmin = () => {
+    window.history.pushState({}, "", "/admin");
+    setView("admin");
+  };
   const handleExitAuto = () => {
+    setView("welcome");
+  };
+  const handleExitAdmin = () => {
+    window.history.pushState({}, "", "/");
     setView("welcome");
   };
 
@@ -187,10 +196,22 @@ function App() {
     setTimerEnabled(enabled);
   };
 
+  useEffect(() => {
+    const syncView = () => {
+      const isAdmin = window.location.pathname.startsWith("/admin");
+      setView(isAdmin ? "admin" : "welcome");
+    };
+
+    syncView();
+    window.addEventListener("popstate", syncView);
+    return () => window.removeEventListener("popstate", syncView);
+  }, []);
+
   if (view === "welcome")
     return (
       <Welcome
         onStartAuto={handleStartAuto}
+        onOpenAdmin={handleOpenAdmin}
         yearRange={normalizedYearRange}
         availableRange={effectiveLimits}
         onYearRangeChange={handleYearRangeChange}
@@ -209,6 +230,7 @@ function App() {
         timerEnabled={timerEnabled}
       />
     );
+  if (view === "admin") return <AdminApp onExit={handleExitAdmin} />;
   return null;
 }
 

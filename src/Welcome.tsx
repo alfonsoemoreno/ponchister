@@ -13,12 +13,13 @@ import {
   Switch,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import type { YearRange } from "./types";
 import { getReleaseInfo } from "./lib/releaseInfo";
 
 interface WelcomeProps {
   onStartAuto: () => void;
+  onOpenAdmin: () => void;
   yearRange: YearRange;
   availableRange: YearRange;
   onYearRangeChange: (range: YearRange) => void;
@@ -44,6 +45,7 @@ const requestFullscreen = () => {
 
 const Welcome: React.FC<WelcomeProps> = ({
   onStartAuto,
+  onOpenAdmin,
   yearRange,
   availableRange,
   onYearRangeChange,
@@ -94,8 +96,8 @@ const Welcome: React.FC<WelcomeProps> = ({
     onStartAuto();
   };
 
-  const handleOpenCards = () => {
-    window.open("https://ponchistercards.vercel.app", "_blank");
+  const handleOpenAdmin = () => {
+    onOpenAdmin();
   };
 
   const handleOpenReleaseNotes = () => {
@@ -621,8 +623,8 @@ const Welcome: React.FC<WelcomeProps> = ({
                 <Button
                   variant="outlined"
                   color="inherit"
-                  startIcon={<OpenInNewIcon />}
-                  onClick={handleOpenCards}
+                  startIcon={<AdminPanelSettingsIcon />}
+                  onClick={handleOpenAdmin}
                   sx={{
                     minWidth: 220,
                     textTransform: "none",
@@ -638,7 +640,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                     },
                   }}
                 >
-                  Generar tarjetas y fichas
+                  Administración y tarjetas
                 </Button>
               </Stack>
               <Typography

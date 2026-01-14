@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Welcome from "./Welcome";
-import QrScanner from "./QrScanner";
-import AudioPlayer from "./AudioPlayer";
 import AutoGame from "./AutoGame";
-import BingoGame from "./BingoGame";
 import "./App.css";
 import type { YearRange } from "./types";
 import { fetchSongYearBounds } from "./services/songService";
@@ -84,10 +81,7 @@ const readStoredTimerEnabled = (): boolean => {
 };
 
 function App() {
-  const [view, setView] = useState<
-    "welcome" | "scan" | "audio" | "auto" | "bingo"
-  >("welcome");
-  const [videoUrl, setVideoUrl] = useState<string>("");
+  const [view, setView] = useState<"welcome" | "auto">("welcome");
   const fallbackRange = useMemo(() => getDefaultYearRange(), []);
   const [availableRange, setAvailableRange] = useState<YearRange | null>(null);
   const [yearRange, setYearRange] = useState<YearRange>(() =>
@@ -180,25 +174,8 @@ function App() {
     });
   };
 
-  const handleAccept = () => setView("scan");
-  const handleScan = (url: string) => {
-    setVideoUrl(url);
-    setView("audio");
-  };
-  const handleBack = () => {
-    setVideoUrl("");
-    setView("scan");
-  };
-
   const handleStartAuto = () => setView("auto");
   const handleExitAuto = () => {
-    setVideoUrl("");
-    setView("welcome");
-  };
-
-  const handleStartBingo = () => setView("bingo");
-  const handleExitBingo = () => {
-    setVideoUrl("");
     setView("welcome");
   };
 
@@ -213,9 +190,7 @@ function App() {
   if (view === "welcome")
     return (
       <Welcome
-        onAccept={handleAccept}
         onStartAuto={handleStartAuto}
-        onStartBingo={handleStartBingo}
         yearRange={normalizedYearRange}
         availableRange={effectiveLimits}
         onYearRangeChange={handleYearRangeChange}
@@ -225,22 +200,10 @@ function App() {
         onTimerModeChange={handleTimerModeChange}
       />
     );
-  if (view === "scan") return <QrScanner onScan={handleScan} />;
-  if (view === "audio")
-    return <AudioPlayer videoUrl={videoUrl} onBack={handleBack} />;
   if (view === "auto")
     return (
       <AutoGame
         onExit={handleExitAuto}
-        yearRange={normalizedYearRange}
-        onlySpanish={onlySpanish}
-        timerEnabled={timerEnabled}
-      />
-    );
-  if (view === "bingo")
-    return (
-      <BingoGame
-        onExit={handleExitBingo}
         yearRange={normalizedYearRange}
         onlySpanish={onlySpanish}
         timerEnabled={timerEnabled}

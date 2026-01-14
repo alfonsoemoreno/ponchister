@@ -12,17 +12,13 @@ import {
   Typography,
   Switch,
 } from "@mui/material";
-import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import CasinoIcon from "@mui/icons-material/Casino";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { YearRange } from "./types";
 import { getReleaseInfo } from "./lib/releaseInfo";
 
 interface WelcomeProps {
-  onAccept: () => void;
   onStartAuto: () => void;
-  onStartBingo: () => void;
   yearRange: YearRange;
   availableRange: YearRange;
   onYearRangeChange: (range: YearRange) => void;
@@ -47,9 +43,7 @@ const requestFullscreen = () => {
 };
 
 const Welcome: React.FC<WelcomeProps> = ({
-  onAccept,
   onStartAuto,
-  onStartBingo,
   yearRange,
   availableRange,
   onYearRangeChange,
@@ -95,19 +89,9 @@ const Welcome: React.FC<WelcomeProps> = ({
     return marks;
   }, [availableRange]);
 
-  const handleStartScan = () => {
-    requestFullscreen();
-    onAccept();
-  };
-
   const handleStartAutoMode = () => {
     requestFullscreen();
     onStartAuto();
-  };
-
-  const handleStartBingoMode = () => {
-    requestFullscreen();
-    onStartBingo();
   };
 
   const handleOpenCards = () => {
@@ -345,9 +329,8 @@ const Welcome: React.FC<WelcomeProps> = ({
                   color: "rgba(204,231,255,0.92)",
                 }}
               >
-                Escanea un código QR para escuchar una pista o lánzate al modo
-                automático para recibir canciones equilibradas, portadas y
-                atmósferas envolventes al instante.
+                Lánzate al modo automático para recibir canciones equilibradas,
+                portadas y atmósferas envolventes al instante.
               </Typography>
               <Typography
                 variant="body1"
@@ -558,17 +541,17 @@ const Welcome: React.FC<WelcomeProps> = ({
                       >
                         Temporizador
                       </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          color: "rgba(204,231,255,0.78)",
-                          maxWidth: 540,
-                        }}
-                      >
-                        Muestra un cronómetro de 60 segundos en modo automático
-                        y bingo. Al agotarse detiene la canción y bloquea el
-                        play hasta revelar la información.
-                      </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "rgba(204,231,255,0.78)",
+                    maxWidth: 540,
+                  }}
+                >
+                        Muestra un cronómetro de 60 segundos en modo automático.
+                        Al agotarse detiene la canción y bloquea el play hasta
+                        revelar la información.
+                </Typography>
                     </Box>
                     <Stack
                       direction="row"
@@ -613,8 +596,9 @@ const Welcome: React.FC<WelcomeProps> = ({
               >
                 <Button
                   variant="contained"
-                  startIcon={<QrCodeScannerIcon />}
-                  onClick={handleStartScan}
+                  color="inherit"
+                  startIcon={<AutoAwesomeIcon />}
+                  onClick={handleStartAutoMode}
                   sx={{
                     minWidth: 220,
                     textTransform: "none",
@@ -632,51 +616,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                     },
                   }}
                 >
-                  Modo clásico
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<AutoAwesomeIcon />}
-                  onClick={handleStartAutoMode}
-                  sx={{
-                    minWidth: 220,
-                    textTransform: "none",
-                    fontWeight: 700,
-                    borderRadius: 999,
-                    px: 3.5,
-                    py: 1.6,
-                    borderColor: "rgba(255,255,255,0.4)",
-                    color: "rgba(255,255,255,0.92)",
-                    "&:hover": {
-                      borderColor: "rgba(255,255,255,0.7)",
-                      backgroundColor: "rgba(255,255,255,0.12)",
-                    },
-                  }}
-                >
                   Modo automático
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<CasinoIcon />}
-                  onClick={handleStartBingoMode}
-                  sx={{
-                    minWidth: 220,
-                    textTransform: "none",
-                    fontWeight: 700,
-                    borderRadius: 999,
-                    px: 3.5,
-                    py: 1.6,
-                    borderColor: "rgba(34,197,94,0.4)",
-                    color: "rgba(212,255,244,0.92)",
-                    "&:hover": {
-                      borderColor: "rgba(34,197,94,0.7)",
-                      backgroundColor: "rgba(34,197,94,0.12)",
-                    },
-                  }}
-                >
-                  Modo bingo
                 </Button>
                 <Button
                   variant="outlined"
@@ -726,27 +666,10 @@ const Welcome: React.FC<WelcomeProps> = ({
                   variant="body2"
                   sx={{ color: "rgba(224,239,255,0.82)", mt: 1 }}
                 >
-                  <strong>Modo clásico:</strong> Escanea un código QR para
-                  reproducir una pista concreta. Ideal para jugar por rondas con
-                  cartones físicos o cuando quieres controlar exactamente qué
-                  canciones se reproducen.
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ color: "rgba(224,239,255,0.82)", mt: 1 }}
-                >
                   <strong>Modo automático:</strong> El sistema selecciona
                   canciones equilibradas, muestra portadas y crea atmósferas
                   visuales sin intervención. Perfecto para sesiones continuas y
                   ambientación.
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ color: "rgba(224,239,255,0.82)", mt: 1 }}
-                >
-                  <strong>Modo bingo:</strong> Gira la ruleta para elegir
-                  categorías y desafiar a los jugadores. Incluye ruleta,
-                  revelaciones y soporte para cartones interactivos.
                 </Typography>
               </Box>
               <Button

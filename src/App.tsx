@@ -213,12 +213,6 @@ function App() {
         onStartAuto={handleStartAuto}
         onOpenAdmin={handleOpenAdmin}
         yearRange={normalizedYearRange}
-        availableRange={effectiveLimits}
-        onYearRangeChange={handleYearRangeChange}
-        isSpanishOnly={onlySpanish}
-        onLanguageModeChange={handleLanguageModeChange}
-        isTimerEnabled={timerEnabled}
-        onTimerModeChange={handleTimerModeChange}
       />
     );
   if (view === "auto")
@@ -226,8 +220,12 @@ function App() {
       <AutoGame
         onExit={handleExitAuto}
         yearRange={normalizedYearRange}
+        availableRange={effectiveLimits}
+        onYearRangeChange={handleYearRangeChange}
         onlySpanish={onlySpanish}
+        onLanguageModeChange={handleLanguageModeChange}
         timerEnabled={timerEnabled}
+        onTimerModeChange={handleTimerModeChange}
       />
     );
   if (view === "admin") return <AdminApp onExit={handleExitAdmin} />;

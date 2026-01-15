@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, SyntheticEvent } from "react";
 import YouTube from "react-youtube";
 import type { YouTubeProps } from "react-youtube";
 import {
@@ -6,9 +7,10 @@ import {
   Box,
   Button,
   CircularProgress,
-  Chip,
   IconButton,
   Stack,
+  Slider,
+  Switch,
   Typography,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -18,6 +20,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
 import { fetchAllSongs } from "./services/songService";
 import { extractYoutubeId } from "./lib/autoGameQueue";
@@ -43,8 +46,12 @@ interface InternalPlayer {
 interface AutoGameProps {
   onExit: () => void;
   yearRange: YearRange;
+  availableRange: YearRange;
+  onYearRangeChange: (range: YearRange) => void;
   onlySpanish: boolean;
+  onLanguageModeChange: (spanishOnly: boolean) => void;
   timerEnabled: boolean;
+  onTimerModeChange: (enabled: boolean) => void;
 }
 
 type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
@@ -56,8 +63,12 @@ const TIMER_DURATION_SECONDS = 60;
 const AutoGame: React.FC<AutoGameProps> = ({
   onExit,
   yearRange,
+  availableRange,
+  onYearRangeChange,
   onlySpanish,
+  onLanguageModeChange,
   timerEnabled,
+  onTimerModeChange,
 }) => {
   const [gameState, setGameState] = useState<GameState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -78,6 +89,77 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const [timerLocked, setTimerLocked] = useState(false);
   const [timerStarted, setTimerStarted] = useState(false);
   const timerIntervalRef = useRef<number | null>(null);
+  const [localRange, setLocalRange] = useState<YearRange>(yearRange);
+  const [localSpanishOnly, setLocalSpanishOnly] =
+    useState<boolean>(onlySpanish);
+  const [localTimerEnabled, setLocalTimerEnabled] =
+    useState<boolean>(timerEnabled);
+
+  useEffect(() => {
+    setLocalRange(yearRange);
+  }, [yearRange]);
+
+  useEffect(() => {
+    setLocalSpanishOnly(onlySpanish);
+  }, [onlySpanish]);
+
+  useEffect(() => {
+    setLocalTimerEnabled(timerEnabled);
+  }, [timerEnabled]);
+
+  const sliderMarks = useMemo(() => {
+    const marks: { value: number; label: string }[] = [
+      { value: availableRange.min, label: `${availableRange.min}` },
+    ];
+    const span = availableRange.max - availableRange.min;
+    if (span > 0) {
+      const midpoint =
+        Math.round((availableRange.min + availableRange.max) / 2 / 10) * 10;
+      if (midpoint > availableRange.min && midpoint < availableRange.max) {
+        marks.push({ value: midpoint, label: `${midpoint}` });
+      }
+      marks.push({ value: availableRange.max, label: `${availableRange.max}` });
+    }
+    return marks;
+  }, [availableRange]);
+
+  const handleRangePreview = (_event: Event, value: number | number[]) => {
+    if (!Array.isArray(value) || value.length !== 2) return;
+    const [min, max] = value;
+    setLocalRange({ min, max });
+  };
+
+  const handleRangeCommit = (
+    _event: Event | SyntheticEvent,
+    value: number | number[]
+  ) => {
+    if (!Array.isArray(value) || value.length !== 2) return;
+    const [min, max] = value;
+    const next = { min, max };
+    setLocalRange(next);
+    onYearRangeChange(next);
+  };
+
+  const handleResetRange = () => {
+    setLocalRange(availableRange);
+    onYearRangeChange(availableRange);
+  };
+
+  const handleLanguageToggle = (
+    _event: ChangeEvent<HTMLInputElement>,
+    checked: boolean
+  ) => {
+    setLocalSpanishOnly(checked);
+    onLanguageModeChange(checked);
+  };
+
+  const handleTimerToggle = (
+    _event: ChangeEvent<HTMLInputElement>,
+    checked: boolean
+  ) => {
+    setLocalTimerEnabled(checked);
+    onTimerModeChange(checked);
+  };
 
   const fetchSongsForRange = useCallback(
     () =>
@@ -464,16 +546,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
     const showDetails = mode === "reveal";
     const songYear =
       typeof currentSong.year === "number" ? currentSong.year : null;
-    const baseChipLabel = showDetails ? "Ahora suena" : null;
-    const secondaryChipLabel = showDetails
-      ? songYear !== null
-        ? `Año ${songYear}`
-        : "Año desconocido"
-      : "¿Qué año crees?";
-    const tertiaryChipLabel = showDetails
-      ? null
-      : "Revela sólo cuando estés listo";
-
     const heading = showDetails
       ? currentSong.title
       : "¿Puedes adivinar la canción?";
@@ -482,7 +554,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
       : "Escucha, siente y deja que la intuición te guíe.";
     const description = showDetails
       ? "Captura la magia del momento con visuales envolventes inspirados en tu canción. Sigue jugando para descubrir nuevas portadas y atmósferas impactantes."
-      : 'Mantén el suspenso: cuando creas tener la respuesta, presiona "Mostrar artista y canción" para confirmar tu apuesta.';
+      : 'Mantén el suspenso: cuando creas tener la respuesta, presiona "Mostrar" para confirmar tu apuesta.';
     const highlightedYear = showDetails && songYear !== null ? songYear : null;
 
     const statusCaptionLabel = showDetails
@@ -495,7 +567,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     const primaryAction = showDetails
       ? {
           icon: <SkipNextIcon />,
-          label: "Siguiente canción",
+          label: "Siguiente",
           onClick: handleNextAfterReveal,
           variant: "contained" as const,
           color: "primary" as const,
@@ -503,7 +575,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
         }
       : {
           icon: <InfoOutlinedIcon />,
-          label: "Mostrar artista y canción",
+          label: "Mostrar",
           onClick: handleReveal,
           variant: "contained" as const,
           color: "primary" as const,
@@ -513,27 +585,25 @@ const AutoGame: React.FC<AutoGameProps> = ({
     const secondaryAction = showDetails
       ? {
           icon: <ExitToAppIcon />,
-          label: "Salir del juego",
+          label: "Salir",
           onClick: handleExit,
           variant: "outlined" as const,
           color: "inherit" as const,
         }
       : {
           icon: <SkipNextIcon />,
-          label: "Pasar canción",
+          label: "Saltar",
           onClick: handleSkip,
           variant: "outlined" as const,
           color: "inherit" as const,
         };
 
-    const fallbackTitle = showDetails
-      ? "Visual a la espera"
-      : "Escenario en preparación";
+    const fallbackTitle = showDetails ? "Visual a la espera" : null;
     const fallbackDescription = artworkLoading
       ? showDetails
         ? "Estamos buscando la portada perfecta…"
         : "Estamos preparando la atmósfera visual…"
-      : "Sigue escuchando, pronto llegará la inspiración visual.";
+      : null;
 
     const displayedArtworkError = artworkError
       ? showDetails
@@ -552,7 +622,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
       timerEnabled && gameState === "playing" && timerStarted;
     const timerLabel = timerLocked
       ? "Tiempo agotado"
-      : `Cronómetro 00:${String(timerRemaining).padStart(2, "0")}`;
+      : `00:${String(timerRemaining).padStart(2, "0")}`;
 
     return (
       <Box
@@ -610,8 +680,12 @@ const AutoGame: React.FC<AutoGameProps> = ({
             p: { xs: 3, sm: 4, md: 6 },
             alignItems: { xs: "stretch", md: "center" },
             gap: { xs: 4, md: 5 },
-            height: { xs: "auto", md: "100%" },
-            pb: { xs: 6, md: 0 },
+            height: { xs: "auto", md: "100dvh" },
+            minHeight: { md: "100dvh" },
+            pb: { xs: 6, md: 6 },
+            justifyContent: { md: "center" },
+            width: { md: "min(1350px, 100vw)" },
+            mx: { md: "auto" },
             viewTransitionName: "auto-game-panel",
           }}
         >
@@ -653,75 +727,14 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   {displayedError}
                 </Alert>
               ) : null}
-              <Stack
-                direction="row"
-                spacing={1.5}
-                alignItems="center"
-                flexWrap="wrap"
-                sx={{ color: theme.text.primary }}
-              >
-                {baseChipLabel ? (
-                  <Chip
-                    label={baseChipLabel}
-                    sx={{
-                      fontWeight: 600,
-                      letterSpacing: 1,
-                      textTransform: "uppercase",
-                      backgroundColor: theme.chips.primary.background,
-                      color: theme.chips.primary.color,
-                      border: theme.chips.primary.borderColor
-                        ? `${theme.chips.primary.borderStyle ?? "solid"} 1px ${
-                            theme.chips.primary.borderColor
-                          }`
-                        : undefined,
-                      backdropFilter: "blur(10px)",
-                    }}
-                  />
-                ) : null}
-                <Chip
-                  label={secondaryChipLabel}
-                  sx={{
-                    fontWeight: 600,
-                    letterSpacing: 1,
-                    textTransform: "uppercase",
-                    backgroundColor: theme.chips.secondary.background,
-                    color: theme.chips.secondary.color,
-                    border: theme.chips.secondary.borderColor
-                      ? `${theme.chips.secondary.borderStyle ?? "solid"} 1px ${
-                          theme.chips.secondary.borderColor
-                        }`
-                      : undefined,
-                  }}
-                />
-                {tertiaryChipLabel ? (
-                  <Chip
-                    label={tertiaryChipLabel}
-                    sx={{
-                      fontWeight: 600,
-                      letterSpacing: 1,
-                      textTransform: "uppercase",
-                      backgroundColor: theme.chips.tertiary.background,
-                      color: theme.chips.tertiary.color,
-                      border: theme.chips.tertiary.borderColor
-                        ? `${theme.chips.tertiary.borderStyle ?? "solid"} 1px ${
-                            theme.chips.tertiary.borderColor
-                        }`
-                        : undefined,
-                    }}
-                  />
-                ) : null}
-                {artworkLoading ? (
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <CircularProgress size={16} sx={{ color: theme.spinner }} />
-                    <Typography
-                      variant="caption"
-                      sx={{ color: theme.text.body }}
-                    >
-                      Buscando portada...
-                    </Typography>
-                  </Stack>
-                ) : null}
-              </Stack>
+              {artworkLoading ? (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <CircularProgress size={16} sx={{ color: theme.spinner }} />
+                  <Typography variant="caption" sx={{ color: theme.text.body }}>
+                    Buscando portada...
+                  </Typography>
+                </Stack>
+              ) : null}
               <Stack spacing={0.8} sx={{ alignItems: "flex-start" }}>
                 <Typography
                   variant="h3"
@@ -811,7 +824,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
             >
               <IconButton
                 onClick={handlePlayPause}
-                disabled={timerEnabled && timerLocked && gameState === "playing"}
+                disabled={
+                  timerEnabled && timerLocked && gameState === "playing"
+                }
                 sx={{
                   width: 88,
                   height: 88,
@@ -945,7 +960,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 width: {
                   xs: "72%",
                   sm: 300,
-                  md: "min(48vw, 78vh)",
+                  md: "min(44vw, 77vh)",
                 },
                 aspectRatio: "1 / 1",
                 borderRadius: { xs: 4, md: 5 },
@@ -986,19 +1001,23 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     viewTransitionName: "auto-game-artwork-fallback",
                   }}
                 >
-                  <InfoOutlinedIcon
-                    sx={{ fontSize: 40, color: theme.fallback.icon }}
-                  />
-                  <Typography
-                    variant="subtitle2"
-                    sx={{
-                      textAlign: "center",
-                      fontWeight: 600,
-                      color: theme.fallback.text,
-                    }}
-                  >
-                    {fallbackTitle}
-                  </Typography>
+                  {fallbackTitle || fallbackDescription ? (
+                    <InfoOutlinedIcon
+                      sx={{ fontSize: 40, color: theme.fallback.icon }}
+                    />
+                  ) : null}
+                  {fallbackTitle ? (
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        textAlign: "center",
+                        fontWeight: 600,
+                        color: theme.fallback.text,
+                      }}
+                    >
+                      {fallbackTitle}
+                    </Typography>
+                  ) : null}
                   {shouldShowTimer ? (
                     <Box
                       sx={{
@@ -1025,18 +1044,29 @@ const AutoGame: React.FC<AutoGameProps> = ({
                           letterSpacing: 1.6,
                           textTransform: "uppercase",
                           fontSize: { xs: "1.5rem", sm: "1.8rem" },
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
                         }}
                       >
+                        {timerLocked ? null : (
+                          <AccessTimeIcon sx={{ fontSize: "1.4em" }} />
+                        )}
                         {timerLabel}
                       </Typography>
                     </Box>
                   ) : null}
-                  <Typography
-                    variant="caption"
-                    sx={{ textAlign: "center", color: theme.fallback.caption }}
-                  >
-                    {fallbackDescription}
-                  </Typography>
+                  {fallbackDescription ? (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        textAlign: "center",
+                        color: theme.fallback.caption,
+                      }}
+                    >
+                      {fallbackDescription}
+                    </Typography>
+                  ) : null}
                 </Stack>
               )}
               {artworkLoading && showDetails ? (
@@ -1061,9 +1091,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
   };
 
   const renderIdleLanding = () => {
-    const currentYear = new Date().getFullYear();
     const fallbackBackdrop =
-      "linear-gradient(190deg, rgba(12,44,110,0.75) 0%, rgba(6,26,68,0.88) 55%, rgba(2,12,34,0.92) 100%)";
+      "radial-gradient(circle at 15% 20%, rgba(15,102,255,0.35) 0%, rgba(7,30,82,0.85) 38%, rgba(3,12,34,0.98) 75%), radial-gradient(circle at 85% 20%, rgba(0,209,255,0.32) 0%, rgba(5,24,64,0.5) 35%, rgba(3,12,34,0.9) 70%), linear-gradient(180deg, #06102b 0%, #030a1c 100%)";
     const theme = createAdaptiveTheme(null);
 
     return (
@@ -1071,9 +1100,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
         sx={{
           position: "relative",
           width: "100%",
-          height: { xs: "auto", md: "100%" },
-          minHeight: { xs: 560, md: 640 },
-          overflow: { xs: "visible", md: "hidden" },
+          minHeight: "100dvh",
+          overflow: "visible",
           viewTransitionName: "auto-game-canvas",
         }}
       >
@@ -1082,8 +1110,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
             position: "absolute",
             inset: 0,
             backgroundImage: fallbackBackdrop,
-            backgroundSize: "140% 140%",
-            backgroundPosition: "48% 42%",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
             zIndex: 1,
             viewTransitionName: "auto-game-background",
           }}
@@ -1092,13 +1120,11 @@ const AutoGame: React.FC<AutoGameProps> = ({
           sx={{
             position: "absolute",
             inset: 0,
-            backdropFilter: "blur(12px)",
-            backgroundColor: theme.overlayTint,
+            backgroundColor: "rgba(4,14,40,0.25)",
             zIndex: 2,
             viewTransitionName: "auto-game-overlay",
           }}
         />
-        <NeonLines sx={{ zIndex: 3, viewTransitionName: "auto-game-neon" }} />
         <YearSpotlight
           visible={spotlightVisible && spotlightValue !== null}
           value={spotlightValue}
@@ -1106,219 +1132,366 @@ const AutoGame: React.FC<AutoGameProps> = ({
           styles={theme.spotlight}
         />
         <Stack
-          direction={{ xs: "column-reverse", md: "row" }}
-          spacing={{ xs: 3, md: 5 }}
+          spacing={{ xs: 3, md: 4 }}
           sx={{
             position: "relative",
             zIndex: 3,
-            p: { xs: 3, sm: 4, md: 6 },
-            alignItems: { xs: "stretch", md: "center" },
-            gap: { xs: 4, md: 5 },
-            height: { xs: "auto", md: "100%" },
-            pb: { xs: 6, md: 0 },
+            width: "min(700px, 78vw)",
+            mx: "auto",
+            pt: {
+              xs: "calc(env(safe-area-inset-top, 0px) + 24px)",
+              sm: 5,
+              md: 6,
+            },
+            pb: { xs: 8, md: 8 },
+            alignItems: "center",
+            textAlign: "center",
             viewTransitionName: "auto-game-panel",
+            minHeight: { md: "100dvh" },
+            justifyContent: { md: "center" },
           }}
         >
           <Box
+            component="img"
+            src="/ponchister_logo.png"
+            alt="Ponchister"
             sx={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              gap: { xs: 3, md: 4 },
-              justifyContent: { xs: "flex-start", md: "center" },
-              alignItems: "flex-start",
+              width: { xs: 140, sm: 160, md: 180 },
+              height: { xs: 140, sm: 160, md: 180 },
+              objectFit: "contain",
+              filter: "drop-shadow(0 18px 40px rgba(2,10,36,0.55))",
+            }}
+          />
+          <Typography
+            variant="h2"
+            sx={{
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
+              textShadow: "0 24px 56px rgba(0,0,0,0.55)",
+              fontSize: "clamp(1.7rem, 6vw, 3.2rem)",
+              lineHeight: { xs: 1.2, sm: 1.15 },
             }}
           >
-            <Stack
-              direction="row"
-              spacing={1.5}
-              alignItems="center"
-              flexWrap="wrap"
-              sx={{ color: theme.text.primary }}
-            >
-              <Chip
-                label="Modo automático"
-                sx={{
-                  fontWeight: 600,
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  backgroundColor: theme.chips.primary.background,
-                  color: theme.chips.primary.color,
-                  border: theme.chips.primary.borderColor
-                    ? `${theme.chips.primary.borderStyle ?? "solid"} 1px ${
-                        theme.chips.primary.borderColor
-                      }`
-                    : undefined,
-                  backdropFilter: "blur(10px)",
-                }}
-              />
-              <Chip
-                label={`Explora ${1950} - ${currentYear}`}
-                sx={{
-                  fontWeight: 600,
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  backgroundColor: theme.chips.secondary.background,
-                  color: theme.chips.secondary.color,
-                  border: theme.chips.secondary.borderColor
-                    ? `${theme.chips.secondary.borderStyle ?? "solid"} 1px ${
-                        theme.chips.secondary.borderColor
-                      }`
-                    : undefined,
-                }}
-              />
-              <Chip
-                label="Visual inmersivo"
-                sx={{
-                  fontWeight: 600,
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  backgroundColor: theme.chips.tertiary.background,
-                  color: theme.chips.tertiary.color,
-                  border: theme.chips.tertiary.borderColor
-                    ? `${theme.chips.tertiary.borderStyle ?? "solid"} 1px ${
-                        theme.chips.tertiary.borderColor
-                      }`
-                    : undefined,
-                }}
-              />
-            </Stack>
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 800,
-                letterSpacing: "-0.015em",
-                textAlign: "left",
-                color: theme.text.primary,
-                textShadow: theme.textShadow,
-              }}
-            >
-              Vive la experiencia automática
-            </Typography>
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 600,
-                color: theme.text.secondary,
-                textAlign: "left",
-              }}
-            >
-              Canciones, portadas y atmósferas listas para sorprenderte.
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                color: theme.text.body,
-                maxWidth: 520,
-                textAlign: "left",
-              }}
-            >
-              Prepárate para una secuencia equilibrada de pistas que mantiene el
-              suspenso. Cuando quieras empezar, solo presiona iniciar y deja que
-              el juego haga el resto.
-            </Typography>
-            <Stack
-              direction="row"
-              spacing={2}
-              alignItems="center"
-              sx={{
-                pt: { xs: 1, md: 3 },
-                flexWrap: "wrap",
-                alignSelf: { xs: "stretch", md: "flex-start" },
-              }}
-            >
-              <Stack spacing={1}>
-                <Typography
-                  variant="caption"
-                  sx={{ letterSpacing: 1, color: theme.status.label }}
-                >
-                  Listo para comenzar
-                </Typography>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ color: theme.status.description }}
-                >
-                  Inicia o genera un año de referencia en segundos.
-                </Typography>
-              </Stack>
-            </Stack>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={2}
-              sx={{
-                pt: { xs: 2, md: 4 },
-                alignSelf: { xs: "stretch", md: "flex-start" },
-              }}
-            >
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<PlayArrowIcon />}
-                onClick={handleStart}
-                sx={{
-                  minWidth: 220,
-                  textTransform: "none",
-                  fontWeight: 700,
-                  borderRadius: 999,
-                  px: 3.5,
-                  py: 1.6,
-                  boxShadow: theme.primaryButton.shadow,
-                  background: theme.primaryButton.background,
-                  color: theme.primaryButton.textColor,
-                  "&:hover": {
-                    background: theme.primaryButton.hoverBackground,
-                    boxShadow: theme.primaryButton.hoverShadow,
-                  },
-                }}
-              >
-                Iniciar partida automática
-              </Button>
-              <Button
-                variant="outlined"
-                color="inherit"
-                startIcon={<CalendarMonthIcon />}
-                onClick={handleRandomYearReveal}
-                disabled={spotlightVisible}
-                sx={{
-                  minWidth: 220,
-                  textTransform: "none",
-                  fontWeight: 700,
-                  borderRadius: 999,
-                  px: 3.5,
-                  py: 1.6,
-                  borderColor: theme.secondaryButton.border,
-                  color: theme.secondaryButton.textColor,
-                  "&:hover": {
-                    borderColor: theme.secondaryButton.hoverBorder,
-                    backgroundColor: theme.secondaryButton.hoverBackground,
-                  },
-                }}
-              >
-                Obtener año de partida
-              </Button>
-            </Stack>
-            <Typography
-              variant="caption"
-              sx={{
-                color: theme.text.caption,
-                textAlign: "left",
-              }}
-            >
-              Cada año sugerido se muestra con la misma animación que la
-              revelación de canciones.
-            </Typography>
-          </Box>
-          <Box
+            Configura tu juego
+          </Typography>
+          <Typography
+            variant="body2"
             sx={{
-              width: { xs: "100%", md: "100%" },
-              flex: { xs: "0 0 auto", md: 1 },
-              display: "flex",
+              color: theme.text.body,
+              maxWidth: 520,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            Ajusta lo esencial y comienza cuando quieras.
+          </Typography>
+          <Stack
+            spacing={2}
+            sx={{
+              mt: 1,
+              width: "100%",
+              textAlign: "left",
+            }}
+          >
+            <Box
+              sx={{
+                borderRadius: 2,
+                border: "1px solid rgba(99,216,255,0.12)",
+                px: 2,
+                py: 1.5,
+                backgroundColor: "rgba(5,24,64,0.24)",
+              }}
+            >
+              <Stack spacing={1.6}>
+                <Box>
+                  <Typography
+                    variant="overline"
+                    sx={{
+                      letterSpacing: 2,
+                      fontWeight: 700,
+                      color: "rgba(148,216,255,0.86)",
+                    }}
+                  >
+                    Años de música
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "rgba(204,231,255,0.78)",
+                    }}
+                  >
+                    {localRange.min} - {localRange.max}
+                  </Typography>
+                </Box>
+                <Slider
+                  value={[localRange.min, localRange.max]}
+                  onChange={handleRangePreview}
+                  onChangeCommitted={handleRangeCommit}
+                  min={availableRange.min}
+                  max={availableRange.max}
+                  step={1}
+                  marks={sliderMarks}
+                  valueLabelDisplay="auto"
+                  getAriaLabel={() => "Rango de años"}
+                  sx={{
+                    color: "#5eead4",
+                    height: 4,
+                    mx: 4,
+                    "& .MuiSlider-markLabel": {
+                      color: "rgba(224,239,255,0.92)",
+                      "&[data-index='0']": {
+                        transform: "translateX(14px)",
+                      },
+                      "&[data-index='2']": {
+                        transform: "translateX(-32px)",
+                      },
+                    },
+                    "& .MuiSlider-thumb": {
+                      width: 20,
+                      height: 20,
+                      boxShadow: "0 6px 16px rgba(6,18,52,0.4)",
+                    },
+                    "& .MuiSlider-valueLabel": {
+                      backgroundColor: "rgba(5,24,64,0.9)",
+                      borderRadius: 1,
+                    },
+                  }}
+                />
+                {(localRange.min !== availableRange.min ||
+                  localRange.max !== availableRange.max) && (
+                  <Button
+                    variant="text"
+                    color="inherit"
+                    onClick={handleResetRange}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 600,
+                      px: 0,
+                      color: "rgba(148,216,255,0.9)",
+                      "&:hover": {
+                        color: "#5eead4",
+                        backgroundColor: "transparent",
+                      },
+                    }}
+                  >
+                    Todo el catálogo
+                  </Button>
+                )}
+              </Stack>
+            </Box>
+            <Box
+              sx={{
+                borderRadius: 2,
+                border: "1px solid rgba(99,216,255,0.12)",
+                px: 2,
+                py: 1.5,
+                backgroundColor: "rgba(5,24,64,0.24)",
+              }}
+            >
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.5}
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                justifyContent="space-between"
+              >
+                <Box>
+                  <Typography
+                    variant="overline"
+                    sx={{
+                      letterSpacing: 2,
+                      fontWeight: 700,
+                      color: "rgba(148,216,255,0.86)",
+                    }}
+                  >
+                    Idioma
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "rgba(204,231,255,0.78)",
+                    }}
+                  >
+                    Solo español.
+                  </Typography>
+                </Box>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "rgba(224,239,255,0.82)" }}
+                  >
+                    No
+                  </Typography>
+                  <Switch
+                    color="info"
+                    checked={localSpanishOnly}
+                    onChange={handleLanguageToggle}
+                    inputProps={{
+                      "aria-label": "Filtrar solo canciones en español",
+                    }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "rgba(224,239,255,0.9)", fontWeight: 700 }}
+                  >
+                    Sí
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Box>
+            <Box
+              sx={{
+                borderRadius: 2,
+                border: "1px solid rgba(99,216,255,0.12)",
+                px: 2,
+                py: 1.5,
+                backgroundColor: "rgba(5,24,64,0.24)",
+              }}
+            >
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.5}
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                justifyContent="space-between"
+              >
+                <Box>
+                  <Typography
+                    variant="overline"
+                    sx={{
+                      letterSpacing: 2,
+                      fontWeight: 700,
+                      color: "rgba(148,216,255,0.86)",
+                    }}
+                  >
+                    Tiempo
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "rgba(204,231,255,0.78)",
+                    }}
+                  >
+                    60 segundos por canción.
+                  </Typography>
+                </Box>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "rgba(224,239,255,0.82)" }}
+                  >
+                    No
+                  </Typography>
+                  <Switch
+                    color="info"
+                    checked={localTimerEnabled}
+                    onChange={handleTimerToggle}
+                    inputProps={{
+                      "aria-label": "Activar temporizador de 60 segundos",
+                    }}
+                  />
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "rgba(224,239,255,0.9)", fontWeight: 700 }}
+                  >
+                    Sí
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Box>
+          </Stack>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            sx={{
+              pt: { xs: 2, md: 3 },
+              alignSelf: "center",
+              width: "fit-content",
+              maxWidth: 520,
               justifyContent: "center",
               alignItems: "center",
-              height: { xs: "auto", md: "100%" },
-              viewTransitionName: "auto-game-artwork-frame",
             }}
-          ></Box>
+          >
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<PlayArrowIcon />}
+              onClick={handleStart}
+              sx={{
+                minWidth: { sm: 220 },
+                width: { xs: "100%", sm: 220 },
+                textTransform: "none",
+                fontWeight: 700,
+                borderRadius: 999,
+                px: 3.5,
+                py: 1.6,
+                boxShadow: theme.primaryButton.shadow,
+                background: theme.primaryButton.background,
+                color: theme.primaryButton.textColor,
+                "&:hover": {
+                  background: theme.primaryButton.hoverBackground,
+                  boxShadow: theme.primaryButton.hoverShadow,
+                },
+              }}
+            >
+              Iniciar juego
+            </Button>
+            <Button
+              variant="outlined"
+              color="inherit"
+              startIcon={<CalendarMonthIcon />}
+              onClick={handleRandomYearReveal}
+              disabled={spotlightVisible}
+              sx={{
+                minWidth: { sm: 220 },
+                width: { xs: "100%", sm: 220 },
+                textTransform: "none",
+                fontWeight: 700,
+                borderRadius: 999,
+                px: 3.5,
+                py: 1.6,
+                borderColor: theme.secondaryButton.border,
+                color: theme.secondaryButton.textColor,
+                "&:hover": {
+                  borderColor: theme.secondaryButton.hoverBorder,
+                  backgroundColor: theme.secondaryButton.hoverBackground,
+                },
+              }}
+            >
+              Año al azar
+            </Button>
+            <Button
+              variant="outlined"
+              color="inherit"
+              startIcon={<ExitToAppIcon />}
+              onClick={handleExit}
+              sx={{
+                minWidth: { sm: 220 },
+                width: { xs: "100%", sm: 220 },
+                textTransform: "none",
+                fontWeight: 700,
+                borderRadius: 999,
+                px: 3.5,
+                py: 1.6,
+                borderColor: theme.secondaryButton.border,
+                color: theme.secondaryButton.textColor,
+                "&:hover": {
+                  borderColor: theme.secondaryButton.hoverBorder,
+                  backgroundColor: theme.secondaryButton.hoverBackground,
+                },
+              }}
+            >
+              Volver
+            </Button>
+          </Stack>
         </Stack>
       </Box>
     );
@@ -1462,19 +1635,21 @@ const AutoGame: React.FC<AutoGameProps> = ({
       sx={{
         position: "relative",
         width: "100vw",
-        minHeight: "100vh",
+        minHeight: "100dvh",
         display: "flex",
         flexDirection: "column",
         justifyContent: isExperienceMode
           ? { xs: "flex-start", md: "center" }
-          : "center",
+          : { xs: "flex-start", md: "center" },
         alignItems: isExperienceMode
           ? { xs: "stretch", md: "center" }
           : "center",
         color: rootTheme.text.primary,
         textAlign: "center",
         p: 0,
-        pt: 0,
+        pt: isExperienceMode
+          ? 0
+          : { xs: "calc(env(safe-area-inset-top, 0px) + 8px)", sm: 0 },
         overflowX: "hidden",
         overflowY: "auto",
         pb: 0,
@@ -1488,39 +1663,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
         viewTransitionName: "auto-game-root",
       }}
     >
-      <Box
-        sx={{
-          position: "fixed",
-          top: 24,
-          right: 24,
-          zIndex: 9999,
-          pointerEvents: "none",
-        }}
-      >
-        <span style={{ pointerEvents: "auto" }}>
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={handleExit}
-            startIcon={<ExitToAppIcon />}
-            sx={{
-              fontWeight: "bold",
-              textTransform: "none",
-              color: "#FFF !important",
-              border: "2px solid #FFF",
-              backgroundColor: "rgba(0,0,0,0.05) !important",
-              "&:hover": {
-                backgroundColor: "#FFF !important",
-                color: "#28518C !important",
-                border: "2px solid #FFF",
-              },
-            }}
-          >
-            Salir
-          </Button>
-        </span>
-      </Box>
-
       {videoId && (
         <Box
           sx={{

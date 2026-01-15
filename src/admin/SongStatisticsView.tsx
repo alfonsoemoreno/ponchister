@@ -12,7 +12,8 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { BarChart, LineChart, PieChart } from "@mui/x-charts";
+import { useMemo, useState, type ReactNode } from "react";
 
 import type { SongStatistics, SongStatisticsGroup, StatEntry } from "./types";
 
@@ -41,11 +42,17 @@ function StatisticsList({
 
   return (
     <Paper
-      elevation={2}
-      sx={{ p: 2.5, borderRadius: 3, height: "100%", background: "#fff" }}
+      elevation={0}
+      sx={{
+        p: 2.5,
+        borderRadius: 0,
+        border: "1px solid",
+        borderColor: "divider",
+        boxShadow: "none",
+      }}
     >
       <Stack spacing={1.5}>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: "#1f3c7a" }}>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
           {title}
         </Typography>
         {items.length === 0 ? (
@@ -82,6 +89,78 @@ function StatisticsList({
   );
 }
 
+function MetricCard({
+  label,
+  value,
+  helper,
+}: {
+  label: string;
+  value: number | string;
+  helper?: string;
+}) {
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2.5,
+        borderRadius: 0,
+        border: "1px solid",
+        borderColor: "divider",
+      }}
+    >
+      <Stack spacing={0.5}>
+        <Typography variant="caption" color="text.secondary">
+          {label}
+        </Typography>
+        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+          {value}
+        </Typography>
+        {helper ? (
+          <Typography variant="body2" color="text.secondary">
+            {helper}
+          </Typography>
+        ) : null}
+      </Stack>
+    </Paper>
+  );
+}
+
+function ChartCard({
+  title,
+  isEmpty,
+  children,
+}: {
+  title: string;
+  isEmpty: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2.5,
+        borderRadius: 0,
+        border: "1px solid",
+        borderColor: "divider",
+        minHeight: 320,
+      }}
+    >
+      <Stack spacing={1.5}>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          {title}
+        </Typography>
+        {isEmpty ? (
+          <Typography variant="body2" color="text.secondary">
+            Sin datos para mostrar.
+          </Typography>
+        ) : (
+          children
+        )}
+      </Stack>
+    </Paper>
+  );
+}
+
 export default function SongStatisticsView({
   loading,
   error,
@@ -94,6 +173,40 @@ export default function SongStatisticsView({
     return scope === "overall" ? stats.overall : stats.spanish;
   }, [stats, scope]);
 
+  const yearSeries = useMemo(
+    () =>
+      (selectedStats?.yearsMostCommon ?? []).slice(0, 6).map((item) => ({
+        label: item.label,
+        value: item.count,
+      })),
+    [selectedStats]
+  );
+
+  const decadeSeries = useMemo(
+    () =>
+      (selectedStats?.decadesLeastCommon ?? []).slice(0, 6).map((item) => ({
+        label: item.label,
+        value: item.count,
+      })),
+    [selectedStats]
+  );
+
+  const languageSeries = useMemo(
+    () => [
+      {
+        id: 0,
+        label: "Total",
+        value: stats?.overall.totalSongs ?? 0,
+      },
+      {
+        id: 1,
+        label: "Español",
+        value: stats?.spanish.totalSongs ?? 0,
+      },
+    ],
+    [stats]
+  );
+
   if (loading) {
     return (
       <Stack alignItems="center" justifyContent="center" sx={{ py: 8 }}>
@@ -104,7 +217,7 @@ export default function SongStatisticsView({
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ borderRadius: 3 }}>
+      <Alert severity="error" sx={{ borderRadius: 0 }}>
         {error}
       </Alert>
     );
@@ -112,7 +225,7 @@ export default function SongStatisticsView({
 
   if (!stats) {
     return (
-      <Paper elevation={0} sx={{ p: 4, textAlign: "center", borderRadius: 3 }}>
+      <Paper elevation={0} sx={{ p: 4, textAlign: "center", borderRadius: 0 }}>
         <Typography variant="body1" color="text.secondary">
           No se encontraron datos para mostrar estadísticas.
         </Typography>
@@ -128,7 +241,7 @@ export default function SongStatisticsView({
         alignItems={{ xs: "stretch", sm: "center" }}
         justifyContent="space-between"
       >
-        <Typography variant="h6" sx={{ fontWeight: 700, color: "#1f3c7a" }}>
+        <Typography variant="h6" sx={{ fontWeight: 600 }}>
           Vista de estadísticas
         </Typography>
         <ToggleButtonGroup
@@ -140,7 +253,8 @@ export default function SongStatisticsView({
           sx={{
             alignSelf: { xs: "flex-start", sm: "center" },
             backgroundColor: "#fff",
-            borderRadius: 999,
+            border: "1px solid rgba(148,163,184,0.25)",
+            borderRadius: 0,
           }}
         >
           <ToggleButton value="overall">Todas las canciones</ToggleButton>
@@ -148,40 +262,37 @@ export default function SongStatisticsView({
         </ToggleButtonGroup>
       </Stack>
 
-      <Paper
-        elevation={2}
+      <Box
         sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: 3,
-          background: "linear-gradient(135deg, #1f3c7a, #3680e1)",
-          color: "#fff",
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(3, minmax(0, 1fr))",
+          },
+          alignItems: "start",
         }}
       >
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-          {scope === "overall"
-            ? "Resumen general"
-            : "Resumen canciones en español"}
-        </Typography>
-        <Typography variant="body1">
-          Total de canciones: <strong>{selectedStats?.totalSongs ?? 0}</strong>
-        </Typography>
-        <Typography variant="body1">
-          Canciones sin año registrado:{" "}
-          <strong>{selectedStats?.missingYearCount ?? 0}</strong>
-        </Typography>
-        <Stack direction="row" spacing={1} sx={{ mt: 1.5 }} flexWrap="wrap">
-          <Chip
-            label={`Todas: ${stats.overall.totalSongs}`}
-            size="small"
-            sx={{ backgroundColor: "rgba(255,255,255,0.16)", color: "#fff" }}
-          />
-          <Chip
-            label={`Español: ${stats.spanish.totalSongs}`}
-            size="small"
-            sx={{ backgroundColor: "rgba(255,255,255,0.16)", color: "#fff" }}
-          />
-        </Stack>
-      </Paper>
+        <MetricCard
+          label="Total canciones"
+          value={selectedStats?.totalSongs ?? 0}
+          helper={
+            scope === "overall"
+              ? "Catalogo completo"
+              : "Solo canciones en español"
+          }
+        />
+        <MetricCard
+          label="Sin año registrado"
+          value={selectedStats?.missingYearCount ?? 0}
+          helper="Registros incompletos"
+        />
+        <MetricCard
+          label="Comparativo"
+          value={`${stats.spanish.totalSongs}/${stats.overall.totalSongs}`}
+          helper="Español vs total"
+        />
+      </Box>
 
       <Box
         sx={{
@@ -189,9 +300,70 @@ export default function SongStatisticsView({
           gap: 3,
           gridTemplateColumns: {
             xs: "1fr",
-            md: "repeat(2, 1fr)",
-            lg: "repeat(3, 1fr)",
+            md: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
           },
+          alignItems: "start",
+        }}
+      >
+        <ChartCard title="Canciones por año" isEmpty={yearSeries.length === 0}>
+          <BarChart
+            height={240}
+            series={[{ data: yearSeries.map((item) => item.value) }]}
+            xAxis={[
+              {
+                data: yearSeries.map((item) => item.label),
+                scaleType: "band",
+              },
+            ]}
+            margin={{ left: 48, right: 12, top: 10, bottom: 30 }}
+          />
+        </ChartCard>
+        <ChartCard
+          title="Distribución por idioma"
+          isEmpty={languageSeries.every((item) => item.value === 0)}
+        >
+          <PieChart
+            height={240}
+            series={[
+              {
+                data: languageSeries,
+                innerRadius: 50,
+                outerRadius: 90,
+                paddingAngle: 2,
+              },
+            ]}
+            margin={{ left: 0, right: 0, top: 10, bottom: 10 }}
+          />
+        </ChartCard>
+        <ChartCard
+          title="Décadas con menos canciones"
+          isEmpty={decadeSeries.length === 0}
+        >
+          <LineChart
+            height={240}
+            series={[{ data: decadeSeries.map((item) => item.value) }]}
+            xAxis={[
+              {
+                data: decadeSeries.map((item) => item.label),
+                scaleType: "point",
+              },
+            ]}
+            margin={{ left: 48, right: 12, top: 10, bottom: 30 }}
+          />
+        </ChartCard>
+      </Box>
+
+      <Box
+        sx={{
+          display: "grid",
+          gap: 3,
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+          },
+          alignItems: "start",
         }}
       >
         <StatisticsList

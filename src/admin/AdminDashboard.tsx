@@ -18,8 +18,13 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Drawer,
+  InputAdornment,
   IconButton,
   MenuItem,
+  Menu,
+  ListItemIcon,
+  ListItemText,
   Paper,
   Chip,
   Fab,
@@ -52,6 +57,13 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import LibraryMusicOutlinedIcon from "@mui/icons-material/LibraryMusicOutlined";
+import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import MenuIcon from "@mui/icons-material/Menu";
+import CloseIcon from "@mui/icons-material/Close";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ClearIcon from "@mui/icons-material/Clear";
 import * as XLSX from "xlsx";
 
 import AdminUsersPanel from "./AdminUsersPanel";
@@ -148,17 +160,25 @@ export default function AdminDashboard({
     null
   );
   const [languageToggleId, setLanguageToggleId] = useState<number | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
+  const [actionsAnchorEl, setActionsAnchorEl] = useState<null | HTMLElement>(
+    null
+  );
+  const [songMenuAnchorEl, setSongMenuAnchorEl] =
+    useState<null | HTMLElement>(null);
+  const [songMenuSong, setSongMenuSong] = useState<Song | null>(null);
 
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const showActionLabels = !isSmallScreen;
   const isSuperAdmin = userRole === "superadmin";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const iconActionBaseStyles = {
-    minWidth: { xs: "auto", sm: 48 },
-    height: { xs: 44, sm: 44 },
-    px: { xs: 2.3, sm: 0 },
-    borderRadius: 5,
+    minWidth: { xs: "auto", sm: 44 },
+    height: { xs: 42, sm: 42 },
+    px: { xs: 2, sm: 0 },
+    borderRadius: 0,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -169,86 +189,46 @@ export default function AdminDashboard({
       mr: { xs: 1, sm: 0 },
       ml: { sm: 0 },
       "& svg": {
-        fontSize: 22,
+        fontSize: 20,
       },
     },
     "& .button-label": {
       display: { xs: "inline", sm: "none" },
     },
   } as const;
-  const mobileAccents = useMemo(
+
+  const tabConfig = useMemo(
     () => [
       {
-        gradient:
-          "linear-gradient(135deg, rgba(31,60,122,0.92) 0%, rgba(63,142,252,0.88) 60%, rgba(99,213,245,0.9) 100%)",
-        border: "1px solid rgba(118,181,255,0.45)",
-        shadow: "0 24px 48px rgba(46,124,227,0.35)",
-        chipBg: "rgba(255,255,255,0.18)",
-        chipColor: "#E8F3FF",
-        accentText: "rgba(255,255,255,0.78)",
-        buttonGradient:
-          "linear-gradient(135deg, rgba(28,54,110,0.92) 0%, rgba(58,131,238,0.9) 55%, rgba(92,201,237,0.92) 100%)",
-        buttonHoverGradient:
-          "linear-gradient(135deg, rgba(35,66,126,0.96) 0%, rgba(78,151,255,0.94) 55%, rgba(112,219,250,0.95) 100%)",
-        buttonShadow: "0 22px 42px rgba(30,72,150,0.48)",
-        outlineBorder: "rgba(178,209,255,0.6)",
-        outlineHover: "rgba(104,162,255,0.2)",
+        value: "songs" as const,
+        label: "Canciones",
+        description: "Gestiona el catalogo y sus detalles clave.",
+        icon: <LibraryMusicOutlinedIcon fontSize="small" />,
       },
       {
-        gradient:
-          "linear-gradient(135deg, rgba(110,67,255,0.95) 0%, rgba(178,106,250,0.85) 50%, rgba(255,165,241,0.9) 100%)",
-        border: "1px solid rgba(209,166,255,0.4)",
-        shadow: "0 24px 52px rgba(150,93,255,0.4)",
-        chipBg: "rgba(27,7,53,0.35)",
-        chipColor: "#FFE7FF",
-        accentText: "rgba(255,238,255,0.78)",
-        buttonGradient:
-          "linear-gradient(135deg, rgba(97,54,235,0.95) 0%, rgba(165,90,241,0.9) 55%, rgba(240,150,233,0.95) 100%)",
-        buttonHoverGradient:
-          "linear-gradient(135deg, rgba(118,73,255,0.98) 0%, rgba(191,108,255,0.94) 55%, rgba(255,183,244,0.98) 100%)",
-        buttonShadow: "0 22px 42px rgba(120,63,215,0.48)",
-        outlineBorder: "rgba(233,193,255,0.58)",
-        outlineHover: "rgba(204,153,255,0.24)",
+        value: "stats" as const,
+        label: "Estadisticas",
+        description: "Analitica y tendencias del catalogo.",
+        icon: <BarChartOutlinedIcon fontSize="small" />,
       },
       {
-        gradient:
-          "linear-gradient(135deg, rgba(7,94,104,0.9) 0%, rgba(26,167,178,0.88) 50%, rgba(126,233,200,0.93) 100%)",
-        border: "1px solid rgba(126,233,200,0.45)",
-        shadow: "0 24px 46px rgba(26,167,178,0.32)",
-        chipBg: "rgba(4,37,46,0.4)",
-        chipColor: "#D8FFF4",
-        accentText: "rgba(227,255,247,0.78)",
-        buttonGradient:
-          "linear-gradient(135deg, rgba(6,86,96,0.95) 0%, rgba(26,158,168,0.92) 55%, rgba(116,222,193,0.95) 100%)",
-        buttonHoverGradient:
-          "linear-gradient(135deg, rgba(8,108,120,0.98) 0%, rgba(32,182,192,0.95) 55%, rgba(138,235,207,0.98) 100%)",
-        buttonShadow: "0 22px 42px rgba(22,142,152,0.44)",
-        outlineBorder: "rgba(155,235,214,0.55)",
-        outlineHover: "rgba(76,208,189,0.22)",
-      },
-      {
-        gradient:
-          "linear-gradient(135deg, rgba(138,43,226,0.92) 0%, rgba(255,105,180,0.9) 60%, rgba(255,188,113,0.9) 100%)",
-        border: "1px solid rgba(255,188,213,0.48)",
-        shadow: "0 24px 48px rgba(190,85,205,0.38)",
-        chipBg: "rgba(29,0,52,0.35)",
-        chipColor: "#FFE8F4",
-        accentText: "rgba(255,246,255,0.8)",
-        buttonGradient:
-          "linear-gradient(135deg, rgba(126,34,204,0.95) 0%, rgba(240,98,164,0.92) 55%, rgba(255,179,126,0.95) 100%)",
-        buttonHoverGradient:
-          "linear-gradient(135deg, rgba(149,52,224,0.98) 0%, rgba(252,125,185,0.95) 55%, rgba(255,197,152,0.98) 100%)",
-        buttonShadow: "0 22px 42px rgba(167,55,195,0.46)",
-        outlineBorder: "rgba(255,204,226,0.58)",
-        outlineHover: "rgba(255,170,210,0.24)",
+        value: "users" as const,
+        label: "Usuarios",
+        description: "Controla accesos y roles.",
+        icon: <PeopleAltOutlinedIcon fontSize="small" />,
       },
     ],
     []
   );
 
-  const getMobileAccent = useCallback(
-    (id: number) => mobileAccents[id % mobileAccents.length],
-    [mobileAccents]
+  const activeTabMeta = tabConfig.find((tab) => tab.value === activeTab);
+  const visibleTabs = isSuperAdmin
+    ? tabConfig
+    : tabConfig.filter((tab) => tab.value !== "users");
+
+  const pageSpanishCount = useMemo(
+    () => songs.filter((song) => song.isspanish).length,
+    [songs]
   );
 
   const sortConfig = useMemo<{
@@ -837,13 +817,44 @@ export default function AdminDashboard({
     value: "songs" | "stats" | "users"
   ) => {
     setActiveTab(value);
+    if (!isDesktop) {
+      setNavOpen(false);
+    }
+  };
+
+  const handleActionsOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setActionsAnchorEl(event.currentTarget);
+  };
+
+  const handleActionsClose = () => {
+    setActionsAnchorEl(null);
+  };
+
+  const handleSongMenuOpen = (
+    event: React.MouseEvent<HTMLElement>,
+    song: Song
+  ) => {
+    setSongMenuAnchorEl(event.currentTarget);
+    setSongMenuSong(song);
+  };
+
+  const handleSongMenuClose = () => {
+    setSongMenuAnchorEl(null);
+    setSongMenuSong(null);
+  };
+
+  const handleSongMenuOpenLink = () => {
+    if (songMenuSong?.youtube_url) {
+      window.open(songMenuSong.youtube_url, "_blank", "noopener,noreferrer");
+    }
+    handleSongMenuClose();
   };
 
   const renderTableBody = () => {
     if (loading) {
       return (
         <TableRow>
-          <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+          <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
             <CircularProgress color="primary" />
           </TableCell>
         </TableRow>
@@ -853,7 +864,7 @@ export default function AdminDashboard({
     if (!songs.length) {
       return (
         <TableRow>
-          <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+          <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
             <Typography variant="body1" color="text.secondary">
               {searchTerm
                 ? "No hay resultados que coincidan con tu búsqueda."
@@ -864,8 +875,16 @@ export default function AdminDashboard({
       );
     }
 
-    return songs.map((song) => (
-      <TableRow key={song.id} hover>
+    return songs.map((song, index) => (
+      <TableRow
+        key={song.id}
+        hover
+        sx={{
+          animation: "admin-row-in 360ms ease",
+          animationDelay: `${Math.min(index * 20, 240)}ms`,
+          animationFillMode: "both",
+        }}
+      >
         <TableCell width={80}>{song.id}</TableCell>
         <TableCell sx={{ minWidth: 180 }}>
           <Typography variant="body2" fontWeight={600} noWrap>
@@ -892,35 +911,13 @@ export default function AdminDashboard({
             }}
           />
         </TableCell>
-        <TableCell sx={{ minWidth: 200 }}>
-          {song.youtube_url ? (
-            <Button
-              variant="text"
-              size="small"
-              component="a"
-              href={song.youtube_url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Abrir enlace
-            </Button>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              Sin enlace
-            </Typography>
-          )}
-        </TableCell>
         <TableCell align="right" width={140}>
-          <Tooltip title="Editar">
-            <IconButton color="primary" onClick={() => openEditForm(song)}>
-              <EditIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Eliminar">
-            <IconButton color="error" onClick={() => requestDelete(song)}>
-              <DeleteIcon />
-            </IconButton>
-          </Tooltip>
+          <IconButton
+            aria-label="Opciones de canción"
+            onClick={(event) => handleSongMenuOpen(event, song)}
+          >
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
         </TableCell>
       </TableRow>
     ));
@@ -947,8 +944,7 @@ export default function AdminDashboard({
       );
     }
 
-    return songs.map((song) => {
-      const accent = getMobileAccent(song.id);
+    return songs.map((song, index) => {
       const yearLabel = song.year ? song.year.toString() : "Sin año";
 
       return (
@@ -958,23 +954,17 @@ export default function AdminDashboard({
           sx={{
             position: "relative",
             overflow: "hidden",
-            borderRadius: 4,
-            background: accent.gradient,
-            border: accent.border,
-            boxShadow: accent.shadow,
-            color: "#ffffff",
+            borderRadius: 0,
+            backgroundColor: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
+            boxShadow: "none",
+            animation: "admin-card-in 420ms ease",
+            animationDelay: `${Math.min(index * 60, 360)}ms`,
+            animationFillMode: "both",
           }}
         >
-          <Box
-            sx={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "radial-gradient(circle at 15% 15%, rgba(255,255,255,0.18) 0%, rgba(10,10,30,0.1) 35%, rgba(10,10,40,0.55) 100%)",
-              opacity: 0.95,
-            }}
-          />
-          <Stack spacing={2.4} sx={{ position: "relative", zIndex: 1, p: 2.8 }}>
+          <Stack spacing={2.2} sx={{ position: "relative", zIndex: 1, p: 2.5 }}>
             <Stack
               direction="row"
               justifyContent="space-between"
@@ -983,26 +973,38 @@ export default function AdminDashboard({
               <Typography
                 variant="overline"
                 sx={{
-                  letterSpacing: 2.4,
-                  fontWeight: 700,
+                  letterSpacing: 1.8,
+                  fontWeight: 600,
                   textTransform: "uppercase",
-                  color: accent.accentText,
+                  color: "text.secondary",
                 }}
               >
                 #{String(song.id).padStart(3, "0")}
               </Typography>
-              <Chip
-                label={yearLabel}
-                size="small"
-                sx={{
-                  backgroundColor: accent.chipBg,
-                  color: accent.chipColor,
-                  fontWeight: 600,
-                  letterSpacing: 0.6,
-                  textTransform: "uppercase",
-                  backdropFilter: "blur(4px)",
-                }}
-              />
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Chip
+                  label={yearLabel}
+                  size="small"
+                  sx={{
+                    backgroundColor: "#f1f5f9",
+                    fontWeight: 600,
+                    letterSpacing: 0.4,
+                    textTransform: "uppercase",
+                    borderRadius: 0,
+                  }}
+                />
+                <IconButton
+                  aria-label="Opciones de canción"
+                  onClick={(event) => handleSongMenuOpen(event, song)}
+                  sx={{
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 0,
+                  }}
+                >
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
+              </Stack>
             </Stack>
 
             <Stack spacing={1.3}>
@@ -1010,8 +1012,8 @@ export default function AdminDashboard({
                 <Typography
                   variant="caption"
                   sx={{
-                    color: "rgba(255,255,255,0.7)",
-                    letterSpacing: 1.2,
+                    color: "text.secondary",
+                    letterSpacing: 1,
                     textTransform: "uppercase",
                     fontWeight: 600,
                   }}
@@ -1021,9 +1023,8 @@ export default function AdminDashboard({
                 <Typography
                   variant="h5"
                   sx={{
-                    fontWeight: 800,
+                    fontWeight: 700,
                     lineHeight: 1.2,
-                    textShadow: "0 8px 24px rgba(0,0,0,0.35)",
                   }}
                 >
                   {song.artist}
@@ -1033,8 +1034,8 @@ export default function AdminDashboard({
                 <Typography
                   variant="caption"
                   sx={{
-                    color: "rgba(255,255,255,0.7)",
-                    letterSpacing: 1.2,
+                    color: "text.secondary",
+                    letterSpacing: 1,
                     textTransform: "uppercase",
                     fontWeight: 600,
                   }}
@@ -1044,9 +1045,8 @@ export default function AdminDashboard({
                 <Typography
                   variant="h6"
                   sx={{
-                    fontWeight: 700,
+                    fontWeight: 600,
                     lineHeight: 1.25,
-                    textShadow: "0 10px 32px rgba(0,0,0,0.35)",
                   }}
                 >
                   {song.title}
@@ -1056,59 +1056,17 @@ export default function AdminDashboard({
 
             <Divider
               sx={{
-                borderColor: "rgba(255,255,255,0.2)",
+                borderColor: "divider",
                 borderBottomWidth: 1,
                 my: 1,
               }}
             />
 
             <Stack spacing={1.2}>
-              {song.youtube_url ? (
-                <Button
-                  variant="outlined"
-                  component="a"
-                  href={song.youtube_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  startIcon={<InfoOutlinedIcon />}
-                  fullWidth
-                  sx={{
-                    color: accent.accentText,
-                    borderColor: accent.outlineBorder,
-                    borderRadius: 2,
-                    fontWeight: 600,
-                    textTransform: "none",
-                    backdropFilter: "blur(3px)",
-                    px: 1,
-                    py: 1,
-                    "&:hover": {
-                      borderColor: accent.outlineBorder,
-                      backgroundColor: accent.outlineHover,
-                    },
-                  }}
-                >
-                  Abrir enlace
-                </Button>
-              ) : (
-                <Chip
-                  label="Sin enlace"
-                  size="small"
-                  sx={{
-                    alignSelf: "flex-start",
-                    backgroundColor: "rgba(0,0,0,0.35)",
-                    color: "rgba(255,255,255,0.75)",
-                    fontWeight: 600,
-                    letterSpacing: 0.6,
-                    textTransform: "uppercase",
-                    backdropFilter: "blur(3px)",
-                  }}
-                />
-              )}
               <Stack direction="row" alignItems="center" spacing={1.2}>
                 <Typography
                   variant="body2"
                   sx={{
-                    color: accent.accentText,
                     fontWeight: 700,
                     letterSpacing: 0.4,
                   }}
@@ -1132,52 +1090,11 @@ export default function AdminDashboard({
                       backgroundColor: "#fff",
                     },
                     "& .MuiSwitch-track": {
-                      opacity: 0.6,
+                      opacity: 0.4,
                     },
                   }}
                 />
               </Stack>
-              <Button
-                variant="contained"
-                startIcon={<EditIcon fontSize="small" />}
-                onClick={() => openEditForm(song)}
-                fullWidth
-                sx={{
-                  borderRadius: 2,
-                  fontWeight: 700,
-                  textTransform: "none",
-                  backgroundImage: accent.buttonGradient,
-                  color: "#ffffff",
-                  boxShadow: accent.buttonShadow,
-                  py: 1.05,
-                  "&:hover": {
-                    backgroundImage: accent.buttonHoverGradient,
-                    boxShadow: accent.buttonShadow,
-                  },
-                }}
-              >
-                Editar canción
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<DeleteIcon fontSize="small" />}
-                onClick={() => requestDelete(song)}
-                fullWidth
-                sx={{
-                  borderRadius: 2,
-                  fontWeight: 700,
-                  textTransform: "none",
-                  color: "rgba(255,255,255,0.88)",
-                  borderColor: "rgba(255,255,255,0.45)",
-                  py: 1.05,
-                  "&:hover": {
-                    borderColor: "rgba(255,255,255,0.75)",
-                    backgroundColor: "rgba(255,255,255,0.12)",
-                  },
-                }}
-              >
-                Eliminar
-              </Button>
             </Stack>
           </Stack>
         </Paper>
@@ -1200,656 +1117,874 @@ export default function AdminDashboard({
         sx={{
           position: "relative",
           minHeight: "100vh",
-          width: "100vw",
+          width: "100%",
           display: "flex",
           justifyContent: "center",
           alignItems: "flex-start",
           py: { xs: 3, sm: 4, md: 8 },
-          px: { xs: 1.25, sm: 2, md: 4 },
+          px: { xs: 0, sm: 2, md: 4 },
+          overflowX: "hidden",
+          boxSizing: "border-box",
         }}
       >
         <Container
-          maxWidth="lg"
+          maxWidth={false}
+          disableGutters
           sx={{
             position: "relative",
             zIndex: 1,
-            px: { xs: 1, sm: 2, md: 4 },
+            px: { xs: 0, sm: 2, md: 3 },
+            maxWidth: { md: "1200px", lg: "1400px" },
+            mx: { md: "auto" },
+            boxSizing: "border-box",
           }}
         >
-          <Paper
-            elevation={6}
+          <Box
             sx={{
-              p: { xs: 2, sm: 3, md: 5 },
-              borderRadius: 4,
-              backdropFilter: "blur(14px)",
-              background:
-                "linear-gradient(155deg, rgba(255,255,255,0.94) 0%, rgba(244,249,255,0.9) 42%, rgba(229,240,255,0.86) 100%)",
-              border: "1px solid rgba(31,60,122,0.08)",
-              boxShadow: "0 42px 68px -32px rgba(31,60,122,0.25)",
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "240px 1fr" },
+              gap: { xs: 2, md: 3 },
+              width: "100%",
+              boxSizing: "border-box",
+              animation: "admin-fade-in 520ms ease",
+              "@keyframes admin-fade-in": {
+                from: { opacity: 0, transform: "translateY(12px)" },
+                to: { opacity: 1, transform: "translateY(0)" },
+              },
             }}
           >
-            <Stack spacing={3}>
-              <Stack
-                direction={{ xs: "column", md: "row" }}
-                spacing={2}
-                justifyContent="space-between"
-                alignItems={{ xs: "flex-start", md: "center" }}
-              >
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 2, md: 2.5 },
+                borderRadius: 0,
+                position: { xs: "relative", md: "sticky" },
+                top: { md: 24 },
+                height: "fit-content",
+                backgroundColor: "background.paper",
+                display: { xs: "none", md: "block" },
+              }}
+            >
+              <Stack spacing={2.5}>
                 <Box>
-                  <Typography
-                    variant="h4"
-                    component="h1"
+                  <Typography variant="overline" color="text.secondary">
+                    Panel administrativo
+                  </Typography>
+                  <Box
+                    component="img"
+                    src="/ponchister_logo.png"
+                    alt="Ponchister"
                     sx={{
-                      fontWeight: 700,
-                      textAlign: { xs: "left", md: "left" },
-                      mb: 1,
-                      color: "#1f3c7a",
+                      width: "100%",
+                      maxWidth: 120,
+                      height: "auto",
+                      display: "block",
+                      mt: 1,
+                      mb: 0.5,
+                    }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {userEmail
+                      ? `Sesion activa: ${userEmail}`
+                      : "Acceso seguro al catalogo."}
+                  </Typography>
+                </Box>
+
+                <Tabs
+                  value={activeTab}
+                  onChange={handleTabChange}
+                  orientation="vertical"
+                  variant="standard"
+                  textColor="primary"
+                  indicatorColor="primary"
+                  sx={{
+                    minHeight: "auto",
+                    "& .MuiTabs-flexContainer": {
+                      gap: 0.5,
+                    },
+                    "& .MuiTab-root": {
+                      justifyContent: "flex-start",
+                      minHeight: 42,
+                      gap: 1,
+                      px: 1.5,
+                      borderRadius: 0,
+                      alignItems: "center",
+                      "&.Mui-selected": {
+                        backgroundColor: "#f1f5f9",
+                      },
+                    },
+                    "& .MuiTabs-indicator": {
+                      display: "none",
+                    },
+                  }}
+                >
+                  {visibleTabs.map((tab) =>
+                    tab.value === "stats" && !dataReady ? (
+                      <Tab
+                        key={tab.value}
+                        value={tab.value}
+                        label={tab.label}
+                        icon={tab.icon}
+                        iconPosition="start"
+                        disabled
+                      />
+                    ) : (
+                      <Tab
+                        key={tab.value}
+                        value={tab.value}
+                        label={tab.label}
+                        icon={tab.icon}
+                        iconPosition="start"
+                      />
+                    )
+                  )}
+                </Tabs>
+
+                {activeTab === "songs" ? (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      borderRadius: 0,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      backgroundColor: "#f8fafc",
                     }}
                   >
-                    Administrador de canciones
-                  </Typography>
-                  <Typography variant="body1" color="text.secondary">
-                    Gestiona la base de datos de canciones utilizada por
-                    Ponchister. Puedes crear, editar o eliminar registros en
-                    cualquier momento.
-                  </Typography>
-                  {userEmail ? (
-                    <Typography variant="caption" color="text.secondary">
-                      Sesión iniciada como <strong>{userEmail}</strong>
-                    </Typography>
-                  ) : null}
-                </Box>
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1}
-                  alignItems={{ xs: "stretch", sm: "center" }}
-                >
-                  <Tooltip title="Volver al inicio" disableInteractive>
-                    <Box component="span" sx={{ display: "inline-flex" }}>
-                      <Button
-                        variant="outlined"
-                        startIcon={<ArrowBackIcon />}
-                        onClick={onExit}
-                        aria-label="Volver al inicio"
-                        sx={{
-                          ...iconActionBaseStyles,
-                          borderColor: "rgba(31,60,122,0.55)",
-                          color: "rgba(15,23,42,0.9)",
-                          backgroundColor: "rgba(248,250,255,0.96)",
-                          "&:hover": {
-                            borderColor: "rgba(31,60,122,0.95)",
-                            backgroundColor: "rgba(236,243,255,0.98)",
-                            color: "rgba(15,23,42,0.98)",
-                            boxShadow: "0 12px 24px -12px rgba(31,60,122,0.35)",
-                          },
-                        }}
-                      >
-                        <Typography component="span" className="button-label">
-                          Volver al inicio
-                        </Typography>
-                      </Button>
-                    </Box>
-                  </Tooltip>
-                  <Tooltip title="Cerrar sesión" disableInteractive>
-                    <Box component="span" sx={{ display: "inline-flex" }}>
-                      <Button
-                        variant="contained"
-                        color="error"
-                        startIcon={<LogoutIcon />}
-                        onClick={onSignOut}
-                        aria-label="Cerrar sesión"
-                        sx={{
-                          ...iconActionBaseStyles,
-                          px: { xs: 2.4, sm: 0 },
-                          boxShadow: "0 18px 36px -18px rgba(244,67,54,0.55)",
-                          "&:hover": {
-                            boxShadow: "0 22px 42px -18px rgba(244,67,54,0.65)",
-                          },
-                        }}
-                      >
-                        <Typography component="span" className="button-label">
-                          Cerrar sesión
-                        </Typography>
-                      </Button>
-                    </Box>
-                  </Tooltip>
+                    <Stack spacing={1}>
+                      <Typography variant="caption" color="text.secondary">
+                        Resumen rapido
+                      </Typography>
+                      <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                        {total}
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        <Chip
+                          label={
+                            filtersActive ? "Filtros activos" : "Sin filtros"
+                          }
+                          size="small"
+                          sx={{ backgroundColor: "#e2e8f0", fontWeight: 600 }}
+                        />
+                        <Chip
+                          label={`Pagina ${page + 1}`}
+                          size="small"
+                          sx={{ backgroundColor: "#e2e8f0", fontWeight: 600 }}
+                        />
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                ) : null}
+                <Divider />
+                <Stack spacing={1}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<ArrowBackIcon />}
+                    onClick={onExit}
+                    sx={{
+                      borderRadius: 0,
+                      borderColor: "divider",
+                      color: "text.primary",
+                      backgroundColor: "background.paper",
+                      "&:hover": {
+                        borderColor: "rgba(100,116,139,0.65)",
+                        backgroundColor: "#f8fafc",
+                      },
+                    }}
+                  >
+                    Volver al inicio
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    startIcon={<LogoutIcon />}
+                    onClick={onSignOut}
+                    sx={{ borderRadius: 0 }}
+                  >
+                    Cerrar sesión
+                  </Button>
                 </Stack>
               </Stack>
+            </Paper>
 
-              <Tabs
-                value={activeTab}
-                onChange={handleTabChange}
-                textColor="primary"
-                indicatorColor="primary"
-                variant="scrollable"
-                allowScrollButtonsMobile
+            <Drawer
+              anchor="left"
+              open={navOpen}
+              onClose={() => setNavOpen(false)}
+              PaperProps={{
+                sx: {
+                  width: 280,
+                  borderRadius: 0,
+                  backgroundColor: "background.paper",
+                  height: "100%",
+                  overflowY: "auto",
+                },
+              }}
+              sx={{ display: { xs: "block", md: "none" } }}
+            >
+              <Box
                 sx={{
-                  borderBottom: "1px solid rgba(31,60,122,0.15)",
-                  mb: -2,
+                  minHeight: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  p: 2,
+                  pb: 4,
+                  boxSizing: "border-box",
                 }}
               >
-                <Tab label="Canciones" value="songs" />
-                <Tab
-                  label="Estadísticas"
-                  value="stats"
-                  disabled={!dataReady}
-                />
-                {isSuperAdmin ? <Tab label="Usuarios" value="users" /> : null}
-              </Tabs>
+              <Stack spacing={2} sx={{ flex: 1 }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    Menu
+                  </Typography>
+                  <IconButton
+                    aria-label="Cerrar menu"
+                    onClick={() => setNavOpen(false)}
+                  >
+                    <CloseIcon />
+                  </IconButton>
+                </Stack>
 
-              {activeTab === "songs" ? (
-                <>
-                  {error && (
-                    <Alert severity="error" onClose={() => setError(null)}>
-                      {error}
-                    </Alert>
-                  )}
-
+                <Stack spacing={0.5}>
+                  <Typography variant="caption" color="text.secondary">
+                    Panel administrativo
+                  </Typography>
                   <Box
+                    component="img"
+                    src="/ponchister_logo.png"
+                    alt="Ponchister"
                     sx={{
-                      background: {
-                        xs: "linear-gradient(135deg, rgba(63,118,255,0.08) 0%, rgba(31,60,122,0.14) 100%)",
-                        md: "transparent",
+                      width: "100%",
+                      maxWidth: 120,
+                      height: "auto",
+                      display: "block",
+                      mt: 0.5,
+                      mb: 0.5,
+                    }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {userEmail
+                      ? `Sesion activa: ${userEmail}`
+                      : "Acceso seguro al catalogo."}
+                  </Typography>
+                </Stack>
+
+                <Tabs
+                  value={activeTab}
+                  onChange={handleTabChange}
+                  orientation="vertical"
+                  variant="standard"
+                  textColor="primary"
+                  indicatorColor="primary"
+                  sx={{
+                    minHeight: "auto",
+                    "& .MuiTabs-flexContainer": {
+                      gap: 0.5,
+                    },
+                    "& .MuiTab-root": {
+                      justifyContent: "flex-start",
+                      minHeight: 42,
+                      gap: 1,
+                      px: 1.5,
+                      borderRadius: 0,
+                      alignItems: "center",
+                      "&.Mui-selected": {
+                        backgroundColor: "#f1f5f9",
                       },
-                      borderRadius: { xs: 3, md: 2 },
-                      px: { xs: 1.5, md: 0 },
-                      py: { xs: 1.75, md: 0 },
-                      border: {
-                        xs: "1px solid rgba(31,60,122,0.2)",
-                        md: "none",
-                      },
-                      boxShadow: {
-                        xs: "0 20px 40px -30px rgba(31,60,122,0.45)",
-                        md: "none",
-                      },
-                      backdropFilter: { xs: "blur(16px)", md: "none" },
+                    },
+                    "& .MuiTabs-indicator": {
+                      display: "none",
+                    },
+                  }}
+                >
+                  {visibleTabs.map((tab) =>
+                    tab.value === "stats" && !dataReady ? (
+                      <Tab
+                        key={tab.value}
+                        value={tab.value}
+                        label={tab.label}
+                        icon={tab.icon}
+                        iconPosition="start"
+                        disabled
+                      />
+                    ) : (
+                      <Tab
+                        key={tab.value}
+                        value={tab.value}
+                        label={tab.label}
+                        icon={tab.icon}
+                        iconPosition="start"
+                      />
+                    )
+                  )}
+                </Tabs>
+
+                {activeTab === "songs" ? (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      borderRadius: 0,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      backgroundColor: "#f8fafc",
                     }}
                   >
-                    <Stack spacing={2}>
-                      <Stack
-                        direction={{ xs: "column", md: "row" }}
-                        spacing={2}
-                        justifyContent="space-between"
-                        alignItems={{ xs: "stretch", md: "center" }}
-                      >
-                        <TextField
-                          label="Buscar canciones"
-                          placeholder="Busca por artista, canción o enlace"
-                          value={searchInput}
-                          onChange={(event) =>
-                            setSearchInput(event.target.value)
+                    <Stack spacing={1}>
+                      <Typography variant="caption" color="text.secondary">
+                        Resumen rapido
+                      </Typography>
+                      <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                        {total}
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        <Chip
+                          label={
+                            filtersActive ? "Filtros activos" : "Sin filtros"
                           }
-                          fullWidth
-                          disabled={!dataReady}
+                          size="small"
+                          sx={{ backgroundColor: "#e2e8f0", fontWeight: 600 }}
                         />
+                        <Chip
+                          label={`Pagina ${page + 1}`}
+                          size="small"
+                          sx={{ backgroundColor: "#e2e8f0", fontWeight: 600 }}
+                        />
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                ) : null}
+                <Divider />
+                <Stack spacing={1} sx={{ mt: "auto" }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<ArrowBackIcon />}
+                    onClick={onExit}
+                    sx={{
+                      borderRadius: 0,
+                      borderColor: "divider",
+                      color: "text.primary",
+                      backgroundColor: "background.paper",
+                      "&:hover": {
+                        borderColor: "rgba(100,116,139,0.65)",
+                        backgroundColor: "#f8fafc",
+                      },
+                    }}
+                  >
+                    Volver al inicio
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    startIcon={<LogoutIcon />}
+                    onClick={onSignOut}
+                    sx={{ borderRadius: 0 }}
+                  >
+                    Cerrar sesión
+                  </Button>
+                </Stack>
+              </Stack>
+              </Box>
+            </Drawer>
+
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 2, sm: 3, md: 4 },
+                borderRadius: 0,
+                backgroundColor: "background.paper",
+                boxShadow: "none",
+                width: "100%",
+                mx: { xs: 0, sm: "auto" },
+                boxSizing: "border-box",
+              }}
+            >
+              <Stack spacing={3}>
+                <Stack
+                  direction={{ xs: "column", md: "row" }}
+                  spacing={2}
+                  justifyContent="space-between"
+                  alignItems={{ xs: "flex-start", md: "center" }}
+                >
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    alignItems="flex-start"
+                  >
+                    <IconButton
+                      aria-label="Abrir menu"
+                      onClick={() => setNavOpen(true)}
+                      sx={{
+                        display: { xs: "inline-flex", md: "none" },
+                        border: "1px solid",
+                        borderColor: "divider",
+                        borderRadius: 0,
+                      }}
+                    >
+                      <MenuIcon />
+                    </IconButton>
+                    <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      {activeTabMeta?.label ?? "Administracion"}
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                      {activeTabMeta?.label ?? "Panel"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {activeTabMeta?.description ??
+                        "Gestion y control de contenidos."}
+                    </Typography>
+                    </Box>
+                  </Stack>
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={1}
+                    alignItems={{ xs: "stretch", sm: "center" }}
+                  >
+                  </Stack>
+                </Stack>
+
+                {activeTab === "songs" ? (
+                  <>
+                    {error && (
+                      <Alert severity="error" onClose={() => setError(null)}>
+                        {error}
+                      </Alert>
+                    )}
+
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gap: 2,
+                        gridTemplateColumns: {
+                          xs: "1fr",
+                          sm: "repeat(3, 1fr)",
+                        },
+                      }}
+                    >
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2,
+                          borderRadius: 0,
+                          border: "1px solid",
+                          borderColor: "divider",
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary">
+                          Resultados totales
+                        </Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          {total}
+                        </Typography>
+                      </Paper>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2,
+                          borderRadius: 0,
+                          border: "1px solid",
+                          borderColor: "divider",
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary">
+                          Resultados visibles
+                        </Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          {songs.length}
+                        </Typography>
+                      </Paper>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2,
+                          borderRadius: 0,
+                          border: "1px solid",
+                          borderColor: "divider",
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary">
+                          En espanol (pagina)
+                        </Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          {pageSpanishCount}
+                        </Typography>
+                      </Paper>
+                    </Box>
+
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: { xs: 2, md: 2.5 },
+                        borderRadius: 0,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        backgroundColor: "#fbfcfe",
+                      }}
+                    >
+                      <Stack spacing={2}>
                         <Stack
-                          direction="row"
-                          spacing={1}
-                          justifyContent="flex-end"
-                          sx={{
-                            width: { xs: "100%", md: "auto" },
-                            flexWrap: "wrap",
-                            gap: { xs: 1, md: 0 },
-                          }}
+                          direction={{ xs: "column", md: "row" }}
+                          spacing={2}
+                          justifyContent="space-between"
+                          alignItems={{ xs: "stretch", md: "center" }}
                         >
+                          <TextField
+                            label="Buscar canciones"
+                            placeholder="Busca por artista, cancion o enlace"
+                            value={searchInput}
+                            onChange={(event) =>
+                              setSearchInput(event.target.value)
+                            }
+                            fullWidth
+                            disabled={!dataReady}
+                            size="small"
+                            sx={{
+                              width: { xs: "100%", md: 320 },
+                              flexShrink: 0,
+                            }}
+                            InputProps={{
+                              endAdornment: searchInput ? (
+                                <InputAdornment position="end">
+                                  <IconButton
+                                    aria-label="Limpiar busqueda"
+                                    onClick={() => setSearchInput("")}
+                                    edge="end"
+                                    size="small"
+                                  >
+                                    <ClearIcon fontSize="small" />
+                                  </IconButton>
+                                </InputAdornment>
+                              ) : undefined,
+                            }}
+                          />
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            justifyContent="flex-end"
+                            sx={{
+                              width: { xs: "100%", md: "auto" },
+                              flexWrap: "wrap",
+                              gap: { xs: 1, md: 0 },
+                            }}
+                          >
                           <Tooltip title="Recargar lista" disableInteractive>
                             <Box
                               component="span"
                               sx={{ display: "inline-flex" }}
                             >
-                              <Button
-                                variant="outlined"
-                                startIcon={<RefreshIcon />}
+                              <IconButton
                                 onClick={handleRefresh}
                                 disabled={!dataReady || loading}
                                 aria-label="Recargar lista"
-                                sx={[
-                                  iconActionBaseStyles,
-                                  showActionLabels
-                                    ? {
-                                        "& .button-label": {
-                                          display: "inline",
-                                        },
-                                      }
-                                    : {
-                                        minWidth: 44,
-                                        px: 0,
-                                        gap: 0,
-                                        "& .MuiButton-startIcon": {
-                                          mr: 0,
-                                        },
-                                      },
-                                  {
-                                    px: showActionLabels
-                                      ? { xs: 2.3, sm: 0 }
-                                      : 0,
-                                    gap: showActionLabels
-                                      ? { xs: 1, sm: 0 }
-                                      : 0,
-                                    "& .MuiButton-startIcon": {
-                                      mr: showActionLabels
-                                        ? { xs: 1, sm: 0 }
-                                        : 0,
-                                    },
-                                    borderColor: "rgba(31,60,122,0.45)",
-                                    color: "rgba(31,60,122,0.9)",
-                                    backgroundColor: "rgba(245,248,255,0.9)",
-                                    "&:hover": {
-                                      borderColor: "rgba(31,60,122,0.8)",
-                                      backgroundColor: "rgba(236,242,255,0.95)",
-                                      boxShadow:
-                                        "0 16px 32px -18px rgba(31,60,122,0.35)",
-                                    },
-                                    "&.Mui-disabled": {
-                                      opacity: 0.5,
-                                      boxShadow: "none",
-                                    },
-                                  },
-                                ]}
-                              >
-                                {showActionLabels ? (
-                                  <Typography
-                                    component="span"
-                                    className="button-label"
-                                  ></Typography>
-                                ) : null}
-                              </Button>
-                            </Box>
-                          </Tooltip>
-                          <Tooltip title="Importar Excel" disableInteractive>
-                            <Box
-                              component="span"
-                              sx={{ display: "inline-flex" }}
-                            >
-                              <Button
-                                variant="outlined"
-                                startIcon={
-                                  importing ? (
-                                    <CircularProgress
-                                      size={18}
-                                      color="inherit"
-                                    />
-                                  ) : (
-                                    <UploadFileIcon />
-                                  )
-                                }
-                                onClick={handleImportButtonClick}
-                                disabled={!dataReady || importing}
-                                aria-label="Importar catálogo"
-                                sx={[
-                                  iconActionBaseStyles,
-                                  showActionLabels
-                                    ? {
-                                        "& .button-label": {
-                                          display: "inline",
-                                        },
-                                      }
-                                    : {
-                                        minWidth: 44,
-                                        px: 0,
-                                        gap: 0,
-                                        "& .MuiButton-startIcon": {
-                                          mr: 0,
-                                        },
-                                      },
-                                  {
-                                    px: showActionLabels
-                                      ? { xs: 2.6, sm: 0 }
-                                      : 0,
-                                    gap: showActionLabels
-                                      ? { xs: 1, sm: 0 }
-                                      : 0,
-                                    "& .MuiButton-startIcon": {
-                                      mr: showActionLabels
-                                        ? { xs: 1, sm: 0 }
-                                        : 0,
-                                    },
-                                    borderColor: "rgba(31,60,122,0.45)",
-                                    color: "rgba(31,60,122,0.9)",
-                                    backgroundColor: "rgba(245,248,255,0.92)",
-                                    "&:hover": {
-                                      borderColor: "rgba(31,60,122,0.85)",
-                                      backgroundColor: "rgba(236,243,255,0.96)",
-                                      boxShadow:
-                                        "0 18px 36px -18px rgba(31,60,122,0.35)",
-                                    },
-                                    "&.Mui-disabled": {
-                                      opacity: 0.55,
-                                      boxShadow: "none",
-                                    },
-                                  },
-                                ]}
-                              >
-                                {showActionLabels ? (
-                                  <Typography
-                                    component="span"
-                                    className="button-label"
-                                  ></Typography>
-                                ) : null}
-                              </Button>
-                            </Box>
-                          </Tooltip>
-                          <Tooltip title="Descargar Excel" disableInteractive>
-                            <Box
-                              component="span"
-                              sx={{ display: "inline-flex" }}
-                            >
-                              <Button
-                                variant="outlined"
-                                startIcon={
-                                  exporting ? (
-                                    <CircularProgress
-                                      size={18}
-                                      color="inherit"
-                                    />
-                                  ) : (
-                                    <DownloadIcon />
-                                  )
-                                }
-                                onClick={handleDownloadExcel}
-                                disabled={!dataReady || exporting}
-                                aria-label="Descargar catálogo"
-                                sx={[
-                                  iconActionBaseStyles,
-                                  showActionLabels
-                                    ? {
-                                        "& .button-label": {
-                                          display: "inline",
-                                        },
-                                      }
-                                    : {
-                                        minWidth: 44,
-                                        px: 0,
-                                        gap: 0,
-                                        "& .MuiButton-startIcon": {
-                                          mr: 0,
-                                        },
-                                      },
-                                  {
-                                    px: showActionLabels
-                                      ? { xs: 2.6, sm: 0 }
-                                      : 0,
-                                    gap: showActionLabels
-                                      ? { xs: 1, sm: 0 }
-                                      : 0,
-                                    "& .MuiButton-startIcon": {
-                                      mr: showActionLabels
-                                        ? { xs: 1, sm: 0 }
-                                        : 0,
-                                    },
-                                    borderColor: "rgba(31,60,122,0.45)",
-                                    color: "rgba(31,60,122,0.9)",
-                                    backgroundColor: "rgba(245,248,255,0.92)",
-                                    "&:hover": {
-                                      borderColor: "rgba(31,60,122,0.85)",
-                                      backgroundColor: "rgba(236,243,255,0.96)",
-                                      boxShadow:
-                                        "0 18px 36px -18px rgba(31,60,122,0.35)",
-                                    },
-                                    "&.Mui-disabled": {
-                                      opacity: 0.55,
-                                      boxShadow: "none",
-                                    },
-                                  },
-                                ]}
-                              >
-                                {showActionLabels ? (
-                                  <Typography
-                                    component="span"
-                                    className="button-label"
-                                  ></Typography>
-                                ) : null}
-                              </Button>
-                            </Box>
-                          </Tooltip>
-                          <Tooltip title="Nueva canción" disableInteractive>
-                            <Box
-                              component="span"
-                              sx={{ display: "inline-flex" }}
-                            >
-                              <Button
-                                variant="contained"
-                                startIcon={<AddCircleIcon />}
-                                onClick={openCreateForm}
-                                disabled={!dataReady}
-                                aria-label="Nueva canción"
                                 sx={{
-                                  ...iconActionBaseStyles,
-                                  display: { xs: "none", sm: "inline-flex" },
-                                  px: { xs: 2.6, sm: 0 },
-                                  background:
-                                    "linear-gradient(135deg, rgba(31,60,122,0.95) 0%, rgba(63,142,252,0.92) 55%, rgba(99,213,245,0.94) 100%)",
-                                  border: "1px solid rgba(118,181,255,0.5)",
-                                  boxShadow:
-                                    "0 22px 44px -20px rgba(46,124,227,0.5)",
+                                  border: "1px solid",
+                                  borderColor: "divider",
+                                  color: "text.primary",
+                                  backgroundColor: "background.paper",
+                                  borderRadius: 0,
                                   "&:hover": {
-                                    background:
-                                      "linear-gradient(135deg, rgba(35,66,126,0.98) 0%, rgba(78,151,255,0.96) 55%, rgba(112,219,250,0.96) 100%)",
-                                    boxShadow:
-                                      "0 26px 52px -20px rgba(46,124,227,0.58)",
+                                    borderColor: "rgba(100,116,139,0.55)",
+                                    backgroundColor: "#f8fafc",
                                   },
                                   "&.Mui-disabled": {
-                                    backgroundColor: "rgba(191,209,255,0.4)",
-                                    boxShadow: "none",
-                                    borderColor: "rgba(118,181,255,0.2)",
+                                    opacity: 0.5,
                                   },
                                 }}
                               >
-                                <Typography
-                                  component="span"
-                                  className="button-label"
-                                >
-                                  Nueva canción
-                                </Typography>
-                              </Button>
+                                <RefreshIcon fontSize="small" />
+                              </IconButton>
                             </Box>
                           </Tooltip>
+                          <Tooltip title="Opciones" disableInteractive>
+                            <Box
+                              component="span"
+                              sx={{ display: "inline-flex" }}
+                            >
+                              <IconButton
+                                aria-label="Opciones de catalogo"
+                                onClick={handleActionsOpen}
+                                disabled={!dataReady}
+                                sx={{
+                                  border: "1px solid",
+                                  borderColor: "divider",
+                                  color: "text.primary",
+                                  backgroundColor: "background.paper",
+                                  borderRadius: 0,
+                                }}
+                              >
+                                <MoreVertIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          </Tooltip>
+                          <Menu
+                            anchorEl={actionsAnchorEl}
+                            open={Boolean(actionsAnchorEl)}
+                            onClose={handleActionsClose}
+                          >
+                            <MenuItem
+                              onClick={() => {
+                                handleActionsClose();
+                                handleImportButtonClick();
+                              }}
+                              disabled={!dataReady || importing}
+                            >
+                              <ListItemIcon>
+                                {importing ? (
+                                  <CircularProgress size={16} />
+                                ) : (
+                                  <UploadFileIcon fontSize="small" />
+                                )}
+                              </ListItemIcon>
+                              <ListItemText>Importar Excel</ListItemText>
+                            </MenuItem>
+                            <MenuItem
+                              onClick={() => {
+                                handleActionsClose();
+                                void handleDownloadExcel();
+                              }}
+                              disabled={!dataReady || exporting}
+                            >
+                              <ListItemIcon>
+                                {exporting ? (
+                                  <CircularProgress size={16} />
+                                ) : (
+                                  <DownloadIcon fontSize="small" />
+                                )}
+                              </ListItemIcon>
+                              <ListItemText>Descargar Excel</ListItemText>
+                            </MenuItem>
+                          </Menu>
+                          </Stack>
+                        </Stack>
+
+                        <Stack
+                          direction={{ xs: "column", md: "row" }}
+                          spacing={2}
+                          alignItems={{ xs: "stretch", md: "center" }}
+                        >
+                          <TextField
+                            label="Filtrar por año"
+                            type="number"
+                            value={yearInput}
+                            onChange={handleYearInputChange}
+                            placeholder="Ej: 1994"
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{ min: 0 }}
+                            sx={{
+                              width: { xs: "100%", md: "auto" },
+                              maxWidth: { md: 220 },
+                            }}
+                            disabled={!dataReady}
+                            size="small"
+                          />
+                          <TextField
+                            select
+                            label="Ordenar por"
+                            value={sortOption}
+                            onChange={(event) =>
+                              handleSortOptionChange(
+                                event.target.value as SortOption
+                              )
+                            }
+                            sx={{
+                              width: { xs: "100%", md: "auto" },
+                              minWidth: { md: 220 },
+                            }}
+                            disabled={!dataReady}
+                            size="small"
+                          >
+                            {SORT_OPTIONS.map((option) => (
+                              <MenuItem key={option.value} value={option.value}>
+                                {option.label}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                          <Button
+                            variant="outlined"
+                            onClick={handleClearFilters}
+                            disabled={!filtersActive || !dataReady}
+                            fullWidth={isSmallScreen}
+                            sx={{
+                              alignSelf: { xs: "stretch", md: "flex-start" },
+                            }}
+                          >
+                            Limpiar filtros
+                          </Button>
                         </Stack>
                       </Stack>
+                    </Paper>
 
-                      <Stack
-                        direction={{ xs: "column", md: "row" }}
-                        spacing={2}
-                        alignItems={{ xs: "stretch", md: "center" }}
-                      >
-                        <TextField
-                          label="Filtrar por año"
-                          type="number"
-                          value={yearInput}
-                          onChange={handleYearInputChange}
-                          placeholder="Ej: 1994"
-                          InputLabelProps={{ shrink: true }}
-                          inputProps={{ min: 0 }}
-                          sx={{
-                            width: { xs: "100%", md: "auto" },
-                            maxWidth: { md: 220 },
-                          }}
-                          disabled={!dataReady}
-                        />
-                        <TextField
-                          select
-                          label="Ordenar por"
-                          value={sortOption}
-                          onChange={(event) =>
-                            handleSortOptionChange(
-                              event.target.value as SortOption
-                            )
-                          }
-                          sx={{
-                            width: { xs: "100%", md: "auto" },
-                            minWidth: { md: 220 },
-                          }}
-                          disabled={!dataReady}
-                        >
-                          {SORT_OPTIONS.map((option) => (
-                            <MenuItem key={option.value} value={option.value}>
-                              {option.label}
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                        <Button
-                          variant="outlined"
-                          onClick={handleClearFilters}
-                          disabled={!filtersActive || !dataReady}
-                          fullWidth={isSmallScreen}
-                          sx={{
-                            alignSelf: { xs: "stretch", md: "flex-start" },
-                          }}
-                        >
-                          Limpiar filtros
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  </Box>
-
-                  <Divider sx={{ borderColor: "rgba(31,60,122,0.1)" }} />
-
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      overflow: "hidden",
-                      borderRadius: { xs: 4, md: 3 },
-                      backgroundColor: {
-                        xs: "rgba(255,255,255,0.08)",
-                        md: "rgba(255,255,255,0.65)",
-                      },
-                      border: {
-                        xs: "1px solid rgba(255,255,255,0.16)",
-                        md: "1px solid rgba(31,60,122,0.08)",
-                      },
-                      backdropFilter: { xs: "blur(20px)", md: "none" },
-                      boxShadow: {
-                        xs: "0 24px 52px -36px rgba(31,60,122,0.55)",
-                        md: "0 20px 45px -40px rgba(31,60,122,0.4)",
-                      },
-                    }}
-                  >
-                    <Box
+                    <Paper
+                      elevation={0}
                       sx={{
-                        display: { xs: "flex", md: "none" },
-                        flexDirection: "column",
-                        gap: 2,
-                        py: 1,
+                        overflow: "hidden",
+                        borderRadius: { xs: 0, md: 0 },
+                        backgroundColor: "background.paper",
+                        border: "1px solid",
+                        borderColor: "divider",
+                        boxShadow: "none",
                       }}
                     >
-                      {renderMobileSongCards()}
-                    </Box>
-                    <TableContainer
-                      sx={{ display: { xs: "none", md: "block" } }}
-                    >
-                      <Table
-                        size="medium"
+                      <Box
                         sx={{
-                          "& th": {
-                            textTransform: "uppercase",
-                            letterSpacing: 1,
-                            fontWeight: 700,
-                            fontSize: 12,
-                            color: "rgba(31,60,122,0.75)",
-                          },
-                          "& tbody td": {
-                            fontWeight: 500,
-                            color: "rgba(15,23,42,0.82)",
-                          },
+                          display: { xs: "flex", md: "none" },
+                          flexDirection: "column",
+                          gap: 2,
+                          py: 1,
                         }}
                       >
-                        <TableHead
+                        {renderMobileSongCards()}
+                      </Box>
+                      <TableContainer
+                        sx={{ display: { xs: "none", md: "block" } }}
+                      >
+                        <Table
+                          size="medium"
                           sx={{
-                            background:
-                              "linear-gradient(135deg, rgba(31,60,122,0.08) 0%, rgba(99,213,245,0.12) 100%)",
+                            "& th": {
+                              textTransform: "none",
+                              letterSpacing: 0.2,
+                              fontWeight: 600,
+                              fontSize: 12,
+                              color: "text.secondary",
+                            },
+                            "& tbody td": {
+                              fontWeight: 500,
+                            },
                           }}
                         >
-                          <TableRow>
-                            <TableCell>ID</TableCell>
-                            <TableCell>Artista</TableCell>
-                            <TableCell>Canción</TableCell>
-                            <TableCell>Año</TableCell>
-                            <TableCell align="center">Español</TableCell>
-                            <TableCell>Enlace</TableCell>
-                            <TableCell align="right">Acciones</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>{renderTableBody()}</TableBody>
-                      </Table>
-                    </TableContainer>
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>ID</TableCell>
+                              <TableCell>Artista</TableCell>
+                              <TableCell>Canción</TableCell>
+                              <TableCell>Año</TableCell>
+                              <TableCell align="center">Español</TableCell>
+                        <TableCell align="right">Acciones</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>{renderTableBody()}</TableBody>
+                        </Table>
+                      </TableContainer>
                     <TablePagination
                       component="div"
                       count={total}
                       page={page}
                       rowsPerPage={rowsPerPage}
                       onPageChange={handleChangePage}
-                      onRowsPerPageChange={handleChangeRowsPerPage}
-                      rowsPerPageOptions={PAGE_SIZE_OPTIONS}
-                      labelRowsPerPage="Registros por página"
-                      labelDisplayedRows={({ from, to, count }) =>
-                        `${from}-${to} de ${
-                          count !== -1 ? count : `más de ${to}`
-                        }`
-                      }
-                      disabled={!dataReady}
-                      sx={{
-                        display: { xs: "flex", md: "block" },
-                        flexDirection: { xs: "column", md: "row" },
-                        alignItems: { xs: "stretch", md: "center" },
-                        gap: { xs: 1, md: 0 },
-                        px: { xs: 1, md: 0 },
-                        backgroundColor: {
-                          xs: "rgba(255,255,255,0.12)",
-                          md: "transparent",
-                        },
-                        backdropFilter: { xs: "blur(12px)", md: "none" },
-                        borderTop: {
-                          xs: "1px solid rgba(255,255,255,0.18)",
-                          md: "1px solid rgba(31,60,122,0.08)",
-                        },
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        rowsPerPageOptions={PAGE_SIZE_OPTIONS}
+                        labelRowsPerPage="Registros por página"
+                        labelDisplayedRows={({ from, to, count }) =>
+                          `${from}-${to} de ${
+                            count !== -1 ? count : `más de ${to}`
+                          }`
+                        }
+                        disabled={!dataReady}
+                        sx={{
+                          display: { xs: "flex", md: "block" },
+                          flexDirection: { xs: "column", md: "row" },
+                          alignItems: { xs: "stretch", md: "center" },
+                          gap: { xs: 1, md: 0 },
+                          px: { xs: 1, md: 0 },
+                          backgroundColor: {
+                            xs: "#f8fafc",
+                            md: "transparent",
+                          },
+                        borderTop: "1px solid",
+                        borderColor: "divider",
                       }}
                     />
+                    <Menu
+                      anchorEl={songMenuAnchorEl}
+                      open={Boolean(songMenuAnchorEl)}
+                      onClose={handleSongMenuClose}
+                    >
+                      <MenuItem
+                        onClick={handleSongMenuOpenLink}
+                        disabled={!songMenuSong?.youtube_url}
+                      >
+                        <ListItemIcon>
+                          <InfoOutlinedIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Abrir enlace</ListItemText>
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          if (songMenuSong) {
+                            openEditForm(songMenuSong);
+                          }
+                          handleSongMenuClose();
+                        }}
+                        disabled={!songMenuSong}
+                      >
+                        <ListItemIcon>
+                          <EditIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Editar</ListItemText>
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          if (songMenuSong) {
+                            requestDelete(songMenuSong);
+                          }
+                          handleSongMenuClose();
+                        }}
+                        disabled={!songMenuSong}
+                      >
+                        <ListItemIcon>
+                          <DeleteIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Eliminar</ListItemText>
+                      </MenuItem>
+                    </Menu>
                   </Paper>
                 </>
               ) : activeTab === "stats" ? (
-                <>
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    alignItems={{ xs: "stretch", sm: "center" }}
-                    justifyContent="flex-end"
-                    spacing={1.5}
-                  >
-                    <Button
-                      variant="outlined"
-                      startIcon={<RefreshIcon />}
-                      onClick={handleRefresh}
-                      disabled={statsLoading || !dataReady}
-                      sx={{
-                        alignSelf: { xs: "stretch", sm: "flex-end" },
-                        fontWeight: 600,
-                        borderColor: "rgba(31,60,122,0.65)",
-                        color: "rgba(15,23,42,0.92)",
-                        backgroundColor: "rgba(248,250,255,0.92)",
-                        "&:hover": {
-                          borderColor: "rgba(31,60,122,0.95)",
-                          backgroundColor: "rgba(236,243,255,0.96)",
-                          color: "rgba(15,23,42,0.98)",
-                        },
-                      }}
+                  <>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      alignItems={{ xs: "stretch", sm: "center" }}
+                      justifyContent="space-between"
+                      spacing={1.5}
                     >
-                      Actualizar estadísticas
-                    </Button>
-                  </Stack>
-                  <SongStatisticsView
-                    loading={statsLoading}
-                    error={statsError}
-                    stats={statistics}
-                  />
-                </>
-              ) : (
-                <AdminUsersPanel isSuperAdmin={isSuperAdmin} />
-              )}
-            </Stack>
-          </Paper>
+                      <Typography variant="body2" color="text.secondary">
+                        Indicadores clave del catalogo.
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        startIcon={<RefreshIcon />}
+                        onClick={handleRefresh}
+                        disabled={statsLoading || !dataReady}
+                        sx={{
+                          alignSelf: { xs: "stretch", sm: "flex-end" },
+                          fontWeight: 600,
+                        }}
+                      >
+                        Actualizar estadísticas
+                      </Button>
+                    </Stack>
+                    <SongStatisticsView
+                      loading={statsLoading}
+                      error={statsError}
+                      stats={statistics}
+                    />
+                  </>
+                ) : (
+                  <AdminUsersPanel isSuperAdmin={isSuperAdmin} />
+                )}
+              </Stack>
+            </Paper>
+          </Box>
         </Container>
       </Box>
 
-      <Zoom in={isSmallScreen && activeTab === "songs"} unmountOnExit>
+      <Zoom in={activeTab === "songs"} unmountOnExit>
         <Fab
           color="primary"
           onClick={openCreateForm}
@@ -1859,13 +1994,10 @@ export default function AdminDashboard({
             bottom: { xs: 88, sm: 32 },
             right: { xs: 24, sm: 32 },
             zIndex: 1300,
-            background:
-              "linear-gradient(135deg, #1f3c7a 0%, #497bff 55%, #63d5f5 100%)",
-            boxShadow: "0 26px 48px rgba(49,97,209,0.45)",
+            backgroundColor: "text.primary",
+            borderRadius: "50%",
             "&:hover": {
-              background:
-                "linear-gradient(135deg, #23468f 0%, #3b6bff 55%, #4fc8f0 100%)",
-              boxShadow: "0 30px 54px rgba(49,97,209,0.55)",
+              backgroundColor: "#0f172a",
             },
           }}
         >
@@ -1887,7 +2019,7 @@ export default function AdminDashboard({
         onClose={cancelDelete}
         fullScreen={isSmallScreen}
       >
-        <DialogTitle>Eliminar canción</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 600 }}>Eliminar canción</DialogTitle>
         <DialogContent>
           <Typography>
             ¿Seguro que deseas eliminar el registro
@@ -1898,7 +2030,7 @@ export default function AdminDashboard({
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={cancelDelete} disabled={deleteLoading}>
+          <Button onClick={cancelDelete} disabled={deleteLoading} variant="outlined">
             Cancelar
           </Button>
           <Button

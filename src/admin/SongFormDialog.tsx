@@ -139,7 +139,7 @@ export default function SongFormDialog({
         onSubmit: handleSubmit,
         sx: {
           m: 0,
-          borderRadius: fullScreen ? 0 : 2,
+          borderRadius: 0,
         },
       }}
     >

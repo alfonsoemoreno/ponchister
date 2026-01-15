@@ -61,12 +61,13 @@ export default function AdminAccessDialog({
       maxWidth="xs"
       PaperProps={{ component: "form", onSubmit: handleSubmit }}
     >
-      <DialogTitle>Acceso administrativo</DialogTitle>
-      <DialogContent dividers>
+      <DialogTitle sx={{ fontWeight: 600, pb: 1 }}>
+        Acceso administrativo
+      </DialogTitle>
+      <DialogContent dividers sx={{ backgroundColor: "background.paper" }}>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <Typography variant="body2" color="text.secondary">
-            Ingresa tus credenciales para administrar la base de datos de
-            canciones.
+            Ingresa tus credenciales para gestionar el catálogo de canciones.
           </Typography>
           <TextField
             label="Correo"
@@ -76,6 +77,7 @@ export default function AdminAccessDialog({
             onChange={handleChange("email")}
             disabled={loading}
             required
+            size="small"
           />
           <TextField
             label="Contraseña"
@@ -85,6 +87,7 @@ export default function AdminAccessDialog({
             onChange={handleChange("password")}
             disabled={loading}
             required
+            size="small"
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -106,8 +109,8 @@ export default function AdminAccessDialog({
           </Typography>
         </Stack>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={loading}>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose} disabled={loading} variant="outlined">
           Cancelar
         </Button>
         <Button type="submit" variant="contained" disabled={loading}>

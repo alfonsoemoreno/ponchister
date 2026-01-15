@@ -1,6 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@700&display=swap");
 /* Importar fuente Poppins para todo el proyecto */
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap");
 /* Importar fuente Lilita One para el h1 principal */
 @import url("https://fonts.googleapis.com/css2?family=Lilita+One&display=swap");
 
@@ -414,37 +415,38 @@ button:focus-visible {
   height: 100%;
   overflow: hidden;
   z-index: -4;
-  background: linear-gradient(
-    145deg,
-    rgb(10, 18, 36) 0%,
-    rgba(15, 23, 42, 0.96) 12%,
-    rgba(23, 42, 94, 0.95) 40%,
-    rgba(51, 88, 208, 0.9) 72%,
-    rgba(99, 213, 245, 0.88) 100%
-  );
+  background: radial-gradient(
+      circle at 20% 10%,
+      rgba(148, 163, 184, 0.18) 0%,
+      transparent 48%
+    ),
+    radial-gradient(
+      circle at 80% 20%,
+      rgba(100, 116, 139, 0.16) 0%,
+      transparent 52%
+    ),
+    linear-gradient(180deg, #f8fafc 0%, #eef2f7 60%, #e7ecf3 100%);
 }
 
 .admin-ocean-background::after {
   content: "";
   position: absolute;
   inset: -20% -40% 0 -40%;
-  background: radial-gradient(
-      circle at 15% 20%,
-      rgba(79, 139, 255, 0.38) 0%,
-      transparent 42%
+  background: repeating-linear-gradient(
+      90deg,
+      rgba(148, 163, 184, 0.08) 0,
+      rgba(148, 163, 184, 0.08) 1px,
+      transparent 1px,
+      transparent 140px
     ),
-    radial-gradient(
-      circle at 85% 15%,
-      rgba(110, 67, 255, 0.28) 0%,
-      transparent 45%
-    ),
-    radial-gradient(
-      circle at 45% 82%,
-      rgba(74, 223, 255, 0.26) 0%,
-      transparent 50%
+    repeating-linear-gradient(
+      0deg,
+      rgba(148, 163, 184, 0.08) 0,
+      rgba(148, 163, 184, 0.08) 1px,
+      transparent 1px,
+      transparent 140px
     );
-  filter: blur(18px);
-  opacity: 0.9;
+  opacity: 0.55;
   pointer-events: none;
 }
 
@@ -452,13 +454,35 @@ button:focus-visible {
   position: fixed;
   inset: 0;
   z-index: -3;
-  backdrop-filter: blur(28px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(120%);
   background: linear-gradient(
     180deg,
-    rgba(12, 20, 40, 0.25) 0%,
-    rgba(12, 20, 40, 0.65) 65%,
-    rgba(15, 23, 42, 0.92) 100%
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(236, 242, 249, 0.6) 65%,
+    rgba(232, 238, 246, 0.8) 100%
   );
+}
+
+@keyframes admin-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes admin-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .admin-neon-lines {

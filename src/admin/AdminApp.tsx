@@ -13,7 +13,7 @@ import AdminDashboard from "./AdminDashboard";
 import AdminAccessDialog from "./AdminAccessDialog";
 import { loginAdmin, logoutAdmin } from "./services/adminAuth";
 import { useAdminSession } from "./hooks/useAdminSession";
-import ponchocardsTheme from "../theme";
+import adminTheme from "./adminTheme";
 
 interface AdminAppProps {
   onExit: () => void;
@@ -85,34 +85,37 @@ function AdminAppContent({ onExit }: AdminAppProps) {
         overflowY: "auto",
       }}
     >
-      <Box
-        sx={{
-          position: "fixed",
-          top: { xs: 12, sm: 16 },
-          right: { xs: 12, sm: 16 },
-          zIndex: 2100,
-          display: "flex",
-          gap: 1.5,
-        }}
-      >
-        <Button
-          variant="outlined"
-          color="inherit"
-          onClick={onExit}
+      {!user ? (
+        <Box
           sx={{
-            minWidth: { xs: 120, sm: 150 },
-            fontWeight: 700,
-            borderColor: alpha("#ffffff", 0.35),
-            color: "#fff",
-            "&:hover": {
-              borderColor: alpha("#ffffff", 0.6),
-              backgroundColor: alpha("#ffffff", 0.08),
-            },
+            position: "fixed",
+            top: { xs: 12, sm: 16 },
+            right: { xs: 12, sm: 16 },
+            zIndex: 2100,
+            display: "flex",
+            gap: 1.5,
           }}
         >
-          Volver
-        </Button>
-      </Box>
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={onExit}
+            sx={{
+              minWidth: { xs: 120, sm: 150 },
+              fontWeight: 600,
+              borderColor: alpha("#111827", 0.25),
+              color: "#111827",
+              backgroundColor: alpha("#ffffff", 0.75),
+              "&:hover": {
+                borderColor: alpha("#111827", 0.45),
+                backgroundColor: alpha("#ffffff", 0.95),
+              },
+            }}
+          >
+            Volver
+          </Button>
+        </Box>
+      ) : null}
 
       {authLoading ? (
         <Fade in timeout={250} appear>
@@ -123,11 +126,11 @@ function AdminAppContent({ onExit }: AdminAppProps) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: "rgba(0,0,0,0.35)",
+              backgroundColor: "rgba(248,250,252,0.65)",
               zIndex: 1200,
             }}
           >
-            <CircularProgress color="inherit" sx={{ color: "#fff" }} />
+            <CircularProgress color="inherit" sx={{ color: "#111827" }} />
           </Box>
         </Fade>
       ) : null}
@@ -169,7 +172,7 @@ function AdminAppContent({ onExit }: AdminAppProps) {
 
 export default function AdminApp({ onExit }: AdminAppProps) {
   return (
-    <ThemeProvider theme={ponchocardsTheme}>
+    <ThemeProvider theme={adminTheme}>
       <AdminAppContent onExit={onExit} />
     </ThemeProvider>
   );

@@ -10,6 +10,7 @@ import {
   Divider,
   IconButton,
   MenuItem,
+  Paper,
   Stack,
   Switch,
   Table,
@@ -20,6 +21,8 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -52,6 +55,8 @@ interface AdminUsersPanelProps {
 }
 
 export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,7 +178,7 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
         alignItems={{ xs: "flex-start", sm: "center" }}
       >
         <Stack spacing={0.5}>
-          <Typography variant="h5" fontWeight={700}>
+          <Typography variant="h6" fontWeight={600}>
             Usuarios administradores
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -205,70 +210,147 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
 
       <Divider />
 
-      <Box sx={{ overflowX: "auto" }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Email</TableCell>
-              <TableCell>Rol</TableCell>
-              <TableCell>Activo</TableCell>
-              <TableCell align="right">Acciones</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 1.5, sm: 2 },
+          borderRadius: 0,
+          border: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        {isMobile ? (
+          <Stack spacing={2}>
             {users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} align="center">
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 0 }}>
+                <Typography variant="body2" color="text.secondary">
                   {loading ? "Cargando..." : "No hay usuarios aún."}
-                </TableCell>
-              </TableRow>
+                </Typography>
+              </Paper>
             ) : (
               users.map((user) => (
-                <TableRow key={user.id} hover>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    {user.role === "superadmin" ? "Superadmin" : "Editor"}
-                  </TableCell>
-                  <TableCell>
-                    <Switch checked={user.active} disabled />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      justifyContent="flex-end"
-                    >
-                      <Tooltip title="Editar">
-                        <span>
-                          <IconButton
-                            onClick={() => handleOpenEdit(user)}
-                            color="inherit"
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                      <Tooltip title="Eliminar">
-                        <span>
-                          <IconButton
-                            onClick={() => setDeleteTarget(user)}
-                            color="inherit"
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
+                <Paper
+                  key={user.id}
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    borderRadius: 0,
+                    border: "1px solid",
+                    borderColor: "divider",
+                  }}
+                >
+                  <Stack spacing={1.5}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Email
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        {user.email}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Rol
+                        </Typography>
+                        <Typography variant="body2">
+                          {user.role === "superadmin" ? "Superadmin" : "Editor"}
+                        </Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Activo
+                        </Typography>
+                        <Switch checked={user.active} disabled />
+                      </Box>
                     </Stack>
-                  </TableCell>
-                </TableRow>
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Button
+                        variant="outlined"
+                        onClick={() => handleOpenEdit(user)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="error"
+                        onClick={() => setDeleteTarget(user)}
+                      >
+                        Eliminar
+                      </Button>
+                    </Stack>
+                  </Stack>
+                </Paper>
               ))
             )}
-          </TableBody>
-        </Table>
-      </Box>
+          </Stack>
+        ) : (
+          <Box sx={{ overflowX: "auto" }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Rol</TableCell>
+                  <TableCell>Activo</TableCell>
+                  <TableCell align="right">Acciones</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      {loading ? "Cargando..." : "No hay usuarios aún."}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id} hover>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        {user.role === "superadmin" ? "Superadmin" : "Editor"}
+                      </TableCell>
+                      <TableCell>
+                        <Switch checked={user.active} disabled />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          justifyContent="flex-end"
+                        >
+                          <Tooltip title="Editar">
+                            <span>
+                              <IconButton
+                                onClick={() => handleOpenEdit(user)}
+                                color="inherit"
+                              >
+                                <EditIcon />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title="Eliminar">
+                            <span>
+                              <IconButton
+                                onClick={() => setDeleteTarget(user)}
+                                color="inherit"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </Box>
+        )}
+      </Paper>
 
       <Dialog open={dialogOpen} onClose={handleCloseDialog} fullWidth maxWidth="sm">
-        <DialogTitle>
+        <DialogTitle sx={{ fontWeight: 600 }}>
           {editing ? "Editar usuario" : "Crear usuario"}
         </DialogTitle>
         <DialogContent dividers>
@@ -279,6 +361,7 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
               onChange={handleFormChange("email")}
               disabled={Boolean(editing)}
               fullWidth
+              size="small"
             />
             <TextField
               label={editing ? "Nueva contraseña (opcional)" : "Contraseña"}
@@ -286,12 +369,14 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
               value={form.password}
               onChange={handleFormChange("password")}
               fullWidth
+              size="small"
             />
             <TextField
               select
               label="Rol"
               value={form.role}
               onChange={handleFormChange("role")}
+              size="small"
             >
               <MenuItem value="superadmin">Superadmin</MenuItem>
               <MenuItem value="editor">Editor</MenuItem>
@@ -308,7 +393,7 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog} disabled={saving}>
+          <Button onClick={handleCloseDialog} disabled={saving} variant="outlined">
             Cancelar
           </Button>
           <Button
@@ -325,7 +410,7 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
         open={Boolean(deleteTarget)}
         onClose={() => (deleteLoading ? undefined : setDeleteTarget(null))}
       >
-        <DialogTitle>Eliminar usuario</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 600 }}>Eliminar usuario</DialogTitle>
         <DialogContent dividers>
           <Typography variant="body2">
             ¿Seguro que deseas eliminar el acceso de{" "}
@@ -334,7 +419,11 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleteLoading}>
+          <Button
+            onClick={() => setDeleteTarget(null)}
+            disabled={deleteLoading}
+            variant="outlined"
+          >
             Cancelar
           </Button>
           <Button

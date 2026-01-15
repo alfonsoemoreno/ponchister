@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { songs } from "../../src/db/schema.ts";
+import { songs } from "../../../src/db/schema.ts";
 import { db } from "../_db.ts";
 import { requireAdmin } from "../_admin";
 

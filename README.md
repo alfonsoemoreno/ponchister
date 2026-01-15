@@ -16,7 +16,7 @@
 
 ## Visión general
 
-Ponchister es una PWA construida con React, TypeScript y Vite. Ofrece una experiencia inmersiva optimizada para móviles y reproduce canciones de YouTube en modo automático. El catálogo y la administración viven en el mismo proyecto, con un backend propio sobre Neon y funciones serverless en Vercel.
+Ponchister es una PWA construida con Next.js 16, React y TypeScript. Ofrece una experiencia inmersiva optimizada para móviles y reproduce canciones de YouTube en modo automático. El catálogo y la administración viven en el mismo proyecto, con un backend propio sobre Neon y rutas API de Next.
 
 ## Características principales
 
@@ -24,21 +24,22 @@ Ponchister es una PWA construida con React, TypeScript y Vite. Ofrece una experi
 - **Panel administrativo**: login propio, gestión de canciones y estadísticas.
 - **Usuarios administradores**: roles `superadmin` y `editor`.
 - **Generador de tarjetas**: integrado para crear PDFs y plantillas.
-- **Preparado para PWA**: `manifest.json`, `vite-plugin-pwa` y assets maskable.
+- **Preparado para PWA**: `manifest.json`, `next-pwa` y assets maskable.
 
 ## Pila tecnológica
 
-- **Framework**: React 19 + Vite 7.
+- **Framework**: Next.js 16 + React 19.
 - **Lenguaje**: TypeScript 5.
 - **UI**: MUI 7 + estilos personalizados.
-- **Backend**: Neon Postgres + Drizzle ORM + Vercel Functions.
+- **Backend**: Neon Postgres + Drizzle ORM + API Routes de Next.
 - **Reproductor**: `react-youtube`.
 
 ## Estructura del proyecto
 
 ```text
 ponchister/
-├─ api/                        # Endpoints serverless (Vercel)
+├─ app/                        # App Router (Next)
+├─ pages/api/                  # API Routes
 ├─ public/
 ├─ scripts/                    # Setup DB + crear admin
 ├─ src/
@@ -49,8 +50,7 @@ ponchister/
 │  ├─ App.tsx
 │  └─ AutoGame.tsx
 ├─ README.md
-├─ vite.config.ts
-└─ tsconfig*.json
+└─ tsconfig.json
 ```
 
 ## Primeros pasos
@@ -94,11 +94,9 @@ ADMIN_EMAIL="tu@email" ADMIN_PASSWORD="tu-password" npm run admin:create
 
 ## Comandos habituales
 
-- `npm run dev` – levanta API (Vercel) + frontend con proxy.
-- `npm run dev:api` – solo API en `http://127.0.0.1:3001`.
-- `npm run dev:web` – solo frontend en `http://127.0.0.1:5173`.
-- `npm run build` – compila TypeScript y genera `dist/`.
-- `npm run preview` – sirve el build local.
+- `npm run dev` – levanta Next en modo desarrollo.
+- `npm run build` – genera el build de producción.
+- `npm run start` – sirve el build local.
 - `npm run lint` – ejecuta ESLint.
 
 ## Despliegue

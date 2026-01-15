@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import bcrypt from "bcryptjs";
 import { desc, eq } from "drizzle-orm";
-import { adminUsers } from "../../src/db/schema.ts";
+import { adminUsers } from "../../../src/db/schema.ts";
 import { db } from "../_db.ts";
 import { requireAdmin } from "../_admin";
 

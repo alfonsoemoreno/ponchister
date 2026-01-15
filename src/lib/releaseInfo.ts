@@ -1,5 +1,5 @@
-import changelogRaw from "../assets/changelog.md?raw";
-import packageJson from "../../package.json" assert { type: "json" };
+import { changelogRaw } from "../assets/changelog";
+import packageJson from "../../package.json";
 
 type PackageJson = {
   version?: string;

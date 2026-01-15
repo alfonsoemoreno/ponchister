@@ -1,21 +1,15 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { asc } from "drizzle-orm";
-import { songs } from "../../src/db/schema.ts";
-import { db } from "../_db.ts";
+import { songs } from "../../../../src/db/schema.ts";
+import { db } from "../../_db.ts";
+import { requireAdmin } from "../../_admin";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
+  const user = await requireAdmin(req, res);
+  if (!user) return;
+
   if (req.method !== "GET") {
     res.statusCode = 405;
     res.end("Método no permitido.");
-    return;
-  }
-
-  const url = new URL(req.url ?? "", "http://localhost");
-  const offset = Number(url.searchParams.get("offset") ?? "");
-
-  if (!Number.isFinite(offset) || offset < 0) {
-    res.statusCode = 400;
-    res.end("Offset inválido.");
     return;
   }
 
@@ -29,10 +23,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       isspanish: songs.isSpanish,
     })
     .from(songs)
-    .orderBy(asc(songs.id))
-    .limit(1)
-    .offset(offset);
+    .orderBy(songs.id);
 
   res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(rows[0] ?? null));
+  res.end(JSON.stringify(rows));
 }

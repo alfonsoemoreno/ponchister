@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import * as schema from "../src/db/schema.ts";
+import * as schema from "../../src/db/schema.ts";
 
 dotenv.config({ path: ".env.local", quiet: true });
 

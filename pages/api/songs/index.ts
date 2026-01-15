@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { and, asc, eq, gte, lte } from "drizzle-orm";
-import { songs } from "../src/db/schema.ts";
-import { db } from "./_db.ts";
+import { songs } from "../../../src/db/schema.ts";
+import { db } from "../_db.ts";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   if (req.method !== "GET") {

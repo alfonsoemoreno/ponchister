@@ -112,7 +112,7 @@ export default function AdminDashboard({
   userEmail,
   userRole,
 }: AdminDashboardProps) {
-  const supabaseConfigured = true;
+  const dataReady = true;
   const [songs, setSongs] = useState<Song[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -326,10 +326,6 @@ export default function AdminDashboard({
     let cancelled = false;
 
     const run = async () => {
-      if (!supabaseConfigured) {
-        return;
-      }
-
       setLoading(true);
       setError(null);
 
@@ -378,11 +374,11 @@ export default function AdminDashboard({
     sortConfig,
     yearFilter,
     reloadToken,
-    supabaseConfigured,
+    dataReady,
   ]);
 
   useEffect(() => {
-    if (activeTab !== "stats" || !supabaseConfigured) {
+    if (activeTab !== "stats") {
       return;
     }
 
@@ -419,7 +415,7 @@ export default function AdminDashboard({
     return () => {
       cancelled = true;
     };
-  }, [activeTab, reloadToken, supabaseConfigured]);
+  }, [activeTab, reloadToken]);
 
   const handleChangePage = (_: unknown, newPage: number) => {
     setPage(newPage);
@@ -470,15 +466,6 @@ export default function AdminDashboard({
   };
 
   const handleDownloadExcel = useCallback(async () => {
-    if (!supabaseConfigured) {
-      setFeedback({
-        severity: "error",
-        message: "Configura Supabase antes de exportar el catálogo.",
-      });
-      setSnackbarOpen(true);
-      return;
-    }
-
     if (exporting) {
       return;
     }
@@ -549,7 +536,7 @@ export default function AdminDashboard({
     } finally {
       setExporting(false);
     }
-  }, [exporting, supabaseConfigured]);
+  }, [exporting]);
 
   const handleImportButtonClick = () => {
     fileInputRef.current?.click();
@@ -560,16 +547,6 @@ export default function AdminDashboard({
       const file = event.target.files?.[0];
 
       if (!file) {
-        return;
-      }
-
-      if (!supabaseConfigured) {
-        setFeedback({
-          severity: "error",
-          message: "Configura Supabase antes de importar canciones.",
-        });
-        setSnackbarOpen(true);
-        event.target.value = "";
         return;
       }
 
@@ -709,7 +686,7 @@ export default function AdminDashboard({
         event.target.value = "";
       }
     },
-    [supabaseConfigured]
+    [dataReady]
   );
 
   const openCreateForm = () => {
@@ -800,7 +777,7 @@ export default function AdminDashboard({
   };
 
   const handleToggleSpanish = async (song: Song) => {
-    if (!supabaseConfigured) {
+    if (!dataReady) {
       return;
     }
 
@@ -908,7 +885,7 @@ export default function AdminDashboard({
             color="primary"
             size="small"
             disabled={
-              !supabaseConfigured || languageToggleId === song.id || loading
+              !dataReady || languageToggleId === song.id || loading
             }
             inputProps={{
               "aria-label": `Cambiar estado de idioma para ${song.title}`,
@@ -1143,7 +1120,7 @@ export default function AdminDashboard({
                   onChange={() => handleToggleSpanish(song)}
                   color="default"
                   disabled={
-                    !supabaseConfigured ||
+                    !dataReady ||
                     languageToggleId === song.id ||
                     loading
                   }
@@ -1339,14 +1316,6 @@ export default function AdminDashboard({
                 </Stack>
               </Stack>
 
-              {!supabaseConfigured && (
-                <Alert severity="warning">
-                  Debes definir las variables <code>VITE_SUPABASE_URL</code> y
-                  <code> VITE_SUPABASE_ANON_KEY</code> para conectarte a
-                  Supabase.
-                </Alert>
-              )}
-
               <Tabs
                 value={activeTab}
                 onChange={handleTabChange}
@@ -1363,7 +1332,7 @@ export default function AdminDashboard({
                 <Tab
                   label="Estadísticas"
                   value="stats"
-                  disabled={!supabaseConfigured}
+                  disabled={!dataReady}
                 />
                 {isSuperAdmin ? <Tab label="Usuarios" value="users" /> : null}
               </Tabs>
@@ -1411,7 +1380,7 @@ export default function AdminDashboard({
                             setSearchInput(event.target.value)
                           }
                           fullWidth
-                          disabled={!supabaseConfigured}
+                          disabled={!dataReady}
                         />
                         <Stack
                           direction="row"
@@ -1432,7 +1401,7 @@ export default function AdminDashboard({
                                 variant="outlined"
                                 startIcon={<RefreshIcon />}
                                 onClick={handleRefresh}
-                                disabled={!supabaseConfigured || loading}
+                                disabled={!dataReady || loading}
                                 aria-label="Recargar lista"
                                 sx={[
                                   iconActionBaseStyles,
@@ -1505,7 +1474,7 @@ export default function AdminDashboard({
                                   )
                                 }
                                 onClick={handleImportButtonClick}
-                                disabled={!supabaseConfigured || importing}
+                                disabled={!dataReady || importing}
                                 aria-label="Importar catálogo"
                                 sx={[
                                   iconActionBaseStyles,
@@ -1578,7 +1547,7 @@ export default function AdminDashboard({
                                   )
                                 }
                                 onClick={handleDownloadExcel}
-                                disabled={!supabaseConfigured || exporting}
+                                disabled={!dataReady || exporting}
                                 aria-label="Descargar catálogo"
                                 sx={[
                                   iconActionBaseStyles,
@@ -1642,7 +1611,7 @@ export default function AdminDashboard({
                                 variant="contained"
                                 startIcon={<AddCircleIcon />}
                                 onClick={openCreateForm}
-                                disabled={!supabaseConfigured}
+                                disabled={!dataReady}
                                 aria-label="Nueva canción"
                                 sx={{
                                   ...iconActionBaseStyles,
@@ -1695,7 +1664,7 @@ export default function AdminDashboard({
                             width: { xs: "100%", md: "auto" },
                             maxWidth: { md: 220 },
                           }}
-                          disabled={!supabaseConfigured}
+                          disabled={!dataReady}
                         />
                         <TextField
                           select
@@ -1710,7 +1679,7 @@ export default function AdminDashboard({
                             width: { xs: "100%", md: "auto" },
                             minWidth: { md: 220 },
                           }}
-                          disabled={!supabaseConfigured}
+                          disabled={!dataReady}
                         >
                           {SORT_OPTIONS.map((option) => (
                             <MenuItem key={option.value} value={option.value}>
@@ -1721,7 +1690,7 @@ export default function AdminDashboard({
                         <Button
                           variant="outlined"
                           onClick={handleClearFilters}
-                          disabled={!filtersActive || !supabaseConfigured}
+                          disabled={!filtersActive || !dataReady}
                           fullWidth={isSmallScreen}
                           sx={{
                             alignSelf: { xs: "stretch", md: "flex-start" },
@@ -1817,7 +1786,7 @@ export default function AdminDashboard({
                           count !== -1 ? count : `más de ${to}`
                         }`
                       }
-                      disabled={!supabaseConfigured}
+                      disabled={!dataReady}
                       sx={{
                         display: { xs: "flex", md: "block" },
                         flexDirection: { xs: "column", md: "row" },
@@ -1849,7 +1818,7 @@ export default function AdminDashboard({
                       variant="outlined"
                       startIcon={<RefreshIcon />}
                       onClick={handleRefresh}
-                      disabled={statsLoading || !supabaseConfigured}
+                      disabled={statsLoading || !dataReady}
                       sx={{
                         alignSelf: { xs: "stretch", sm: "flex-end" },
                         fontWeight: 600,

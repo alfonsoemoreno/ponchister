@@ -1,6 +1,6 @@
 # Ponchister
 
-> Juego musical progresivo para reuniones de amigos: escanea códigos QR para reproducir pistas concretas o activa el modo automático para descubrir canciones aleatorias.
+> Experiencia musical para reuniones: configura el rango de canciones y deja que el modo automático haga el resto.
 
 ## Tabla rápida
 
@@ -9,54 +9,47 @@
 - [Pila tecnológica](#pila-tecnológica)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Primeros pasos](#primeros-pasos)
-- [Configuración de Supabase](#configuración-de-supabase)
+- [Configuración de Neon](#configuración-de-neon)
 - [Comandos habituales](#comandos-habituales)
-- [Checklist de calidad](#checklist-de-calidad)
 - [Despliegue](#despliegue)
 - [Resolución de problemas](#resolución-de-problemas)
 
 ## Visión general
 
-Ponchister es una PWA construida con React, TypeScript y Vite. Ofrece una experiencia inmersiva optimizada para móviles, animaciones ligeras y reproducción de canciones alojadas en YouTube. Gestiona el catálogo mediante Supabase y proporciona tres flujos de juego: reproducción dirigida vía códigos QR, modo automático con rotación continua de pistas y un nuevo modo Bingo con ruleta interactiva.
+Ponchister es una PWA construida con React, TypeScript y Vite. Ofrece una experiencia inmersiva optimizada para móviles y reproduce canciones de YouTube en modo automático. El catálogo y la administración viven en el mismo proyecto, con un backend propio sobre Neon y funciones serverless en Vercel.
 
 ## Características principales
 
-- **Triple modalidad**:
-  - **Modo Clásico (QR)**: escanea códigos para reproducir pistas específicas.
-  - **Modo Automático**: rotación continua con controles de reproducción y revelado.
-  - **Modo Bingo**: ruleta interactiva para selección de categorías y soporte para cartones.
-- **Generador de recursos**: enlace directo a `ponchistercards` para crear tarjetas y fichas de juego.
-- **Integración con Supabase**: acceso seguro a la tabla `songs`, cacheo local del conteo y políticas RLS preparadas para producción.
-- **Optimización móvil**: interfaz full-screen, mitigaciones para reducir uso de CPU/GPU y animaciones fluidas incluso en dispositivos modestos.
-- **Componentes reutilizables**: servicios tipados, reproductor centralizado y utilidades compartidas para parsing de URLs y control de estado.
-- **Preparado para PWA**: `manifest.json`, `vite-plugin-pwa` y assets maskable para una instalación nativa en Android e iOS.
+- **Modo automático**: rotación continua con animaciones, portada y revelado de datos.
+- **Panel administrativo**: login propio, gestión de canciones y estadísticas.
+- **Usuarios administradores**: roles `superadmin` y `editor`.
+- **Generador de tarjetas**: integrado para crear PDFs y plantillas.
+- **Preparado para PWA**: `manifest.json`, `vite-plugin-pwa` y assets maskable.
 
 ## Pila tecnológica
 
-- **Framework**: React 19 + Vite 7 para desarrollo rápido y build eficiente.
-- **Lenguaje**: TypeScript 5 con `tsconfig` segmentado entre aplicación y herramientas.
-- **UI**: MUI 7, Bootstrap 5 y animaciones CSS personalizadas para el ambiente marítimo.
-- **Servicios**: Supabase JS v2 como backend-as-a-service sin servidores propios.
-- **Reproductor**: `react-youtube` con calidad forzada a `small` y reproducción inline.
+- **Framework**: React 19 + Vite 7.
+- **Lenguaje**: TypeScript 5.
+- **UI**: MUI 7 + estilos personalizados.
+- **Backend**: Neon Postgres + Drizzle ORM + Vercel Functions.
+- **Reproductor**: `react-youtube`.
 
 ## Estructura del proyecto
 
 ```text
 ponchister/
+├─ api/                        # Endpoints serverless (Vercel)
 ├─ public/
-│  ├─ manifest.json            # Metadatos PWA e iconografía maskable
-│  └─ iconos / favicons        # Variantes 16-512 px listas para tiendas
+├─ scripts/                    # Setup DB + crear admin
 ├─ src/
-│  ├─ App.tsx                  # Router y selección de flujo principal
-│  ├─ AudioPlayer.tsx          # Reproductor controlado para modo QR
-│  ├─ AutoGame.tsx             # Lógica del modo automático con Supabase
-│  ├─ BingoGame.tsx            # Modo bingo con ruleta y editor de cartones
-│  ├─ Welcome.tsx              # Pantalla de acceso, selección de modo y enlaces
-│  ├─ services/songService.ts  # Capa de datos tipada + caching
-│  ├─ lib/supabaseClient.ts    # Cliente inicializado desde variables Vite
-│  └─ assets / styles          # Tipografías, animaciones y recursos visuales
-├─ package.json
-├─ vite.config.ts              # Configuración Vite + PWA plugin
+│  ├─ admin/                   # Panel y servicios administrativos
+│  ├─ auto-game/               # UI y efectos del modo automático
+│  ├─ db/                      # Schema Drizzle
+│  ├─ services/                # Servicios de canciones (API)
+│  ├─ App.tsx
+│  └─ AutoGame.tsx
+├─ README.md
+├─ vite.config.ts
 └─ tsconfig*.json
 ```
 
@@ -64,93 +57,57 @@ ponchister/
 
 ### Requisitos
 
-- Node.js 18 o superior.
-- Gestor de paquetes (pnpm recomendado, aunque npm/yarn también funcionan).
-- Proyecto Supabase con acceso a la tabla `songs`.
+- Node.js 20 o superior.
+- Base de datos en Neon.
 
 ### Instalación
 
 ```bash
-pnpm install
+npm install
 ```
 
 ### Variables de entorno
 
-Crea `ponchister/.env.local` con las credenciales públicas:
+Crea `ponchister/.env.local`:
 
 ```ini
-VITE_SUPABASE_URL=https://<tu-proyecto>.supabase.co
-VITE_SUPABASE_ANON_KEY=<tu-clave-anon>
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB?sslmode=require
+ADMIN_JWT_SECRET=replace-with-long-random-string
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=change-me
+ADMIN_ROLE=superadmin
 ```
 
-> Las variables deben comenzar con `VITE_` para que Vite las exponga al bundle.
+> `DATABASE_URL` y `ADMIN_JWT_SECRET` son obligatorias para la app. Las variables `ADMIN_*` solo se usan para crear el primer admin.
 
-## Configuración de Supabase
+## Configuración de Neon
 
-Ejecuta este script SQL en el panel de Supabase (SQL Editor):
-
-```sql
-create table if not exists public.songs (
-  id bigint generated by default as identity primary key,
-  artist text not null,
-  title text not null,
-  year integer,
-  youtube_url text not null,
-  isspanish boolean not null default false,
-  created_at timestamptz default timezone('utc', now())
-);
-
-create unique index if not exists songs_youtube_url_key
-  on public.songs (youtube_url);
-
-alter table public.songs enable row level security;
-
-create policy "Allow read for anon"
-  on public.songs
-  for select
-  to anon
-  using (true);
-
--- Si la tabla ya existe, añade la columna así:
-alter table public.songs
-  add column if not exists isspanish boolean not null default false;
+1) Crear el esquema:
+```bash
+npm run setup:neon
 ```
 
-Para sincronizar el catálogo desde Excel utiliza el script `scripts/seed-songs.mjs` del proyecto `ponchocards`, que realiza `upserts` basados en `youtube_url`.
+2) Crear el usuario superadmin inicial:
+```bash
+ADMIN_EMAIL="tu@email" ADMIN_PASSWORD="tu-password" npm run admin:create
+```
 
 ## Comandos habituales
 
-- `pnpm dev` – servidor de desarrollo en `http://localhost:5173` con HMR.
-- `pnpm build` – compila TypeScript y genera la PWA lista en `dist/`.
-- `pnpm preview` – sirve el build para validar antes de desplegar.
-- `pnpm lint` – ejecuta ESLint con la configuración alineada a React 19.
-- `pnpm release` – aplica `standard-version`, incrementa `package.json` y actualiza `CHANGELOG.md`.
-
-## Versionado y notas de lanzamiento
-
-1. Escribe tus commits siguiendo [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/) (`feat:`, `fix:`, `chore:`...).
-2. Ejecuta `pnpm release` para generar automáticamente la nueva versión, actualizar `CHANGELOG.md` y crear la tag local.
-3. Revisa los archivos modificados y realiza `git push --follow-tags` cuando quieras compartir la versión.
-4. Durante el primer corte ejecuta `pnpm release -- --first-release` para crear la base del changelog sin publicar tags previas.
-
-> La pantalla Welcome muestra un modal con las tres últimas entradas del changelog; actualízalo con `pnpm release` antes de comunicar novedades.
-
-## Checklist de calidad
-
-- Asegúrate de que `pnpm lint` y `pnpm build` pasen antes de mergear.
-- Prueba ambos modos de juego en un dispositivo real para validar cámara, audio y animaciones.
-- Verifica que el reproductor cargue en baja resolución (`small`) y que la UI mantenga 60fps.
-- Mantén la tabla `songs` limpia de duplicados y con metadatos coherentes (artista, título, año opcional).
+- `npm run dev` – levanta API (Vercel) + frontend con proxy.
+- `npm run dev:api` – solo API en `http://127.0.0.1:3001`.
+- `npm run dev:web` – solo frontend en `http://127.0.0.1:5173`.
+- `npm run build` – compila TypeScript y genera `dist/`.
+- `npm run preview` – sirve el build local.
+- `npm run lint` – ejecuta ESLint.
 
 ## Despliegue
 
-- Ejecuta `vercel --prod` (u otro proveedor) desde la carpeta `ponchister`.
-- Configura `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en el entorno del proveedor.
-- Una vez desplegado, instala la PWA desde un dispositivo móvil para comprobar iconos maskable y comportamiento full-screen.
+- Configura `DATABASE_URL` y `ADMIN_JWT_SECRET` en Vercel.
+- Despliega con `vercel --prod` (o el proveedor que uses).
 
 ## Resolución de problemas
 
-- **Build fallido por credenciales**: confirma que `.env.local` exista y que las variables estén definidas también en el CI/CD.
-- **Lista vacía en modo automático**: corre el seed desde `ponchocards` o revisa la política RLS; el usuario `anon` debe tener permiso de lectura.
-- **YouTube bloquea autoplay**: algunos navegadores requieren interacción manual; invita al usuario a tocar “Play” cuando reciba la alerta.
-- **Dispositivo se calienta**: el proyecto fuerza reproducción en baja calidad, pero si persiste considera migrar a pistas de audio hospedadas para evitar decodificar video.
+- **Error de BD**: confirma `DATABASE_URL` y que el esquema esté creado con `setup:neon`.
+- **Login admin falla**: valida `ADMIN_JWT_SECRET` y que exista un usuario activo.
+- **Lista vacía**: revisa el contenido de `songs` en Neon.

@@ -1,4 +1,4 @@
-import changelogRaw from "../../CHANGELOG.md?raw";
+import changelogRaw from "../assets/changelog.md?raw";
 import packageJson from "../../package.json" assert { type: "json" };
 
 type PackageJson = {

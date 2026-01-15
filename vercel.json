@@ -1,6 +1,16 @@
 {
+  "devCommand": "node scripts/vercel-api-dev.mjs",
+  "builds": [
+    { "src": "api/**/*.ts", "use": "@vercel/node" }
+  ],
   "routes": [
     { "handle": "filesystem" },
+    { "src": "/@react-refresh", "dest": "/@react-refresh" },
+    { "src": "/@vite/(.*)", "dest": "/@vite/$1" },
+    { "src": "/@fs/(.*)", "dest": "/@fs/$1" },
+    { "src": "/src/(.*)", "dest": "/src/$1" },
+    { "src": "/node_modules/(.*)", "dest": "/node_modules/$1" },
+    { "src": "/manifest.json", "dest": "/manifest.json" },
     { "src": "/api/(.*)", "dest": "/api/$1" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-const COOKIE_NAME = "ponchister_admin";
+const COOKIE_NAME = "ponchister_admin_v2";
 
 export interface AdminSession {
   id: number;
@@ -104,11 +104,13 @@ export const getSessionCookie = (token: string) => {
   const secure = isProd ? "Secure; " : "";
   return `${COOKIE_NAME}=${encodeURIComponent(
     token
-  )}; Path=/; HttpOnly; SameSite=Lax; ${secure}Max-Age=${60 * 60 * 12}`;
+  )}; Path=/api/admin; HttpOnly; SameSite=Lax; ${secure}Max-Age=${
+    60 * 60 * 12
+  }`;
 };
 
 export const getClearSessionCookie = () => {
   const isProd = process.env.NODE_ENV === "production";
   const secure = isProd ? "Secure; " : "";
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; ${secure}Max-Age=0`;
+  return `${COOKIE_NAME}=; Path=/api/admin; HttpOnly; SameSite=Lax; ${secure}Max-Age=0`;
 };

@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { adminUsers } from "../../src/db/schema.ts";
 import { db } from "../_db.ts";
-import { createSessionToken, getSessionCookie } from "../_auth";
+import { createSessionToken, getSessionCookie } from "../_auth.ts";
 
 const parseBody = async (req: IncomingMessage): Promise<Record<string, unknown>> => {
   if (req.headers["content-type"]?.includes("application/json")) {

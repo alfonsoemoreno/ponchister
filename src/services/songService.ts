@@ -1,14 +1,22 @@
-import { supabase } from "../lib/supabaseClient";
 import type { Song, YearRange } from "../types";
 
 let cachedSongCount: number | null = null;
 let cachedYearBounds: YearRange | null = null;
 
-const SONG_FIELDS = "id, artist, title, year, youtube_url, isspanish";
 const MAX_RANDOM_ATTEMPTS = 5;
-const BULK_FETCH_PAGE_SIZE = 1000;
 const YOUTUBE_ID_REGEX =
   /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+
+async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+  const response = await fetch(input, init);
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(
+      message || "No se pudo completar la solicitud al servidor."
+    );
+  }
+  return response.json() as Promise<T>;
+}
 
 function hasValidYoutubeId(url: string): boolean {
   if (!url) return false;
@@ -43,17 +51,8 @@ export async function getSongCount(options?: {
     return cachedSongCount;
   }
 
-  const { count, error } = await supabase
-    .from("songs")
-    .select("id", { count: "exact", head: true });
-
-  if (error) {
-    throw new Error(
-      error.message || "No se pudo obtener la cantidad de canciones"
-    );
-  }
-
-  cachedSongCount = typeof count === "number" ? count : 0;
+  const data = await fetchJson<{ count: number }>("/api/songs/count");
+  cachedSongCount = typeof data.count === "number" ? data.count : 0;
   return cachedSongCount;
 }
 
@@ -66,19 +65,11 @@ export function invalidateSongYearBounds(): void {
 }
 
 async function fetchSongByOffset(offset: number): Promise<Song | null> {
-  const { data, error } = await supabase
-    .from("songs")
-    .select(SONG_FIELDS)
-    .order("id", { ascending: true })
-    .range(offset, offset);
-
-  if (error) {
-    throw new Error(error.message || "No se pudo obtener la canción");
-  }
-
-  const raw = data?.[0];
-  if (!raw) return null;
-  return normalizeSong(raw as Record<string, unknown>);
+  const data = await fetchJson<Record<string, unknown> | null>(
+    `/api/songs/by-offset?offset=${offset}`
+  );
+  if (!data) return null;
+  return normalizeSong(data);
 }
 
 export async function fetchRandomSong(): Promise<Song> {
@@ -126,39 +117,11 @@ export async function fetchSongYearBounds(options?: {
   let minYear: number | null = null;
   let maxYear: number | null = null;
 
-  for (let from = 0; ; from += BULK_FETCH_PAGE_SIZE) {
-    const to = from + BULK_FETCH_PAGE_SIZE - 1;
-    const { data, error } = await supabase
-      .from("songs")
-      .select("year")
-      .order("id", { ascending: true })
-      .range(from, to);
-
-    if (error) {
-      throw new Error(
-        error.message ||
-          "No se pudieron obtener los límites de años disponibles."
-      );
-    }
-
-    const rows = Array.isArray(data) ? data : [];
-    for (const row of rows) {
-      const year = coerceBound((row as Record<string, unknown>)?.year);
-      if (year === null) {
-        continue;
-      }
-      if (minYear === null || year < minYear) {
-        minYear = year;
-      }
-      if (maxYear === null || year > maxYear) {
-        maxYear = year;
-      }
-    }
-
-    if (rows.length < BULK_FETCH_PAGE_SIZE) {
-      break;
-    }
-  }
+  const data = await fetchJson<{ min: number | null; max: number | null }>(
+    "/api/songs/year-bounds"
+  );
+  minYear = coerceBound(data.min);
+  maxYear = coerceBound(data.max);
 
   if (minYear === null && maxYear !== null) {
     minYear = maxYear;
@@ -193,43 +156,14 @@ export async function fetchAllSongs(options?: {
   const onlySpanish = options?.onlySpanish === true;
   const hasYearFilter =
     typeof minYear === "number" || typeof maxYear === "number";
-  const collected: Song[] = [];
-
-  for (let from = 0; ; from += BULK_FETCH_PAGE_SIZE) {
-    const to = from + BULK_FETCH_PAGE_SIZE - 1;
-    let query = supabase
-      .from("songs")
-      .select(SONG_FIELDS)
-      .order("id", { ascending: true });
-
-    if (typeof minYear === "number") {
-      query = query.gte("year", minYear);
-    }
-    if (typeof maxYear === "number") {
-      query = query.lte("year", maxYear);
-    }
-    if (onlySpanish) {
-      query = query.eq("isspanish", true);
-    }
-
-    const { data, error } = await query.range(from, to);
-
-    if (error) {
-      throw new Error(
-        error.message || "No se pudieron cargar las canciones disponibles."
-      );
-    }
-
-    const batch = (data ?? []).map((raw) =>
-      normalizeSong(raw as Record<string, unknown>)
-    );
-
-    collected.push(...batch);
-
-    if (batch.length < BULK_FETCH_PAGE_SIZE) {
-      break;
-    }
-  }
+  const params = new URLSearchParams();
+  if (typeof minYear === "number") params.set("minYear", String(minYear));
+  if (typeof maxYear === "number") params.set("maxYear", String(maxYear));
+  if (onlySpanish) params.set("onlySpanish", "true");
+  const data = await fetchJson<Record<string, unknown>[]>(
+    `/api/songs?${params.toString()}`
+  );
+  const collected = data.map((raw) => normalizeSong(raw));
 
   if (!collected.length && hasYearFilter) {
     throw new Error(

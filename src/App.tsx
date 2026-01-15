@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Welcome from "./Welcome";
-import QrScanner from "./QrScanner";
-import AudioPlayer from "./AudioPlayer";
 import AutoGame from "./AutoGame";
-import BingoGame from "./BingoGame";
+import AdminApp from "./admin/AdminApp";
 import "./App.css";
 import type { YearRange } from "./types";
 import { fetchSongYearBounds } from "./services/songService";
@@ -84,10 +82,7 @@ const readStoredTimerEnabled = (): boolean => {
 };
 
 function App() {
-  const [view, setView] = useState<
-    "welcome" | "scan" | "audio" | "auto" | "bingo"
-  >("welcome");
-  const [videoUrl, setVideoUrl] = useState<string>("");
+  const [view, setView] = useState<"welcome" | "auto" | "admin">("welcome");
   const fallbackRange = useMemo(() => getDefaultYearRange(), []);
   const [availableRange, setAvailableRange] = useState<YearRange | null>(null);
   const [yearRange, setYearRange] = useState<YearRange>(() =>
@@ -180,25 +175,16 @@ function App() {
     });
   };
 
-  const handleAccept = () => setView("scan");
-  const handleScan = (url: string) => {
-    setVideoUrl(url);
-    setView("audio");
-  };
-  const handleBack = () => {
-    setVideoUrl("");
-    setView("scan");
-  };
-
   const handleStartAuto = () => setView("auto");
+  const handleOpenAdmin = () => {
+    window.history.pushState({}, "", "/admin");
+    setView("admin");
+  };
   const handleExitAuto = () => {
-    setVideoUrl("");
     setView("welcome");
   };
-
-  const handleStartBingo = () => setView("bingo");
-  const handleExitBingo = () => {
-    setVideoUrl("");
+  const handleExitAdmin = () => {
+    window.history.pushState({}, "", "/");
     setView("welcome");
   };
 
@@ -210,42 +196,39 @@ function App() {
     setTimerEnabled(enabled);
   };
 
+  useEffect(() => {
+    const syncView = () => {
+      const isAdmin = window.location.pathname.startsWith("/admin");
+      setView(isAdmin ? "admin" : "welcome");
+    };
+
+    syncView();
+    window.addEventListener("popstate", syncView);
+    return () => window.removeEventListener("popstate", syncView);
+  }, []);
+
   if (view === "welcome")
     return (
       <Welcome
-        onAccept={handleAccept}
         onStartAuto={handleStartAuto}
-        onStartBingo={handleStartBingo}
+        onOpenAdmin={handleOpenAdmin}
         yearRange={normalizedYearRange}
-        availableRange={effectiveLimits}
-        onYearRangeChange={handleYearRangeChange}
-        isSpanishOnly={onlySpanish}
-        onLanguageModeChange={handleLanguageModeChange}
-        isTimerEnabled={timerEnabled}
-        onTimerModeChange={handleTimerModeChange}
       />
     );
-  if (view === "scan") return <QrScanner onScan={handleScan} />;
-  if (view === "audio")
-    return <AudioPlayer videoUrl={videoUrl} onBack={handleBack} />;
   if (view === "auto")
     return (
       <AutoGame
         onExit={handleExitAuto}
         yearRange={normalizedYearRange}
+        availableRange={effectiveLimits}
+        onYearRangeChange={handleYearRangeChange}
         onlySpanish={onlySpanish}
+        onLanguageModeChange={handleLanguageModeChange}
         timerEnabled={timerEnabled}
+        onTimerModeChange={handleTimerModeChange}
       />
     );
-  if (view === "bingo")
-    return (
-      <BingoGame
-        onExit={handleExitBingo}
-        yearRange={normalizedYearRange}
-        onlySpanish={onlySpanish}
-        timerEnabled={timerEnabled}
-      />
-    );
+  if (view === "admin") return <AdminApp onExit={handleExitAdmin} />;
   return null;
 }
 

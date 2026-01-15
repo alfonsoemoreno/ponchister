@@ -686,7 +686,7 @@ export default function AdminDashboard({
         event.target.value = "";
       }
     },
-    [dataReady]
+    []
   );
 
   const openCreateForm = () => {
@@ -1264,13 +1264,13 @@ export default function AdminDashboard({
                   spacing={1}
                   alignItems={{ xs: "stretch", sm: "center" }}
                 >
-                  <Tooltip title="Volver al generador" disableInteractive>
+                  <Tooltip title="Volver al inicio" disableInteractive>
                     <Box component="span" sx={{ display: "inline-flex" }}>
                       <Button
                         variant="outlined"
                         startIcon={<ArrowBackIcon />}
                         onClick={onExit}
-                        aria-label="Volver al generador"
+                        aria-label="Volver al inicio"
                         sx={{
                           ...iconActionBaseStyles,
                           borderColor: "rgba(31,60,122,0.55)",
@@ -1285,7 +1285,7 @@ export default function AdminDashboard({
                         }}
                       >
                         <Typography component="span" className="button-label">
-                          Volver al generador
+                          Volver al inicio
                         </Typography>
                       </Button>
                     </Box>

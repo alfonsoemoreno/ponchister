@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { eq } from "drizzle-orm";
-import { adminUsers } from "../../src/db/schema.ts";
-import { db } from "./_db.ts";
+import { adminUsers } from "../../src/db/schema";
+import { db } from "./_db";
 import { getAdminSession, getClearSessionCookie } from "./_auth";
 
 type ResponseLike = Pick<ServerResponse, "statusCode" | "setHeader" | "end">;
@@ -37,4 +37,9 @@ export async function requireAdmin(
   }
 
   return { id: user.id, email: user.email, role: user.role as "superadmin" | "editor" };
+}
+
+export default function handler(_: IncomingMessage, res: ServerResponse) {
+  res.statusCode = 404;
+  res.end("Not found.");
 }

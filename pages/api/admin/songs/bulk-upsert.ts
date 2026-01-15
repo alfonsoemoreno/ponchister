@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { sql } from "drizzle-orm";
-import { songs } from "../../../../src/db/schema.ts";
-import { db } from "../../_db.ts";
+import { songs } from "../../../../src/db/schema";
+import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
 
 const parseBody = async (req: IncomingMessage): Promise<Record<string, unknown>> => {

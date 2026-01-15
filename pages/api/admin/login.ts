@@ -1,9 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { adminUsers } from "../../../src/db/schema.ts";
-import { db } from "../_db.ts";
-import { createSessionToken, getSessionCookie } from "../_auth.ts";
+import { adminUsers } from "../../../src/db/schema";
+import { db } from "../_db";
+import { createSessionToken, getSessionCookie } from "../_auth";
 
 function normalizeBody(body: unknown): Record<string, unknown> {
   if (!body) return {};

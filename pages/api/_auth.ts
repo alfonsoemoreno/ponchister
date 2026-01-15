@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 const COOKIE_NAME = "ponchister_admin_v2";
 
@@ -89,11 +90,14 @@ const parseCookies = (cookieHeader: string | undefined) => {
 };
 
 type RequestLike = {
-  headers: Record<string, string | undefined>;
+  headers: Record<string, string | string[] | undefined>;
 };
 
 export const getAdminSession = (req: RequestLike): AdminSession | null => {
-  const cookies = parseCookies(req.headers.cookie);
+  const cookieHeader = Array.isArray(req.headers.cookie)
+    ? req.headers.cookie.join(";")
+    : req.headers.cookie;
+  const cookies = parseCookies(cookieHeader);
   const token = cookies[COOKIE_NAME];
   if (!token) return null;
   return verifyToken(token);
@@ -114,3 +118,8 @@ export const getClearSessionCookie = () => {
   const secure = isProd ? "Secure; " : "";
   return `${COOKIE_NAME}=; Path=/api/admin; HttpOnly; SameSite=Lax; ${secure}Max-Age=0`;
 };
+
+export default function handler(_: IncomingMessage, res: ServerResponse) {
+  res.statusCode = 404;
+  res.end("Not found.");
+}

@@ -38,7 +38,7 @@ export default async function handler(
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Cache-Control", "public, max-age=60");
     res.end(body);
-  } catch (error) {
+  } catch {
     res.statusCode = 502;
     res.end("No se pudo consultar iTunes.");
   }

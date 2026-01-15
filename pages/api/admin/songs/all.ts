@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { songs } from "../../../../src/db/schema.ts";
-import { db } from "../../_db.ts";
+import { songs } from "../../../../src/db/schema";
+import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {

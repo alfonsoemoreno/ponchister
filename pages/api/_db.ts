@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-import * as schema from "../../src/db/schema.ts";
+import * as schema from "../../src/db/schema";
 
 dotenv.config({ path: ".env.local", quiet: true });
 
@@ -29,3 +30,8 @@ if (!globalWithPool.__ponchisterPool) {
 
 export const db = drizzle(pool, { schema });
 export { pool };
+
+export default function handler(_: IncomingMessage, res: ServerResponse) {
+  res.statusCode = 404;
+  res.end("Not found.");
+}

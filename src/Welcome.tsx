@@ -340,8 +340,8 @@ const Welcome: React.FC<WelcomeProps> = ({
               >
                 Nuestro algoritmo evita repeticiones, equilibra décadas y revela
                 cada canción con animaciones brillantes. Puedes inspirarte con
-                un año al azar, explorar tarjetas impresas o simplemente dejar
-                que la música te sorprenda.
+                un año al azar, explorar nuevas décadas o simplemente dejar que
+                la música te sorprenda.
               </Typography>
             </Stack>
             <Box
@@ -640,7 +640,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                     },
                   }}
                 >
-                  Administración y tarjetas
+                  Administración
                 </Button>
               </Stack>
               <Typography

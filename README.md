@@ -23,7 +23,6 @@ Ponchister es una PWA construida con Next.js 16, React y TypeScript. Ofrece una 
 - **Modo automático**: rotación continua con animaciones, portada y revelado de datos.
 - **Panel administrativo**: login propio, gestión de canciones y estadísticas.
 - **Usuarios administradores**: roles `superadmin` y `editor`.
-- **Generador de tarjetas**: integrado para crear PDFs y plantillas.
 - **Preparado para PWA**: `manifest.json`, `next-pwa` y assets maskable.
 
 ## Pila tecnológica

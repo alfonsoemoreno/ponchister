@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Box,
@@ -6,52 +6,36 @@ import {
   CircularProgress,
   Fade,
   Snackbar,
-  Tooltip,
 } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
-import { alpha, useTheme } from "@mui/material/styles";
-import PDFCardGenerator from "../PDFCardGenerator";
+import { alpha } from "@mui/material/styles";
 import AdminDashboard from "./AdminDashboard";
 import AdminAccessDialog from "./AdminAccessDialog";
 import { loginAdmin, logoutAdmin } from "./services/adminAuth";
 import { useAdminSession } from "./hooks/useAdminSession";
 import ponchocardsTheme from "../theme";
 
-type ViewMode = "generator" | "admin";
-
 interface AdminAppProps {
   onExit: () => void;
 }
 
 function AdminAppContent({ onExit }: AdminAppProps) {
-  const [view, setView] = useState<ViewMode>("generator");
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<string | null>(null);
 
   const { user, loading: authLoading, refresh } = useAdminSession();
-  const theme = useTheme();
 
   useEffect(() => {
-    if (!user) {
-      setView("generator");
-      setLoginOpen(false);
-    }
-  }, [user]);
-
-  const handleOpenAdmin = () => {
+    if (authLoading) return;
     if (user) {
-      setView("admin");
+      setLoginOpen(false);
     } else {
       setLoginError(null);
       setLoginOpen(true);
     }
-  };
-
-  const handleCloseAdmin = () => {
-    setView("generator");
-  };
+  }, [authLoading, user]);
 
   const handleLogin = async ({
     email,
@@ -67,7 +51,6 @@ function AdminAppContent({ onExit }: AdminAppProps) {
       await refresh();
       setLoginOpen(false);
       setSnackbar("Sesión iniciada correctamente.");
-      setView("admin");
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
@@ -92,12 +75,6 @@ function AdminAppContent({ onExit }: AdminAppProps) {
   const handleSnackbarClose = () => {
     setSnackbar(null);
   };
-
-  const accessLabel = useMemo(() => {
-    if (authLoading) return "Validando...";
-    if (user) return "Administración";
-    return "Acceso admin";
-  }, [authLoading, user]);
 
   return (
     <Box
@@ -135,39 +112,6 @@ function AdminAppContent({ onExit }: AdminAppProps) {
         >
           Volver
         </Button>
-        <Tooltip
-          title="Acceso restringido"
-          arrow
-          disableHoverListener={Boolean(user)}
-        >
-          <span>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleOpenAdmin}
-              disabled={authLoading}
-              sx={{
-                minWidth: { xs: 148, sm: 184 },
-                fontWeight: 700,
-                backgroundImage:
-                  view === "admin"
-                    ? theme.customGradients.lagoon
-                    : theme.customGradients.plasma,
-                borderColor: alpha("#ffffff", 0.25),
-                boxShadow:
-                  "0 25px 50px -24px rgba(36,73,187,0.65), inset 0 1px 0 rgba(255,255,255,0.25)",
-                backdropFilter: "blur(14px)",
-                "&:hover": {
-                  backgroundImage: theme.customGradients.sunset,
-                  boxShadow:
-                    "0 30px 60px -24px rgba(36,73,187,0.75), inset 0 1px 0 rgba(255,255,255,0.35)",
-                },
-              }}
-            >
-              {accessLabel}
-            </Button>
-          </span>
-        </Tooltip>
       </Box>
 
       {authLoading ? (
@@ -188,21 +132,25 @@ function AdminAppContent({ onExit }: AdminAppProps) {
         </Fade>
       ) : null}
 
-      {view === "admin" && user ? (
+      {user ? (
         <AdminDashboard
-          onExit={handleCloseAdmin}
+          onExit={onExit}
           onSignOut={handleSignOut}
           userEmail={user.email}
           userRole={user.role}
         />
-      ) : (
-        <PDFCardGenerator />
-      )}
+      ) : null}
 
       <AdminAccessDialog
         open={loginOpen}
         loading={loginLoading}
-        onClose={() => setLoginOpen(false)}
+        onClose={() => {
+          if (user) {
+            setLoginOpen(false);
+          } else {
+            onExit();
+          }
+        }}
         onSubmit={handleLogin}
         error={loginError}
       />

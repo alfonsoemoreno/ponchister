@@ -1,34 +1,37 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
+import type { NextApiRequest, NextApiResponse } from "next";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { adminUsers } from "../../../src/db/schema.ts";
 import { db } from "../_db.ts";
 import { createSessionToken, getSessionCookie } from "../_auth.ts";
 
-const parseBody = async (req: IncomingMessage): Promise<Record<string, unknown>> => {
-  if (req.headers["content-type"]?.includes("application/json")) {
-    const chunks: Buffer[] = [];
-    for await (const chunk of req) {
-      chunks.push(Buffer.from(chunk));
-    }
-    if (chunks.length === 0) return {};
+function normalizeBody(body: unknown): Record<string, unknown> {
+  if (!body) return {};
+  if (typeof body === "object") {
+    return body as Record<string, unknown>;
+  }
+  if (typeof body === "string") {
     try {
-      return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      const parsed = JSON.parse(body);
+      return typeof parsed === "object" && parsed ? (parsed as Record<string, unknown>) : {};
     } catch {
       return {};
     }
   }
   return {};
-};
+}
 
-export default async function handler(req: IncomingMessage, res: ServerResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.end("Método no permitido.");
     return;
   }
 
-  const body = await parseBody(req);
+  const body = normalizeBody(req.body);
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
 

@@ -1,4 +1,5 @@
 import "./globals.css";
+import MuiRegistry from "./mui-registry";
 
 export const metadata = {
   title: "Ponchister",
@@ -17,7 +18,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <MuiRegistry>{children}</MuiRegistry>
+      </body>
     </html>
   );
 }

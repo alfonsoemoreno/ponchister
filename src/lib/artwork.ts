@@ -111,7 +111,7 @@ export async function selectBestArtworkCandidate(
   for (const term of searchTerms) {
     const encodedTerm = encodeURIComponent(term);
     for (const entity of entities) {
-      const endpoint = `https://itunes.apple.com/search?term=${encodedTerm}&entity=${entity}&limit=5`;
+      const endpoint = `/api/artwork/search?term=${encodedTerm}&entity=${entity}`;
       const response = await fetcher(endpoint, { signal: abortSignal });
 
       if (!response.ok) {

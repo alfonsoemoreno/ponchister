@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [3.1.0](https://github.com-personal/alfonsoemoreno/ponchister/compare/v2.2.0...v3.1.0) (2026-01-16)
+
+
+### Features
+
+* add @emotion/cache dependency and implement MUI cache provider ([3043ad1](https://github.com-personal/alfonsoemoreno/ponchister/commit/3043ad1b2b7de022ca3979cd240cda6f69c9700b))
+* add song management features including creation, editing, and statistics ([79b24b8](https://github.com-personal/alfonsoemoreno/ponchister/commit/79b24b8324e5c37a413c55e94f88e2c03b752800))
+* initialize Ponchister application with Next.js and PWA support ([537ad6a](https://github.com-personal/alfonsoemoreno/ponchister/commit/537ad6aa8cd791af223020cd919b30c08e8dc608))
+* Refactor AdminUsersPanel for responsive design and improved user experience ([e79426f](https://github.com-personal/alfonsoemoreno/ponchister/commit/e79426f5e5237d2084948973b9e01f43bf577ef5))
+* update imports to include file extensions and add dotenv configuration ([a89cb10](https://github.com-personal/alfonsoemoreno/ponchister/commit/a89cb10d383b19f7654a9fad2ed977ae02cbd3cb))
+
 ### [2.2.0](https://github.com-personal/alfonsoemoreno/ponchister/compare/v2.1.1...v2.2.0) (2026-01-03)
 
 ### Features

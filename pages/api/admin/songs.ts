@@ -1,23 +1,23 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
+import type { NextApiRequest, NextApiResponse } from "next";
 import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { songs } from "../../../src/db/schema";
 import { db } from "../_db";
 import { requireAdmin } from "../_admin";
 
-const parseBody = async (req: IncomingMessage): Promise<Record<string, unknown>> => {
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    chunks.push(Buffer.from(chunk));
+const parseBody = (req: NextApiRequest): Record<string, unknown> => {
+  if (!req.body) return {};
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
   }
-  if (chunks.length === 0) return {};
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  } catch {
-    return {};
-  }
+  if (typeof req.body === "object") return req.body as Record<string, unknown>;
+  return {};
 };
 
-export default async function handler(req: IncomingMessage, res: ServerResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await requireAdmin(req, res);
   if (!user) return;
 
@@ -95,7 +95,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   if (req.method === "POST") {
-    const body = await parseBody(req);
+    const body = parseBody(req);
     const artist = typeof body.artist === "string" ? body.artist.trim() : "";
     const title = typeof body.title === "string" ? body.title.trim() : "";
     const youtubeUrl =

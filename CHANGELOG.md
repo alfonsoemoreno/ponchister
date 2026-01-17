@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.1.1](https://github.com-personal/alfonsoemoreno/ponchister/compare/v3.1.0...v3.1.1) (2026-01-17)
+
 ## [3.1.0](https://github.com-personal/alfonsoemoreno/ponchister/compare/v2.2.0...v3.1.0) (2026-01-16)
 
 

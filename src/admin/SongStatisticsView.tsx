@@ -213,8 +213,8 @@ export default function SongStatisticsView({
   }, [stats]);
 
   const formatLanguageValue = useMemo(() => {
-    return (value: number | null) => {
-      const safeValue = value ?? 0;
+    return (item: { value: number | null }) => {
+      const safeValue = item.value ?? 0;
       const percent =
         languageTotal > 0 ? (safeValue / languageTotal) * 100 : 0;
       const percentLabel = Number.isFinite(percent)

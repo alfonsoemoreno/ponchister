@@ -191,21 +191,38 @@ export default function SongStatisticsView({
     [selectedStats]
   );
 
-  const languageSeries = useMemo(
-    () => [
-      {
-        id: 0,
-        label: "Total",
-        value: stats?.overall.totalSongs ?? 0,
-      },
-      {
-        id: 1,
-        label: "Español",
-        value: stats?.spanish.totalSongs ?? 0,
-      },
-    ],
-    [stats]
-  );
+  const { languageSeries, languageTotal } = useMemo(() => {
+    const total = stats?.overall.totalSongs ?? 0;
+    const spanish = stats?.spanish.totalSongs ?? 0;
+    const other = Math.max(total - spanish, 0);
+    return {
+      languageSeries: [
+        {
+          id: 0,
+          label: "Español",
+          value: spanish,
+        },
+        {
+          id: 1,
+          label: "Otros idiomas",
+          value: other,
+        },
+      ],
+      languageTotal: total,
+    };
+  }, [stats]);
+
+  const formatLanguageValue = useMemo(() => {
+    return (value: number | null) => {
+      const safeValue = value ?? 0;
+      const percent =
+        languageTotal > 0 ? (safeValue / languageTotal) * 100 : 0;
+      const percentLabel = Number.isFinite(percent)
+        ? percent.toFixed(1).replace(/\.0$/, "")
+        : "0";
+      return `${safeValue} (${percentLabel}%)`;
+    };
+  }, [languageTotal]);
 
   if (loading) {
     return (
@@ -328,6 +345,7 @@ export default function SongStatisticsView({
             series={[
               {
                 data: languageSeries,
+                valueFormatter: formatLanguageValue,
                 innerRadius: 50,
                 outerRadius: 90,
                 paddingAngle: 2,

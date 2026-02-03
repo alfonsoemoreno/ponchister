@@ -41,6 +41,7 @@ const Welcome: React.FC<WelcomeProps> = ({
   yearRange,
 }) => {
   const [releaseModalOpen, setReleaseModalOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const releaseInfo = useMemo(() => getReleaseInfo(), []);
   const releaseEntries = releaseInfo.entries;
 
@@ -59,6 +60,14 @@ const Welcome: React.FC<WelcomeProps> = ({
 
   const handleCloseReleaseNotes = () => {
     setReleaseModalOpen(false);
+  };
+
+  const handleOpenRules = () => {
+    setRulesOpen(true);
+  };
+
+  const handleCloseRules = () => {
+    setRulesOpen(false);
   };
 
   return (
@@ -213,6 +222,29 @@ const Welcome: React.FC<WelcomeProps> = ({
             <Button
               variant="outlined"
               color="inherit"
+              onClick={handleOpenRules}
+              sx={{
+                width: { xs: "100%", sm: "auto" },
+                flex: { sm: 1 },
+                textTransform: "none",
+                fontWeight: 700,
+                borderRadius: 999,
+                px: 3.5,
+                py: 1.6,
+                borderColor: "rgba(255,255,255,0.36)",
+                color: "rgba(224,239,255,0.92)",
+                backgroundColor: "rgba(6,24,58,0.4)",
+                "&:hover": {
+                  borderColor: "rgba(255,255,255,0.6)",
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                },
+              }}
+            >
+              Ver reglas
+            </Button>
+            <Button
+              variant="outlined"
+              color="inherit"
               startIcon={<AdminPanelSettingsIcon />}
               onClick={handleOpenAdmin}
               sx={{
@@ -237,6 +269,164 @@ const Welcome: React.FC<WelcomeProps> = ({
           </Stack>
         </Stack>
       </Box>
+      <Dialog
+        open={rulesOpen}
+        onClose={handleCloseRules}
+        fullWidth
+        maxWidth="md"
+        sx={{
+          "& .MuiPaper-root": {
+            background: "rgba(6,22,52,0.95)",
+            borderRadius: 4,
+            border: "1px solid rgba(122,196,255,0.28)",
+            backdropFilter: "blur(18px)",
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: "#fff" }}>
+          Reglas del juego
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2.5}>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
+              >
+                Descubre Ponchister
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(204,231,255,0.82)", mt: 0.6 }}
+              >
+                Ponchister es un juego musical donde el desafío es ubicar
+                canciones en la línea de tiempo correcta. ¡Escucha, piensa y
+                coloca cada canción en su lugar!
+              </Typography>
+            </Box>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
+              >
+                Configura tu partida
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(204,231,255,0.82)", mt: 0.6 }}
+              >
+                Selecciona el rango de años, idioma de las canciones, y si
+                usarás un temporizador de 60 segundos. Asigna un año inicial a
+                cada jugador con “Año al azar” y anótalo en un post-it.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
+              >
+                Empieza a jugar
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(204,231,255,0.82)", mt: 0.6 }}
+              >
+                Pulsa “Iniciar juego” y, en tu turno, presiona “Play” para
+                escuchar la canción. Coloca tu post-it en el año que creas
+                correcto. Si aciertas, anota el año. Usa “Mostrar” para revelar
+                la canción.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
+              >
+                Fichas y jugadas especiales
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(204,231,255,0.82)", mt: 0.6 }}
+              >
+                Cada jugador inicia con 2 fichas. Usa una ficha para “Saltar”
+                una canción. O realiza un “Ponchister”: si crees que otro
+                jugador puso mal su post-it, gastas una ficha, corriges el año,
+                y si aciertas, robas la tarjeta. Si fallas, pierdes la ficha.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
+              >
+                Máximo de fichas
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(204,231,255,0.82)", mt: 0.6 }}
+              >
+                Puedes tener hasta 5 fichas. Si ya tienes 5, no puedes ganar
+                más.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
+              >
+                Canciones doradas
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(204,231,255,0.82)", mt: 0.6 }}
+              >
+                En canciones doradas, si aciertas canción, artista y año exacto,
+                robas una tarjeta.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
+              >
+                Cómo ganar fichas
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(204,231,255,0.82)", mt: 0.6 }}
+              >
+                Para ganar una ficha, debes haber ubicado correctamente el año
+                en la línea de tiempo y, antes de mostrar, haber adivinado tanto
+                la canción como el artista. Sin un año bien colocado, no se gana
+                la ficha, aunque sepas la canción. ¡Usa tus fichas con astucia y
+                disfruta completando tu línea de tiempo!
+              </Typography>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            variant="contained"
+            color="inherit"
+            onClick={handleCloseRules}
+            sx={{
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: 999,
+              px: 3,
+              background:
+                "linear-gradient(135deg, rgba(148,216,255,0.26), rgba(94,234,212,0.32))",
+              color: "#fff",
+              "&:hover": {
+                background:
+                  "linear-gradient(135deg, rgba(148,216,255,0.35), rgba(94,234,212,0.42))",
+              },
+            }}
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         open={releaseModalOpen}
         onClose={handleCloseReleaseNotes}

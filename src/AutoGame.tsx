@@ -59,6 +59,10 @@ type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
 type PlayerRef = YouTube | null;
 
 const TIMER_DURATION_SECONDS = 60;
+const SPECIAL_SONG_CHANCE = 0.12;
+const GOLDEN_BACKDROP =
+  "radial-gradient(circle at 20% 18%, rgba(255,212,108,0.85) 0%, rgba(196,137,34,0.72) 38%, rgba(98,58,8,0.75) 70%), radial-gradient(circle at 78% 26%, rgba(255,238,178,0.7) 0%, rgba(200,140,28,0.6) 40%, rgba(96,56,7,0.7) 68%), linear-gradient(180deg, #5a3504 0%, #241100 100%)";
+const GOLDEN_OVERLAY = "rgba(66, 38, 6, 0.58)";
 
 const AutoGame: React.FC<AutoGameProps> = ({
   onExit,
@@ -94,6 +98,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     useState<boolean>(onlySpanish);
   const [localTimerEnabled, setLocalTimerEnabled] =
     useState<boolean>(timerEnabled);
+  const specialSongSeedRef = useRef(Math.random());
 
   useEffect(() => {
     setLocalRange(yearRange);
@@ -189,6 +194,14 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
   const runViewTransition = useViewTransition();
   const rootTheme = createAdaptiveTheme(artworkPalette);
+  const isSpecialSong = useMemo(() => {
+    if (!currentSong) return false;
+    const seed = specialSongSeedRef.current;
+    const base =
+      Math.sin(currentSong.id * 12.9898 + seed * 43758.5453) * 43758.5453;
+    const normalized = base - Math.floor(base);
+    return normalized < SPECIAL_SONG_CHANCE;
+  }, [currentSong?.id]);
 
   const displayedError = errorMessage ?? queueError;
 
@@ -613,6 +626,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     const fallbackBackdrop =
       "linear-gradient(190deg, rgba(12,44,110,0.75) 0%, rgba(6,26,68,0.88) 55%, rgba(2,12,34,0.92) 100%)";
     const shouldDisplayArtwork = showDetails && Boolean(artworkUrl);
+    const shouldShowGoldenBackdrop = isSpecialSong && !showDetails;
     const theme = createAdaptiveTheme(
       shouldDisplayArtwork ? artworkPalette : null
     );
@@ -639,11 +653,21 @@ const AutoGame: React.FC<AutoGameProps> = ({
           sx={{
             position: "absolute",
             inset: 0,
-            backgroundImage: shouldDisplayArtwork
+            backgroundImage: shouldShowGoldenBackdrop
+              ? GOLDEN_BACKDROP
+              : shouldDisplayArtwork
               ? `url(${artworkUrl})`
               : fallbackBackdrop,
-            backgroundSize: shouldDisplayArtwork ? "cover" : "140% 140%",
-            backgroundPosition: shouldDisplayArtwork ? "center" : "45% 40%",
+            backgroundSize: shouldShowGoldenBackdrop
+              ? "cover"
+              : shouldDisplayArtwork
+              ? "cover"
+              : "140% 140%",
+            backgroundPosition: shouldShowGoldenBackdrop
+              ? "center"
+              : shouldDisplayArtwork
+              ? "center"
+              : "45% 40%",
             filter: shouldDisplayArtwork ? "blur(22px)" : "none",
             transform: "none",
             opacity: shouldDisplayArtwork ? 0.95 : 1,
@@ -656,7 +680,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
             position: "absolute",
             inset: 0,
             backdropFilter: "blur(12px)",
-            backgroundColor: theme.overlayTint,
+            backgroundColor: shouldShowGoldenBackdrop
+              ? GOLDEN_OVERLAY
+              : theme.overlayTint,
             zIndex: 2,
             viewTransitionName: "auto-game-overlay",
           }}

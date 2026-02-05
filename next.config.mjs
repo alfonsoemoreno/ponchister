@@ -1,4 +1,5 @@
 import withPWA from "next-pwa";
+import withBundleAnalyzer from "@next/bundle-analyzer";
 
 const nextConfig = {
   reactStrictMode: true,
@@ -12,4 +13,8 @@ const withPwaConfig = withPWA({
   skipWaiting: true,
 });
 
-export default withPwaConfig(nextConfig);
+const withAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
+
+export default withAnalyzer(withPwaConfig(nextConfig));

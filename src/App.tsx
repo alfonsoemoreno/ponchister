@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import Welcome from "./Welcome";
-import AutoGame from "./AutoGame";
-import AdminApp from "./admin/AdminApp";
+const AutoGame = lazy(() => import("./AutoGame"));
+const AdminApp = lazy(() => import("./admin/AdminApp"));
 import "./App.css";
 import type { YearRange } from "./types";
 import { fetchSongYearBounds } from "./services/songService";
@@ -24,7 +24,7 @@ const coerceYear = (value: unknown, fallback: number): number => {
 
 const clampRange = (
   candidate: Partial<YearRange> | null | undefined,
-  limits: YearRange
+  limits: YearRange,
 ): YearRange => {
   const rawMin = coerceYear(candidate?.min, limits.min);
   const rawMax = coerceYear(candidate?.max, limits.max);
@@ -86,20 +86,20 @@ function App() {
   const fallbackRange = useMemo(() => getDefaultYearRange(), []);
   const [availableRange, setAvailableRange] = useState<YearRange | null>(null);
   const [yearRange, setYearRange] = useState<YearRange>(() =>
-    readStoredYearRange()
+    readStoredYearRange(),
   );
   const [onlySpanish, setOnlySpanish] = useState<boolean>(() =>
-    readStoredLanguageMode()
+    readStoredLanguageMode(),
   );
   const [timerEnabled, setTimerEnabled] = useState<boolean>(() =>
-    readStoredTimerEnabled()
+    readStoredTimerEnabled(),
   );
 
   const effectiveLimits = availableRange ?? fallbackRange;
 
   const normalizedYearRange = useMemo(
     () => clampRange(yearRange, effectiveLimits),
-    [yearRange, effectiveLimits]
+    [yearRange, effectiveLimits],
   );
 
   useEffect(() => {
@@ -108,7 +108,7 @@ function App() {
     }
     window.localStorage.setItem(
       YEAR_RANGE_STORAGE_KEY,
-      JSON.stringify(normalizedYearRange)
+      JSON.stringify(normalizedYearRange),
     );
   }, [normalizedYearRange, availableRange]);
 
@@ -118,7 +118,7 @@ function App() {
     }
     window.localStorage.setItem(
       LANGUAGE_FILTER_STORAGE_KEY,
-      onlySpanish ? "true" : "false"
+      onlySpanish ? "true" : "false",
     );
   }, [onlySpanish]);
 
@@ -128,7 +128,7 @@ function App() {
     }
     window.localStorage.setItem(
       TIMER_ENABLED_STORAGE_KEY,
-      timerEnabled ? "true" : "false"
+      timerEnabled ? "true" : "false",
     );
   }, [timerEnabled]);
 
@@ -150,7 +150,7 @@ function App() {
       } catch (error) {
         console.error(
           "[ponchister] No se pudieron cargar los límites de años.",
-          error
+          error,
         );
         if (!cancelled) {
           setAvailableRange((prev) => prev ?? fallbackRange);
@@ -217,18 +217,25 @@ function App() {
     );
   if (view === "auto")
     return (
-      <AutoGame
-        onExit={handleExitAuto}
-        yearRange={normalizedYearRange}
-        availableRange={effectiveLimits}
-        onYearRangeChange={handleYearRangeChange}
-        onlySpanish={onlySpanish}
-        onLanguageModeChange={handleLanguageModeChange}
-        timerEnabled={timerEnabled}
-        onTimerModeChange={handleTimerModeChange}
-      />
+      <Suspense fallback={<div>Cargando juego...</div>}>
+        <AutoGame
+          onExit={handleExitAuto}
+          yearRange={normalizedYearRange}
+          availableRange={effectiveLimits}
+          onYearRangeChange={handleYearRangeChange}
+          onlySpanish={onlySpanish}
+          onLanguageModeChange={handleLanguageModeChange}
+          timerEnabled={timerEnabled}
+          onTimerModeChange={handleTimerModeChange}
+        />
+      </Suspense>
     );
-  if (view === "admin") return <AdminApp onExit={handleExitAdmin} />;
+  if (view === "admin")
+    return (
+      <Suspense fallback={<div>Cargando administración...</div>}>
+        <AdminApp onExit={handleExitAdmin} />
+      </Suspense>
+    );
   return null;
 }
 

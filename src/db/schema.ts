@@ -36,3 +36,15 @@ export const adminUsers = pgTable("admin_users", {
     .notNull()
     .defaultNow(),
 });
+
+export const gameSessions = pgTable("game_sessions", {
+  id: serial("id").primaryKey(),
+  mode: text("mode").notNull().default("auto"),
+  yearMin: integer("year_min"),
+  yearMax: integer("year_max"),
+  onlySpanish: boolean("only_spanish").notNull().default(false),
+  timerEnabled: boolean("timer_enabled").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

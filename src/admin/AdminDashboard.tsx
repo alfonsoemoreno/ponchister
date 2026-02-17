@@ -47,7 +47,6 @@ import {
   useTheme,
   Zoom,
 } from "@mui/material";
-import AddCircleIcon from "@mui/icons-material/AddCircle";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -69,6 +68,7 @@ import * as XLSX from "xlsx";
 import AdminUsersPanel from "./AdminUsersPanel";
 import SongFormDialog from "./SongFormDialog";
 import SongStatisticsView from "./SongStatisticsView";
+import GameSessionStatisticsView from "./GameSessionStatisticsView";
 import {
   createSong,
   deleteSong,
@@ -78,7 +78,13 @@ import {
   bulkUpsertSongs,
   updateSong,
 } from "./services/songService";
-import type { Song, SongInput, SongStatisticsGroup } from "./types";
+import { fetchGameSessionStatistics } from "./services/gameSessionService";
+import type {
+  GameSessionStatistics,
+  Song,
+  SongInput,
+  SongStatisticsGroup,
+} from "./types";
 
 interface FeedbackState {
   severity: "success" | "error";
@@ -156,9 +162,11 @@ export default function AdminDashboard({
   );
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
-  const [statistics, setStatistics] = useState<SongStatisticsGroup | null>(
+  const [songStatistics, setSongStatistics] = useState<SongStatisticsGroup | null>(
     null
   );
+  const [gameStatistics, setGameStatistics] =
+    useState<GameSessionStatistics | null>(null);
   const [languageToggleId, setLanguageToggleId] = useState<number | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [actionsAnchorEl, setActionsAnchorEl] = useState<null | HTMLElement>(
@@ -171,31 +179,8 @@ export default function AdminDashboard({
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
-  const showActionLabels = !isSmallScreen;
   const isSuperAdmin = userRole === "superadmin";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const iconActionBaseStyles = {
-    minWidth: { xs: "auto", sm: 44 },
-    height: { xs: 42, sm: 42 },
-    px: { xs: 2, sm: 0 },
-    borderRadius: 0,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: { xs: 1, sm: 0 },
-    transition: "all 180ms ease",
-    fontWeight: 600,
-    "& .MuiButton-startIcon": {
-      mr: { xs: 1, sm: 0 },
-      ml: { sm: 0 },
-      "& svg": {
-        fontSize: 20,
-      },
-    },
-    "& .button-label": {
-      display: { xs: "inline", sm: "none" },
-    },
-  } as const;
 
   const tabConfig = useMemo(
     () => [
@@ -368,9 +353,13 @@ export default function AdminDashboard({
       setStatsLoading(true);
       setStatsError(null);
       try {
-        const data = await fetchSongStatistics();
+        const [songData, gameData] = await Promise.all([
+          fetchSongStatistics(),
+          fetchGameSessionStatistics(),
+        ]);
         if (!cancelled) {
-          setStatistics(data);
+          setSongStatistics(songData);
+          setGameStatistics(gameData);
         }
       } catch (err) {
         if (!cancelled) {
@@ -379,7 +368,8 @@ export default function AdminDashboard({
               ? err.message
               : "No se pudieron obtener las estadísticas.";
           setStatsError(message);
-          setStatistics(null);
+          setSongStatistics(null);
+          setGameStatistics(null);
         }
       } finally {
         if (!cancelled) {
@@ -1969,11 +1959,28 @@ export default function AdminDashboard({
                         Actualizar estadísticas
                       </Button>
                     </Stack>
-                    <SongStatisticsView
-                      loading={statsLoading}
-                      error={statsError}
-                      stats={statistics}
-                    />
+                    {statsLoading ? (
+                      <Stack
+                        alignItems="center"
+                        justifyContent="center"
+                        sx={{ py: 8 }}
+                      >
+                        <CircularProgress />
+                      </Stack>
+                    ) : statsError ? (
+                      <Alert severity="error" sx={{ borderRadius: 0 }}>
+                        {statsError}
+                      </Alert>
+                    ) : (
+                      <Stack spacing={3}>
+                        <GameSessionStatisticsView stats={gameStatistics} />
+                        <SongStatisticsView
+                          loading={false}
+                          error={null}
+                          stats={songStatistics}
+                        />
+                      </Stack>
+                    )}
                   </>
                 ) : (
                   <AdminUsersPanel isSuperAdmin={isSuperAdmin} />

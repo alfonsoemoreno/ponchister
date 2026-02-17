@@ -23,6 +23,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
 import { fetchAllSongs } from "./services/songService";
+import { createGameSession } from "./services/gameSessionService";
 import { extractYoutubeId } from "./lib/autoGameQueue";
 import { useAutoGameQueue } from "./hooks/useAutoGameQueue";
 import { useArtworkLookup } from "./hooks/useArtworkLookup";
@@ -415,14 +416,35 @@ const AutoGame: React.FC<AutoGameProps> = ({
       stopPlayback();
       clearYearSpotlightTimeout();
       resetTimerState();
-      await startQueue();
+      const started = await startQueue();
+      if (!started) {
+        return;
+      }
+      try {
+        await createGameSession({
+          mode: "auto",
+          yearMin: yearRange.min,
+          yearMax: yearRange.max,
+          onlySpanish,
+          timerEnabled,
+        });
+      } catch (err) {
+        console.info(
+          "[game-session] No se pudo registrar la partida:",
+          err instanceof Error ? err.message : err
+        );
+      }
     });
   }, [
     clearYearSpotlightTimeout,
+    onlySpanish,
     resetTimerState,
     runViewTransition,
     startQueue,
     stopPlayback,
+    timerEnabled,
+    yearRange.max,
+    yearRange.min,
   ]);
 
   const handleSkip = useCallback(() => {

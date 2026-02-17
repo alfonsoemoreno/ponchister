@@ -34,6 +34,20 @@ export interface SongStatisticsGroup {
   spanish: SongStatistics;
 }
 
+export interface GameSessionSeriesEntry {
+  label: string;
+  count: number;
+}
+
+export interface GameSessionStatistics {
+  todayCount: number;
+  currentMonthCount: number;
+  currentYearCount: number;
+  daily: GameSessionSeriesEntry[];
+  monthly: GameSessionSeriesEntry[];
+  yearly: GameSessionSeriesEntry[];
+}
+
 export type AdminRole = "superadmin" | "editor";
 
 export interface AdminUser {

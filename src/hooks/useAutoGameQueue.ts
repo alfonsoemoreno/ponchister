@@ -18,7 +18,7 @@ export interface AutoGameQueueApi {
   currentSong: Song | null;
   hasMoreSongs: boolean;
   queueSize: number;
-  startQueue: () => Promise<void>;
+  startQueue: () => Promise<boolean>;
   advanceQueue: () => void;
   resetQueue: () => void;
 }
@@ -88,6 +88,7 @@ export function useAutoGameQueue({
       console.info(
         `[queue] songId=${nextSong.id} action=start position=1 total=${playableSongs.length}`
       );
+      return true;
     } catch (caught) {
       const message =
         caught instanceof Error
@@ -95,6 +96,7 @@ export function useAutoGameQueue({
           : "No se pudo preparar la partida automática.";
       setError(message);
       setStatus("error");
+      return false;
     }
   }, [fetchSongs, selectNextSong]);
 

@@ -224,6 +224,175 @@ export default function SongStatisticsView({
     };
   }, [languageTotal]);
 
+  const metricCards = useMemo(() => {
+    if (!selectedStats || !stats) return [];
+
+    const cards: Array<{ label: string; value: number | string; helper?: string }> = [
+      {
+        label: "Total canciones",
+        value: selectedStats.totalSongs,
+        helper:
+          scope === "overall"
+            ? "Catalogo completo"
+            : "Solo canciones en español",
+      },
+    ];
+
+    if (selectedStats.missingYearCount > 0) {
+      cards.push({
+        label: "Sin año registrado",
+        value: selectedStats.missingYearCount,
+        helper: "Registros incompletos",
+      });
+    }
+
+    if (scope === "overall" && stats.overall.totalSongs > 0) {
+      cards.push({
+        label: "Comparativo idioma",
+        value: `${stats.spanish.totalSongs}/${stats.overall.totalSongs}`,
+        helper: "Español vs total",
+      });
+    }
+
+    return cards;
+  }, [scope, selectedStats, stats]);
+
+  const visibleCharts = useMemo(() => {
+    const charts: Array<{ key: string; title: string; node: ReactNode }> = [];
+
+    if (yearSeries.length > 0) {
+      charts.push({
+        key: "year-series",
+        title: "Canciones por año",
+        node: (
+          <BarChart
+            height={260}
+            series={[
+              {
+                data: yearSeries.map((item) => item.value),
+                color: "#2563eb",
+              },
+            ]}
+            xAxis={[
+              {
+                data: yearSeries.map((item) => item.label),
+                scaleType: "band",
+              },
+            ]}
+            margin={{ left: 48, right: 12, top: 10, bottom: 32 }}
+          />
+        ),
+      });
+    }
+
+    if (scope === "overall" && languageSeries.some((item) => item.value > 0)) {
+      charts.push({
+        key: "language-distribution",
+        title: "Distribución por idioma",
+        node: (
+          <PieChart
+            height={260}
+            colors={["#0ea5e9", "#94a3b8"]}
+            series={[
+              {
+                data: languageSeries,
+                valueFormatter: formatLanguageValue,
+                innerRadius: 52,
+                outerRadius: 96,
+                paddingAngle: 2,
+              },
+            ]}
+            margin={{ left: 0, right: 0, top: 10, bottom: 10 }}
+          />
+        ),
+      });
+    }
+
+    if (decadeSeries.length > 1) {
+      charts.push({
+        key: "decade-series",
+        title: "Décadas con menor presencia",
+        node: (
+          <LineChart
+            height={260}
+            series={[
+              {
+                data: decadeSeries.map((item) => item.value),
+                color: "#f59e0b",
+              },
+            ]}
+            xAxis={[
+              {
+                data: decadeSeries.map((item) => item.label),
+                scaleType: "point",
+              },
+            ]}
+            margin={{ left: 48, right: 12, top: 10, bottom: 32 }}
+          />
+        ),
+      });
+    }
+
+    return charts;
+  }, [
+    decadeSeries,
+    formatLanguageValue,
+    languageSeries,
+    scope,
+    yearSeries,
+  ]);
+
+  const visibleLists = useMemo(() => {
+    if (!selectedStats) return [];
+
+    const blocks: Array<{
+      key: string;
+      title: string;
+      items: StatEntry[];
+      highlight?: "top" | "bottom";
+      spanTwo?: boolean;
+    }> = [];
+
+    if (selectedStats.yearsMostCommon.length > 0) {
+      blocks.push({
+        key: "years-most",
+        title: "Años más frecuentes",
+        items: selectedStats.yearsMostCommon,
+        highlight: "top",
+      });
+    }
+
+    if (selectedStats.yearsLeastCommon.length > 1) {
+      blocks.push({
+        key: "years-least",
+        title: "Años con menor presencia",
+        items: selectedStats.yearsLeastCommon,
+        highlight: "bottom",
+      });
+    }
+
+    if (selectedStats.decadesLeastCommon.length > 1) {
+      blocks.push({
+        key: "decades-least",
+        title: "Décadas con menor presencia",
+        items: selectedStats.decadesLeastCommon,
+        highlight: "bottom",
+      });
+    }
+
+    if (selectedStats.artistsMostCommon.length > 0) {
+      blocks.push({
+        key: "artists-most",
+        title: "Artistas con más canciones",
+        items: selectedStats.artistsMostCommon,
+        highlight: "top",
+        spanTwo: true,
+      });
+    }
+
+    return blocks;
+  }, [selectedStats]);
+
   if (loading) {
     return (
       <Stack alignItems="center" justifyContent="center" sx={{ py: 8 }}>
@@ -279,138 +448,92 @@ export default function SongStatisticsView({
         </ToggleButtonGroup>
       </Stack>
 
-      <Box
-        sx={{
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(3, minmax(0, 1fr))",
-          },
-          alignItems: "start",
-        }}
-      >
-        <MetricCard
-          label="Total canciones"
-          value={selectedStats?.totalSongs ?? 0}
-          helper={
-            scope === "overall"
-              ? "Catalogo completo"
-              : "Solo canciones en español"
-          }
-        />
-        <MetricCard
-          label="Sin año registrado"
-          value={selectedStats?.missingYearCount ?? 0}
-          helper="Registros incompletos"
-        />
-        <MetricCard
-          label="Comparativo"
-          value={`${stats.spanish.totalSongs}/${stats.overall.totalSongs}`}
-          helper="Español vs total"
-        />
-      </Box>
-
-      <Box
-        sx={{
-          display: "grid",
-          gap: 3,
-          gridTemplateColumns: {
-            xs: "1fr",
-            md: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(3, minmax(0, 1fr))",
-          },
-          alignItems: "start",
-        }}
-      >
-        <ChartCard title="Canciones por año" isEmpty={yearSeries.length === 0}>
-          <BarChart
-            height={240}
-            series={[{ data: yearSeries.map((item) => item.value) }]}
-            xAxis={[
-              {
-                data: yearSeries.map((item) => item.label),
-                scaleType: "band",
-              },
-            ]}
-            margin={{ left: 48, right: 12, top: 10, bottom: 30 }}
-          />
-        </ChartCard>
-        <ChartCard
-          title="Distribución por idioma"
-          isEmpty={languageSeries.every((item) => item.value === 0)}
+      {metricCards.length > 0 ? (
+        <Box
+          sx={{
+            display: "grid",
+            gap: 2,
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: `repeat(${Math.min(metricCards.length, 3)}, minmax(0, 1fr))`,
+            },
+            alignItems: "start",
+          }}
         >
-          <PieChart
-            height={240}
-            series={[
-              {
-                data: languageSeries,
-                valueFormatter: formatLanguageValue,
-                innerRadius: 50,
-                outerRadius: 90,
-                paddingAngle: 2,
-              },
-            ]}
-            margin={{ left: 0, right: 0, top: 10, bottom: 10 }}
-          />
-        </ChartCard>
-        <ChartCard
-          title="Décadas con menos canciones"
-          isEmpty={decadeSeries.length === 0}
-        >
-          <LineChart
-            height={240}
-            series={[{ data: decadeSeries.map((item) => item.value) }]}
-            xAxis={[
-              {
-                data: decadeSeries.map((item) => item.label),
-                scaleType: "point",
-              },
-            ]}
-            margin={{ left: 48, right: 12, top: 10, bottom: 30 }}
-          />
-        </ChartCard>
-      </Box>
-
-      <Box
-        sx={{
-          display: "grid",
-          gap: 3,
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, minmax(0, 1fr))",
-            lg: "repeat(3, minmax(0, 1fr))",
-          },
-          alignItems: "start",
-        }}
-      >
-        <StatisticsList
-          title="Años más frecuentes"
-          items={selectedStats?.yearsMostCommon ?? []}
-          emptyMessage="No hay años registrados."
-          highlight="top"
-        />
-        <StatisticsList
-          title="Años con menos canciones"
-          items={selectedStats?.yearsLeastCommon ?? []}
-          emptyMessage="No hay años suficientes para comparar."
-          highlight="bottom"
-        />
-        <StatisticsList
-          title="Décadas con menos canciones"
-          items={selectedStats?.decadesLeastCommon ?? []}
-          emptyMessage="No hay décadas registradas."
-          highlight="bottom"
-        />
-        <Box sx={{ gridColumn: { xs: "auto", lg: "span 2" } }}>
-          <StatisticsList
-            title="Artistas con más canciones"
-            items={selectedStats?.artistsMostCommon ?? []}
-            emptyMessage="No hay artistas registrados."
-            highlight="top"
-          />
+          {metricCards.map((card) => (
+            <MetricCard
+              key={card.label}
+              label={card.label}
+              value={card.value}
+              helper={card.helper}
+            />
+          ))}
         </Box>
-      </Box>
+      ) : null}
+
+      {visibleCharts.length > 0 ? (
+        <Box
+          sx={{
+            display: "grid",
+            gap: 3,
+            gridTemplateColumns: {
+              xs: "1fr",
+              md: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(3, minmax(0, 1fr))",
+            },
+            alignItems: "start",
+          }}
+        >
+          {visibleCharts.map((chart) => (
+            <ChartCard key={chart.key} title={chart.title} isEmpty={false}>
+              {chart.node}
+            </ChartCard>
+          ))}
+        </Box>
+      ) : null}
+
+      {visibleLists.length > 0 ? (
+        <Box
+          sx={{
+            display: "grid",
+            gap: 3,
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(3, minmax(0, 1fr))",
+            },
+            alignItems: "start",
+          }}
+        >
+          {visibleLists.map((block) => (
+            <Box
+              key={block.key}
+              sx={{ gridColumn: block.spanTwo ? { xs: "auto", lg: "span 2" } : "auto" }}
+            >
+              <StatisticsList
+                title={block.title}
+                items={block.items}
+                emptyMessage="Sin datos suficientes para mostrar."
+                highlight={block.highlight}
+              />
+            </Box>
+          ))}
+        </Box>
+      ) : (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3,
+            borderRadius: 0,
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            No hay suficiente información útil para mostrar más estadísticas.
+          </Typography>
+        </Paper>
+      )}
     </Stack>
   );
 }

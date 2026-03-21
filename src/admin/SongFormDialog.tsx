@@ -20,7 +20,7 @@ interface SongFormDialogProps {
   initialValue?: Song | null;
   loading?: boolean;
   onClose: () => void;
-  onSubmit: (values: SongInput) => Promise<void> | void;
+  onSubmit: (values: SongInput) => Promise<boolean | void> | boolean | void;
 }
 
 type FormState = {
@@ -118,10 +118,10 @@ export default function SongFormDialog({
       isspanish: values.isspanish,
     };
 
-    await onSubmit(payload);
+    const submitted = await onSubmit(payload);
 
     // Limpiar el formulario después de un envío exitoso en modo crear
-    if (mode === "create") {
+    if (submitted !== false && mode === "create") {
       setValues(EMPTY_STATE);
       setErrors({});
     }

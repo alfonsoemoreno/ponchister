@@ -76,12 +76,14 @@ import {
   fetchSongStatistics,
   fetchAllSongs,
   bulkUpsertSongs,
+  findSongDuplicates,
   updateSong,
 } from "./services/songService";
 import { fetchGameSessionStatistics } from "./services/gameSessionService";
 import type {
   GameSessionStatistics,
   Song,
+  SongDuplicateMatch,
   SongInput,
   SongStatisticsGroup,
 } from "./types";
@@ -89,6 +91,11 @@ import type {
 interface FeedbackState {
   severity: "success" | "error";
   message: string;
+}
+
+interface DuplicateReviewState {
+  payload: SongInput;
+  matches: SongDuplicateMatch[];
 }
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -150,6 +157,8 @@ export default function AdminDashboard({
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [formLoading, setFormLoading] = useState(false);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
+  const [duplicateReview, setDuplicateReview] =
+    useState<DuplicateReviewState | null>(null);
 
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -675,29 +684,75 @@ export default function AdminDashboard({
     if (formLoading) {
       return;
     }
+    setDuplicateReview(null);
     setFormOpen(false);
     setEditingSong(null);
+  };
+
+  const persistSong = async (payload: SongInput) => {
+    if (formMode === "create") {
+      await createSong(payload);
+      setFeedback({
+        severity: "success",
+        message: "Canción creada correctamente.",
+      });
+      setPage(0);
+    } else if (editingSong) {
+      await updateSong(editingSong.id, payload);
+      setFeedback({ severity: "success", message: "Canción actualizada." });
+    }
+
+    setDuplicateReview(null);
+    setFormOpen(false);
+    setEditingSong(null);
+    setSnackbarOpen(true);
+    setReloadToken((prev) => prev + 1);
   };
 
   const handleFormSubmit = async (payload: SongInput) => {
     setFormLoading(true);
 
     try {
-      if (formMode === "create") {
-        await createSong(payload);
-        setFeedback({
-          severity: "success",
-          message: "Canción creada correctamente.",
-        });
-        setPage(0);
-      } else if (editingSong) {
-        await updateSong(editingSong.id, payload);
-        setFeedback({ severity: "success", message: "Canción actualizada." });
+      const matches = await findSongDuplicates(payload, {
+        excludeId: formMode === "edit" ? editingSong?.id ?? null : null,
+      });
+
+      if (matches.length > 0) {
+        setDuplicateReview({ payload, matches });
+        return false;
       }
-      setFormOpen(false);
-      setEditingSong(null);
+
+      await persistSong(payload);
+      return true;
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Ocurrió un error guardando la canción.";
+      setFeedback({ severity: "error", message });
       setSnackbarOpen(true);
-      setReloadToken((prev) => prev + 1);
+      return false;
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleDuplicateDialogClose = () => {
+    if (formLoading) {
+      return;
+    }
+    setDuplicateReview(null);
+  };
+
+  const handleDuplicateConfirm = async () => {
+    if (!duplicateReview) {
+      return;
+    }
+
+    setFormLoading(true);
+
+    try {
+      await persistSong(duplicateReview.payload);
     } catch (err) {
       const message =
         err instanceof Error
@@ -2020,6 +2075,76 @@ export default function AdminDashboard({
         onSubmit={handleFormSubmit}
         loading={formLoading}
       />
+
+      <Dialog
+        open={Boolean(duplicateReview)}
+        onClose={formLoading ? undefined : handleDuplicateDialogClose}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>
+          Posibles canciones duplicadas
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Alert severity="warning">
+              Se encontraron coincidencias parecidas en el catálogo. Revisa la
+              lista antes de confirmar el guardado.
+            </Alert>
+            {duplicateReview?.matches.map((match) => (
+              <Paper
+                key={match.id}
+                variant="outlined"
+                sx={{ p: 2, borderRadius: 0 }}
+              >
+                <Stack spacing={1}>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    spacing={2}
+                  >
+                    <Typography variant="subtitle2">
+                      {match.artist} · {match.title}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      color={
+                        match.matchLabel === "high" ? "warning" : "default"
+                      }
+                      label={`${Math.round(match.similarity * 100)}% similar`}
+                    />
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {match.reason}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    ID #{match.id}
+                    {match.year ? ` · ${match.year}` : ""}
+                    {match.isspanish ? " · Español" : ""}
+                  </Typography>
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleDuplicateDialogClose}
+            disabled={formLoading}
+            variant="outlined"
+          >
+            Volver
+          </Button>
+          <Button
+            onClick={handleDuplicateConfirm}
+            variant="contained"
+            disabled={formLoading}
+          >
+            Guardar de todas formas
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={Boolean(deleteTarget)}

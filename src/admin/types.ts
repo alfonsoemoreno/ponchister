@@ -15,6 +15,12 @@ export interface SongInput {
   isspanish: boolean;
 }
 
+export interface SongDuplicateMatch extends Song {
+  similarity: number;
+  matchLabel: "high" | "medium";
+  reason: string;
+}
+
 export interface StatEntry {
   label: string;
   count: number;

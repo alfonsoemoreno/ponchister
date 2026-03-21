@@ -202,7 +202,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
       Math.sin(currentSong.id * 12.9898 + seed * 43758.5453) * 43758.5453;
     const normalized = base - Math.floor(base);
     return normalized < SPECIAL_SONG_CHANCE;
-  }, [currentSong?.id]);
+  }, [currentSong]);
 
   const displayedError = errorMessage ?? queueError;
 

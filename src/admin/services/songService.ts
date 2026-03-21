@@ -1,5 +1,6 @@
 import type {
   Song,
+  SongDuplicateMatch,
   SongInput,
   SongStatistics,
   SongStatisticsGroup,
@@ -122,6 +123,33 @@ export async function createSong(payload: SongInput): Promise<Song> {
     body: JSON.stringify(sanitized),
   });
   return normalizeSong(data);
+}
+
+export async function findSongDuplicates(
+  payload: SongInput,
+  options?: { excludeId?: number | null }
+): Promise<SongDuplicateMatch[]> {
+  const sanitized = sanitizeInput(payload);
+  const data = await fetchJson<{ matches: Record<string, unknown>[] }>(
+    `${API_BASE}/songs/check-duplicates`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...sanitized,
+        excludeId: options?.excludeId ?? null,
+      }),
+    }
+  );
+
+  return data.matches.map((item) => ({
+    ...normalizeSong(item),
+    similarity:
+      typeof item.similarity === "number" && Number.isFinite(item.similarity)
+        ? item.similarity
+        : 0,
+    matchLabel: item.matchLabel === "high" ? "high" : "medium",
+    reason: String(item.reason ?? ""),
+  }));
 }
 
 export async function updateSong(

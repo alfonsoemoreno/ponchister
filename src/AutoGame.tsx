@@ -32,7 +32,7 @@ import { NeonLines } from "./auto-game/NeonLines";
 import { YearSpotlight } from "./auto-game/YearSpotlight";
 import { useViewTransition } from "./hooks/useViewTransition";
 import { createAdaptiveTheme } from "./auto-game/theme";
-import type { YearRange } from "./types";
+import type { PlaylistSummary, YearRange } from "./types";
 
 interface InternalPlayer {
   playVideo?: () => void;
@@ -53,6 +53,7 @@ interface AutoGameProps {
   onLanguageModeChange: (spanishOnly: boolean) => void;
   timerEnabled: boolean;
   onTimerModeChange: (enabled: boolean) => void;
+  playlist: PlaylistSummary | null;
 }
 
 type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
@@ -74,6 +75,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   onLanguageModeChange,
   timerEnabled,
   onTimerModeChange,
+  playlist,
 }) => {
   const [gameState, setGameState] = useState<GameState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -170,11 +172,12 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const fetchSongsForRange = useCallback(
     () =>
       fetchAllSongs({
-        minYear: yearRange.min,
-        maxYear: yearRange.max,
-        onlySpanish,
+        minYear: playlist ? null : yearRange.min,
+        maxYear: playlist ? null : yearRange.max,
+        onlySpanish: playlist ? false : onlySpanish,
+        playlistId: playlist?.id ?? null,
       }),
-    [onlySpanish, yearRange.max, yearRange.min]
+    [onlySpanish, playlist, yearRange.max, yearRange.min]
   );
 
   const {
@@ -421,13 +424,15 @@ const AutoGame: React.FC<AutoGameProps> = ({
         return;
       }
       try {
-        await createGameSession({
-          mode: "auto",
-          yearMin: yearRange.min,
-          yearMax: yearRange.max,
-          onlySpanish,
-          timerEnabled,
-        });
+          await createGameSession({
+            mode: "auto",
+            yearMin: playlist ? null : yearRange.min,
+            yearMax: playlist ? null : yearRange.max,
+            onlySpanish: playlist ? false : onlySpanish,
+            timerEnabled,
+            playlistId: playlist?.id ?? null,
+            playlistName: playlist?.name ?? null,
+          });
       } catch (err) {
         console.info(
           "[game-session] No se pudo registrar la partida:",
@@ -438,6 +443,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [
     clearYearSpotlightTimeout,
     onlySpanish,
+    playlist,
     resetTimerState,
     runViewTransition,
     startQueue,
@@ -1260,7 +1266,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                       color: "rgba(148,216,255,0.86)",
                     }}
                   >
-                    Años de música
+                    {playlist ? "Modo de canciones" : "Años de música"}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -1268,62 +1274,76 @@ const AutoGame: React.FC<AutoGameProps> = ({
                       color: "rgba(204,231,255,0.78)",
                     }}
                   >
-                    {localRange.min} - {localRange.max}
+                    {playlist
+                      ? `${playlist.name} · ${playlist.songCount} canciones`
+                      : `${localRange.min} - ${localRange.max}`}
                   </Typography>
                 </Box>
-                <Slider
-                  value={[localRange.min, localRange.max]}
-                  onChange={handleRangePreview}
-                  onChangeCommitted={handleRangeCommit}
-                  min={availableRange.min}
-                  max={availableRange.max}
-                  step={1}
-                  marks={sliderMarks}
-                  valueLabelDisplay="auto"
-                  getAriaLabel={() => "Rango de años"}
-                  sx={{
-                    color: "#5eead4",
-                    height: 4,
-                    mx: 4,
-                    "& .MuiSlider-markLabel": {
-                      color: "rgba(224,239,255,0.92)",
-                      "&[data-index='0']": {
-                        transform: "translateX(14px)",
-                      },
-                      "&[data-index='2']": {
-                        transform: "translateX(-32px)",
-                      },
-                    },
-                    "& .MuiSlider-thumb": {
-                      width: 20,
-                      height: 20,
-                      boxShadow: "0 6px 16px rgba(6,18,52,0.4)",
-                    },
-                    "& .MuiSlider-valueLabel": {
-                      backgroundColor: "rgba(5,24,64,0.9)",
-                      borderRadius: 1,
-                    },
-                  }}
-                />
-                {(localRange.min !== availableRange.min ||
-                  localRange.max !== availableRange.max) && (
-                  <Button
-                    variant="text"
-                    color="inherit"
-                    onClick={handleResetRange}
-                    sx={{
-                      textTransform: "none",
-                      fontWeight: 600,
-                      px: 0,
-                      color: "rgba(148,216,255,0.9)",
-                      "&:hover": {
-                        color: "#5eead4",
-                        backgroundColor: "transparent",
-                      },
-                    }}
+                {playlist ? (
+                  <Typography
+                    variant="body2"
+                    sx={{ color: "rgba(204,231,255,0.78)" }}
                   >
-                    Todo el catálogo
-                  </Button>
+                    Esta partida usará solo las canciones incluidas en la
+                    playlist elegida antes de comenzar.
+                  </Typography>
+                ) : (
+                  <>
+                    <Slider
+                      value={[localRange.min, localRange.max]}
+                      onChange={handleRangePreview}
+                      onChangeCommitted={handleRangeCommit}
+                      min={availableRange.min}
+                      max={availableRange.max}
+                      step={1}
+                      marks={sliderMarks}
+                      valueLabelDisplay="auto"
+                      getAriaLabel={() => "Rango de años"}
+                      sx={{
+                        color: "#5eead4",
+                        height: 4,
+                        mx: 4,
+                        "& .MuiSlider-markLabel": {
+                          color: "rgba(224,239,255,0.92)",
+                          "&[data-index='0']": {
+                            transform: "translateX(14px)",
+                          },
+                          "&[data-index='2']": {
+                            transform: "translateX(-32px)",
+                          },
+                        },
+                        "& .MuiSlider-thumb": {
+                          width: 20,
+                          height: 20,
+                          boxShadow: "0 6px 16px rgba(6,18,52,0.4)",
+                        },
+                        "& .MuiSlider-valueLabel": {
+                          backgroundColor: "rgba(5,24,64,0.9)",
+                          borderRadius: 1,
+                        },
+                      }}
+                    />
+                    {(localRange.min !== availableRange.min ||
+                      localRange.max !== availableRange.max) && (
+                      <Button
+                        variant="text"
+                        color="inherit"
+                        onClick={handleResetRange}
+                        sx={{
+                          textTransform: "none",
+                          fontWeight: 600,
+                          px: 0,
+                          color: "rgba(148,216,255,0.9)",
+                          "&:hover": {
+                            color: "#5eead4",
+                            backgroundColor: "transparent",
+                          },
+                        }}
+                      >
+                        Todo el catálogo
+                      </Button>
+                    )}
+                  </>
                 )}
               </Stack>
             </Box>
@@ -1359,7 +1379,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
                       color: "rgba(204,231,255,0.78)",
                     }}
                   >
-                    Solo español.
+                    {playlist
+                      ? "Las playlists usan exactamente las canciones seleccionadas."
+                      : "Solo español."}
                   </Typography>
                 </Box>
                 <Stack
@@ -1378,6 +1400,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     color="info"
                     checked={localSpanishOnly}
                     onChange={handleLanguageToggle}
+                    disabled={Boolean(playlist)}
                     inputProps={{
                       "aria-label": "Filtrar solo canciones en español",
                     }}

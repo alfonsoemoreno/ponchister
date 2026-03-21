@@ -148,22 +148,32 @@ export async function fetchAllSongs(options?: {
   minYear?: number | null;
   maxYear?: number | null;
   onlySpanish?: boolean;
+  playlistId?: number | null;
 }): Promise<Song[]> {
   const minYear =
     typeof options?.minYear === "number" ? Math.floor(options.minYear) : null;
   const maxYear =
     typeof options?.maxYear === "number" ? Math.floor(options.maxYear) : null;
   const onlySpanish = options?.onlySpanish === true;
+  const playlistId =
+    typeof options?.playlistId === "number" ? Math.trunc(options.playlistId) : null;
   const hasYearFilter =
     typeof minYear === "number" || typeof maxYear === "number";
   const params = new URLSearchParams();
   if (typeof minYear === "number") params.set("minYear", String(minYear));
   if (typeof maxYear === "number") params.set("maxYear", String(maxYear));
   if (onlySpanish) params.set("onlySpanish", "true");
+  if (typeof playlistId === "number") params.set("playlistId", String(playlistId));
   const data = await fetchJson<Record<string, unknown>[]>(
     `/api/songs?${params.toString()}`
   );
   const collected = data.map((raw) => normalizeSong(raw));
+
+  if (!collected.length && typeof playlistId === "number") {
+    throw new Error(
+      "La playlist seleccionada no tiene canciones disponibles para reproducirse."
+    );
+  }
 
   if (!collected.length && hasYearFilter) {
     throw new Error(

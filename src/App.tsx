@@ -1,14 +1,16 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Welcome from "./Welcome";
 const AutoGame = lazy(() => import("./AutoGame"));
 const AdminApp = lazy(() => import("./admin/AdminApp"));
 import "./App.css";
-import type { YearRange } from "./types";
+import type { PlaylistSummary, YearRange } from "./types";
 import { fetchSongYearBounds } from "./services/songService";
+import { fetchAvailablePlaylists } from "./services/playlistService";
 
 const YEAR_RANGE_STORAGE_KEY = "ponchister_year_range";
 const LANGUAGE_FILTER_STORAGE_KEY = "ponchister_language_filter";
 const TIMER_ENABLED_STORAGE_KEY = "ponchister_timer_enabled";
+const SELECTED_PLAYLIST_STORAGE_KEY = "ponchister_selected_playlist";
 
 const getDefaultYearRange = (): YearRange => ({
   min: 1950,
@@ -81,6 +83,28 @@ const readStoredTimerEnabled = (): boolean => {
   }
 };
 
+const readStoredPlaylist = (): PlaylistSummary | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const stored = window.localStorage.getItem(SELECTED_PLAYLIST_STORAGE_KEY);
+    if (!stored) return null;
+    const parsed = JSON.parse(stored) as PlaylistSummary | null;
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      id: coerceYear((parsed as { id?: unknown }).id, 0),
+      name: typeof parsed.name === "string" ? parsed.name : "",
+      description:
+        typeof parsed.description === "string" ? parsed.description : null,
+      active: parsed.active === true,
+      songCount: coerceYear((parsed as { songCount?: unknown }).songCount, 0),
+    };
+  } catch {
+    return null;
+  }
+};
+
 function App() {
   const [view, setView] = useState<"welcome" | "auto" | "admin">("welcome");
   const fallbackRange = useMemo(() => getDefaultYearRange(), []);
@@ -93,6 +117,12 @@ function App() {
   );
   const [timerEnabled, setTimerEnabled] = useState<boolean>(() =>
     readStoredTimerEnabled(),
+  );
+  const [availablePlaylists, setAvailablePlaylists] = useState<PlaylistSummary[]>(
+    [],
+  );
+  const [selectedPlaylist, setSelectedPlaylist] = useState<PlaylistSummary | null>(
+    () => readStoredPlaylist(),
   );
 
   const effectiveLimits = availableRange ?? fallbackRange;
@@ -133,6 +163,22 @@ function App() {
   }, [timerEnabled]);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!selectedPlaylist) {
+      window.localStorage.removeItem(SELECTED_PLAYLIST_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(
+      SELECTED_PLAYLIST_STORAGE_KEY,
+      JSON.stringify(selectedPlaylist),
+    );
+  }, [selectedPlaylist]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const loadBounds = async () => {
@@ -165,6 +211,59 @@ function App() {
     };
   }, [fallbackRange]);
 
+  const loadPlaylists = useCallback(async () => {
+    try {
+      const playlists = await fetchAvailablePlaylists();
+      setAvailablePlaylists(playlists);
+      setSelectedPlaylist((prev) => {
+        if (!prev) return null;
+        const match = playlists.find((playlist) => playlist.id === prev.id);
+        return match ?? null;
+      });
+    } catch (error) {
+      console.error("[ponchister] No se pudieron cargar las playlists.", error);
+      setAvailablePlaylists([]);
+      setSelectedPlaylist(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const playlists = await fetchAvailablePlaylists();
+        if (cancelled) return;
+        setAvailablePlaylists(playlists);
+        setSelectedPlaylist((prev) => {
+          if (!prev) return null;
+          const match = playlists.find((playlist) => playlist.id === prev.id);
+          return match ?? null;
+        });
+      } catch (error) {
+        console.error("[ponchister] No se pudieron cargar las playlists.", error);
+        if (!cancelled) {
+          setAvailablePlaylists([]);
+          setSelectedPlaylist(null);
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (view !== "welcome") {
+      return;
+    }
+
+    void loadPlaylists();
+  }, [loadPlaylists, view]);
+
   const handleYearRangeChange = (range: YearRange) => {
     setYearRange((prev) => {
       const next = clampRange(range, effectiveLimits);
@@ -175,7 +274,10 @@ function App() {
     });
   };
 
-  const handleStartAuto = () => setView("auto");
+  const handleStartAuto = (playlist: PlaylistSummary | null) => {
+    setSelectedPlaylist(playlist);
+    setView("auto");
+  };
   const handleOpenAdmin = () => {
     window.history.pushState({}, "", "/admin");
     setView("admin");
@@ -213,6 +315,8 @@ function App() {
         onStartAuto={handleStartAuto}
         onOpenAdmin={handleOpenAdmin}
         yearRange={normalizedYearRange}
+        playlists={availablePlaylists}
+        selectedPlaylist={selectedPlaylist}
       />
     );
   if (view === "auto")
@@ -227,6 +331,7 @@ function App() {
           onLanguageModeChange={handleLanguageModeChange}
           timerEnabled={timerEnabled}
           onTimerModeChange={handleTimerModeChange}
+          playlist={selectedPlaylist}
         />
       </Suspense>
     );

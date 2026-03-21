@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { and, asc, eq, gte, isNull, lte, or } from "drizzle-orm";
-import { songs } from "../../../src/db/schema";
+import { and, asc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
+import { playlistSongs, songs } from "../../../src/db/schema";
 import { db } from "../_db";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
@@ -14,6 +14,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   const minYearParam = url.searchParams.get("minYear");
   const maxYearParam = url.searchParams.get("maxYear");
   const onlySpanish = url.searchParams.get("onlySpanish") === "true";
+  const playlistIdParam = url.searchParams.get("playlistId");
 
   const minYear =
     typeof minYearParam === "string" && minYearParam !== ""
@@ -22,6 +23,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   const maxYear =
     typeof maxYearParam === "string" && maxYearParam !== ""
       ? Number(maxYearParam)
+      : null;
+  const playlistId =
+    typeof playlistIdParam === "string" && playlistIdParam !== ""
+      ? Number(playlistIdParam)
       : null;
 
   const filters = [];
@@ -35,6 +40,22 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     filters.push(eq(songs.isSpanish, true));
   }
   filters.push(or(isNull(songs.youtubeStatus), eq(songs.youtubeStatus, "operational")));
+
+  if (typeof playlistId === "number" && Number.isFinite(playlistId)) {
+    const playlistSongRows = await db
+      .select({ songId: playlistSongs.songId })
+      .from(playlistSongs)
+      .where(eq(playlistSongs.playlistId, playlistId));
+
+    const songIds = playlistSongRows.map((row) => row.songId);
+    if (!songIds.length) {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify([]));
+      return;
+    }
+
+    filters.push(inArray(songs.id, songIds));
+  }
 
   const rows = await db
     .select({

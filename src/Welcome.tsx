@@ -6,17 +6,21 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  MenuItem,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
-import type { YearRange } from "./types";
+import type { PlaylistSummary, YearRange } from "./types";
 
 interface WelcomeProps {
-  onStartAuto: () => void;
+  onStartAuto: (playlist: PlaylistSummary | null) => void;
   onOpenAdmin: () => void;
   yearRange: YearRange;
+  playlists: PlaylistSummary[];
+  selectedPlaylist: PlaylistSummary | null;
 }
 
 const requestFullscreen = () => {
@@ -37,12 +41,19 @@ const Welcome: React.FC<WelcomeProps> = ({
   onStartAuto,
   onOpenAdmin,
   yearRange,
+  playlists,
+  selectedPlaylist,
 }) => {
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [modeDialogOpen, setModeDialogOpen] = useState(false);
+  const [playlistDraftId, setPlaylistDraftId] = useState<string>(
+    selectedPlaylist ? String(selectedPlaylist.id) : ""
+  );
 
-  const handleStartAutoMode = () => {
+  const handleStartAutoMode = (playlist: PlaylistSummary | null) => {
+    setModeDialogOpen(false);
     requestFullscreen();
-    onStartAuto();
+    onStartAuto(playlist);
   };
 
   const handleOpenAdmin = () => {
@@ -56,6 +67,19 @@ const Welcome: React.FC<WelcomeProps> = ({
   const handleCloseRules = () => {
     setRulesOpen(false);
   };
+
+  const handleOpenModeDialog = () => {
+    setPlaylistDraftId(selectedPlaylist ? String(selectedPlaylist.id) : "");
+    setModeDialogOpen(true);
+  };
+
+  const handleCloseModeDialog = () => {
+    setModeDialogOpen(false);
+  };
+
+  const playlistSelection = playlists.find(
+    (playlist) => String(playlist.id) === playlistDraftId
+  );
 
   return (
     <Box
@@ -186,7 +210,7 @@ const Welcome: React.FC<WelcomeProps> = ({
               variant="contained"
               color="inherit"
               startIcon={<AutoAwesomeIcon />}
-              onClick={handleStartAutoMode}
+              onClick={handleOpenModeDialog}
               sx={{
                 width: { xs: "100%", sm: "auto" },
                 flex: { sm: 1 },
@@ -256,6 +280,240 @@ const Welcome: React.FC<WelcomeProps> = ({
           </Stack>
         </Stack>
       </Box>
+      <Dialog
+        open={modeDialogOpen}
+        onClose={handleCloseModeDialog}
+        fullWidth
+        maxWidth="sm"
+        sx={{
+          "& .MuiPaper-root": {
+            background:
+              "linear-gradient(180deg, rgba(7,24,56,0.98) 0%, rgba(3,14,38,0.98) 100%)",
+            borderRadius: 4,
+            border: "1px solid rgba(122,196,255,0.22)",
+            boxShadow: "0 28px 80px rgba(0,0,0,0.42)",
+            backdropFilter: "blur(22px)",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            fontWeight: 800,
+            color: "#fff",
+            pb: 1,
+          }}
+        >
+          Elige cómo jugar
+        </DialogTitle>
+        <DialogContent
+          dividers
+          sx={{
+            borderColor: "rgba(122,196,255,0.14)",
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.01) 0%, rgba(255,255,255,0.03) 100%)",
+          }}
+        >
+          <Stack spacing={2.5}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "rgba(214,234,255,0.78)",
+                lineHeight: 1.7,
+              }}
+            >
+              Puedes seguir con el juego clásico de siempre o partir con una
+              playlist preparada para una partida temática.
+            </Typography>
+            <Box
+              sx={{
+                borderRadius: 3,
+                border: "1px solid rgba(122,196,255,0.26)",
+                background:
+                  "linear-gradient(180deg, rgba(20,59,122,0.34) 0%, rgba(8,27,64,0.5) 100%)",
+                p: 2.25,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+              }}
+            >
+              <Stack spacing={1.25}>
+                <Typography
+                  variant="overline"
+                  sx={{
+                    letterSpacing: 1.8,
+                    fontWeight: 700,
+                    color: "rgba(148,216,255,0.88)",
+                  }}
+                >
+                  Opción 1
+                </Typography>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}
+                >
+                  Juego clásico
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.65 }}
+                >
+                  Usa todo el catálogo disponible y juega exactamente como hasta
+                  ahora.
+                </Typography>
+                <Button
+                  variant="contained"
+                  color="inherit"
+                  onClick={() => handleStartAutoMode(null)}
+                  sx={{
+                    alignSelf: "flex-start",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    px: 2.6,
+                    background:
+                      "linear-gradient(120deg, #38bdf8 0%, #0ea5e9 55%, #22d3ee 100%)",
+                    color: "#04111f",
+                    "&:hover": {
+                      background:
+                        "linear-gradient(120deg, #67e8f9 0%, #38bdf8 45%, #0ea5e9 100%)",
+                    },
+                  }}
+                >
+                  Jugar clásico
+                </Button>
+              </Stack>
+            </Box>
+            <Box
+              sx={{
+                borderRadius: 3,
+                border: "1px solid rgba(94,234,212,0.28)",
+                background:
+                  "linear-gradient(180deg, rgba(8,71,78,0.3) 0%, rgba(4,30,49,0.58) 100%)",
+                p: 2.25,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+              }}
+            >
+              <Stack spacing={1.35}>
+                <Typography
+                  variant="overline"
+                  sx={{
+                    letterSpacing: 1.8,
+                    fontWeight: 700,
+                    color: "rgba(153,246,228,0.88)",
+                  }}
+                >
+                  Opción 2
+                </Typography>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}
+                >
+                  Jugar una playlist
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.65 }}
+                >
+                  Elige una selección curada de canciones para una partida
+                  temática o especial.
+                </Typography>
+                <TextField
+                  select
+                  label="Playlist"
+                  value={playlistDraftId}
+                  onChange={(event) => setPlaylistDraftId(event.target.value)}
+                  fullWidth
+                  disabled={playlists.length === 0}
+                  helperText={
+                    playlists.length === 0
+                      ? "Aún no hay playlists activas disponibles."
+                      : playlistSelection?.description ||
+                        `${playlistSelection?.songCount ?? 0} canciones disponibles`
+                  }
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#fff",
+                      backgroundColor: "rgba(3,15,32,0.52)",
+                      "& fieldset": {
+                        borderColor: "rgba(153,246,228,0.26)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(153,246,228,0.46)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#5eead4",
+                      },
+                    },
+                    "& .MuiInputBase-root": {
+                      color: "#fff",
+                    },
+                    "& .MuiFormLabel-root": {
+                      color: "rgba(219,244,240,0.78)",
+                    },
+                    "& .MuiFormLabel-root.Mui-focused": {
+                      color: "#99f6e4",
+                    },
+                    "& .MuiFormHelperText-root": {
+                      color: "rgba(216,240,236,0.72)",
+                    },
+                  }}
+                >
+                  {playlists.map((playlist) => (
+                    <MenuItem key={playlist.id} value={String(playlist.id)}>
+                      {playlist.name} ({playlist.songCount})
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  onClick={() => {
+                    if (!playlistSelection) {
+                      return;
+                    }
+                    handleStartAutoMode(playlistSelection);
+                  }}
+                  disabled={!playlistSelection}
+                  sx={{
+                    alignSelf: "flex-start",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    px: 2.6,
+                    borderColor: "rgba(94,234,212,0.4)",
+                    color: "#d1fae5",
+                    backgroundColor: "rgba(8,32,37,0.24)",
+                    "&:hover": {
+                      borderColor: "#5eead4",
+                      backgroundColor: "rgba(13,67,72,0.26)",
+                    },
+                  }}
+                >
+                  Jugar esta playlist
+                </Button>
+              </Stack>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 2.5,
+            pt: 1.5,
+            borderTop: "1px solid rgba(122,196,255,0.12)",
+          }}
+        >
+          <Button
+            onClick={handleCloseModeDialog}
+            color="inherit"
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              color: "rgba(224,239,255,0.88)",
+            }}
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Dialog
         open={rulesOpen}
         onClose={handleCloseRules}

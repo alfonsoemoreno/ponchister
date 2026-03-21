@@ -43,6 +43,39 @@ export const adminUsers = pgTable("admin_users", {
     .defaultNow(),
 });
 
+export const playlists = pgTable("playlists", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const playlistSongs = pgTable(
+  "playlist_songs",
+  {
+    id: serial("id").primaryKey(),
+    playlistId: integer("playlist_id")
+      .notNull()
+      .references(() => playlists.id, { onDelete: "cascade" }),
+    songId: integer("song_id")
+      .notNull()
+      .references(() => songs.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+  },
+  (table) => ({
+    playlistSongUniqueIdx: uniqueIndex("playlist_songs_playlist_song_unique").on(
+      table.playlistId,
+      table.songId
+    ),
+  })
+);
+
 export const gameSessions = pgTable("game_sessions", {
   id: serial("id").primaryKey(),
   mode: text("mode").notNull().default("auto"),
@@ -50,6 +83,8 @@ export const gameSessions = pgTable("game_sessions", {
   yearMax: integer("year_max"),
   onlySpanish: boolean("only_spanish").notNull().default(false),
   timerEnabled: boolean("timer_enabled").notNull().default(false),
+  playlistId: integer("playlist_id"),
+  playlistName: text("playlist_name"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

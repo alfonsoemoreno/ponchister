@@ -15,6 +15,8 @@ export interface CreateGameSessionInput {
   yearMax?: number | null;
   onlySpanish?: boolean;
   timerEnabled?: boolean;
+  playlistId?: number | null;
+  playlistName?: string | null;
 }
 
 export async function createGameSession(
@@ -37,6 +39,15 @@ export async function createGameSession(
           : null,
       onlySpanish: payload.onlySpanish === true,
       timerEnabled: payload.timerEnabled === true,
+      playlistId:
+        typeof payload.playlistId === "number" &&
+        Number.isFinite(payload.playlistId)
+          ? Math.trunc(payload.playlistId)
+          : null,
+      playlistName:
+        typeof payload.playlistName === "string" && payload.playlistName.trim()
+          ? payload.playlistName.trim()
+          : null,
     }),
   });
 }

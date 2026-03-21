@@ -47,6 +47,22 @@ export interface SongYoutubeValidationPayload {
   validatedAt: string;
 }
 
+export interface Playlist {
+  id: number;
+  name: string;
+  description: string | null;
+  active: boolean;
+  songCount: number;
+  songs?: Song[];
+}
+
+export interface PlaylistInput {
+  name: string;
+  description: string | null;
+  active: boolean;
+  songIds: number[];
+}
+
 export interface StatEntry {
   label: string;
   count: number;

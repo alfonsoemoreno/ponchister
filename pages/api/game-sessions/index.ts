@@ -47,6 +47,11 @@ export default async function handler(
   const yearMax = toFiniteInteger(body.yearMax);
   const onlySpanish = body.onlySpanish === true;
   const timerEnabled = body.timerEnabled === true;
+  const playlistId = toFiniteInteger(body.playlistId);
+  const playlistName =
+    typeof body.playlistName === "string" && body.playlistName.trim()
+      ? body.playlistName.trim()
+      : null;
 
   if (!mode) {
     res.status(400).end("Datos inválidos.");
@@ -59,6 +64,8 @@ export default async function handler(
     yearMax,
     onlySpanish,
     timerEnabled,
+    playlistId,
+    playlistName,
   });
 
   res.status(201).json({ ok: true });

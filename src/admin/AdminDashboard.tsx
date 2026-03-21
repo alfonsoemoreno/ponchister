@@ -58,6 +58,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import DownloadIcon from "@mui/icons-material/Download";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import LibraryMusicOutlinedIcon from "@mui/icons-material/LibraryMusicOutlined";
+import QueueMusicOutlinedIcon from "@mui/icons-material/QueueMusicOutlined";
 import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -67,6 +68,7 @@ import ClearIcon from "@mui/icons-material/Clear";
 import * as XLSX from "xlsx";
 
 import AdminUsersPanel from "./AdminUsersPanel";
+import PlaylistManagementView from "./PlaylistManagementView";
 import SongFormDialog from "./SongFormDialog";
 import SongStatisticsView from "./SongStatisticsView";
 import GameSessionStatisticsView from "./GameSessionStatisticsView";
@@ -195,7 +197,9 @@ export default function AdminDashboard({
   const [deleteTarget, setDeleteTarget] = useState<Song | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"songs" | "stats" | "users">(
+  const [activeTab, setActiveTab] = useState<
+    "songs" | "playlists" | "stats" | "users"
+  >(
     "songs"
   );
   const [statsLoading, setStatsLoading] = useState(false);
@@ -239,6 +243,12 @@ export default function AdminDashboard({
         label: "Canciones",
         description: "Gestiona el catalogo y sus detalles clave.",
         icon: <LibraryMusicOutlinedIcon fontSize="small" />,
+      },
+      {
+        value: "playlists" as const,
+        label: "Playlists",
+        description: "Crea listas curadas para partidas temáticas.",
+        icon: <QueueMusicOutlinedIcon fontSize="small" />,
       },
       {
         value: "stats" as const,
@@ -1263,7 +1273,7 @@ export default function AdminDashboard({
 
   const handleTabChange = (
     _event: SyntheticEvent,
-    value: "songs" | "stats" | "users"
+    value: "songs" | "playlists" | "stats" | "users"
   ) => {
     setActiveTab(value);
     if (!isDesktop) {
@@ -2435,7 +2445,14 @@ export default function AdminDashboard({
                     </Menu>
                   </Paper>
                 </>
-              ) : activeTab === "stats" ? (
+                ) : activeTab === "playlists" ? (
+                  <PlaylistManagementView
+                    onFeedback={(payload) => {
+                      setFeedback(payload);
+                      setSnackbarOpen(true);
+                    }}
+                  />
+                ) : activeTab === "stats" ? (
                   <>
                     <Stack
                       direction={{ xs: "column", sm: "row" }}

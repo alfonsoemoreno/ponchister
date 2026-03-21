@@ -17,6 +17,43 @@ const parseBody = (req: NextApiRequest): Record<string, unknown> => {
   return {};
 };
 
+const parseYoutubeValidation = (body: Record<string, unknown>) => {
+  const raw = body.youtubeValidation;
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const value = raw as Record<string, unknown>;
+  const status =
+    value.status === "operational" ||
+    value.status === "restricted" ||
+    value.status === "unavailable" ||
+    value.status === "invalid"
+      ? value.status
+      : null;
+
+  if (!status) {
+    return null;
+  }
+
+  const validatedAtValue =
+    typeof value.validatedAt === "string" ? new Date(value.validatedAt) : null;
+
+  return {
+    youtubeStatus: status,
+    youtubeValidationMessage:
+      typeof value.message === "string" ? value.message : null,
+    youtubeValidationCode:
+      typeof value.code === "number" && Number.isFinite(value.code)
+        ? value.code
+        : null,
+    youtubeValidatedAt:
+      validatedAtValue && !Number.isNaN(validatedAtValue.getTime())
+        ? validatedAtValue
+        : new Date(),
+  };
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await requireAdmin(req, res);
   if (!user) return;
@@ -82,6 +119,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         year: songs.year,
         youtube_url: songs.youtubeUrl,
         isspanish: songs.isSpanish,
+        youtube_status: songs.youtubeStatus,
+        youtube_validation_message: songs.youtubeValidationMessage,
+        youtube_validation_code: songs.youtubeValidationCode,
+        youtube_validated_at: songs.youtubeValidatedAt,
       })
       .from(songs)
       .where(whereClause)
@@ -105,6 +146,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ? body.year
         : null;
     const isSpanish = Boolean(body.isspanish);
+    const youtubeValidation = parseYoutubeValidation(body);
 
     if (!artist || !title || !youtubeUrl) {
       res.statusCode = 400;
@@ -120,6 +162,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         youtubeUrl,
         year,
         isSpanish,
+        youtubeStatus: youtubeValidation?.youtubeStatus ?? null,
+        youtubeValidationMessage:
+          youtubeValidation?.youtubeValidationMessage ?? null,
+        youtubeValidationCode: youtubeValidation?.youtubeValidationCode ?? null,
+        youtubeValidatedAt: youtubeValidation?.youtubeValidatedAt ?? null,
       })
       .returning({
         id: songs.id,
@@ -128,6 +175,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         year: songs.year,
         youtube_url: songs.youtubeUrl,
         isspanish: songs.isSpanish,
+        youtube_status: songs.youtubeStatus,
+        youtube_validation_message: songs.youtubeValidationMessage,
+        youtube_validation_code: songs.youtubeValidationCode,
+        youtube_validated_at: songs.youtubeValidatedAt,
       });
 
     res.setHeader("Content-Type", "application/json");

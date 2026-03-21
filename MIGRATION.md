@@ -14,6 +14,7 @@ Opcional para crear el primer admin:
 ```bash
 node scripts/setup-neon.mjs
 ```
+Este script también aplica columnas nuevas sobre tablas existentes, por lo que se puede volver a ejecutar cuando haya cambios de esquema.
 
 2) Crear el usuario superadmin inicial:
 ```bash

@@ -7,6 +7,7 @@ import {
   type ChangeEvent,
   type SyntheticEvent,
 } from "react";
+import YouTube from "react-youtube";
 import {
   Alert,
   Box,
@@ -77,15 +78,25 @@ import {
   fetchAllSongs,
   bulkUpsertSongs,
   findSongDuplicates,
+  updateSongYoutubeValidation,
   updateSong,
 } from "./services/songService";
 import { fetchGameSessionStatistics } from "./services/gameSessionService";
+import {
+  createUncheckedYoutubeValidation,
+  createOperationalYoutubeValidation,
+  getYoutubeStatusLabel,
+  interpretYoutubePlayerError,
+  validateYoutubeUrlFormat,
+} from "./youtubeValidation";
 import type {
   GameSessionStatistics,
   Song,
   SongDuplicateMatch,
   SongInput,
   SongStatisticsGroup,
+  SongYoutubeValidationPayload,
+  YoutubeValidationResult,
 } from "./types";
 
 interface FeedbackState {
@@ -96,6 +107,24 @@ interface FeedbackState {
 interface DuplicateReviewState {
   payload: SongInput;
   matches: SongDuplicateMatch[];
+  youtubeValidation: SongYoutubeValidationPayload | null;
+}
+
+interface YoutubeStatusState extends YoutubeValidationResult {
+  url: string;
+}
+
+interface YoutubeProbeRequest {
+  id: number;
+  songId: number | null;
+  url: string;
+  videoId: string;
+  resolve: (result: YoutubeValidationResult) => void;
+}
+
+interface YoutubeProbeView {
+  id: number;
+  videoId: string;
 }
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -184,12 +213,24 @@ export default function AdminDashboard({
   const [songMenuAnchorEl, setSongMenuAnchorEl] =
     useState<null | HTMLElement>(null);
   const [songMenuSong, setSongMenuSong] = useState<Song | null>(null);
+  const [youtubeStatusBySongId, setYoutubeStatusBySongId] = useState<
+    Record<number, YoutubeStatusState>
+  >({});
+  const [activeYoutubeProbe, setActiveYoutubeProbe] =
+    useState<YoutubeProbeView | null>(null);
+  const [youtubeProbePlayerKey, setYoutubeProbePlayerKey] = useState(0);
 
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const isSuperAdmin = userRole === "superadmin";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const youtubeValidationQueueRef = useRef<YoutubeProbeRequest[]>([]);
+  const activeYoutubeProbeRef = useRef<YoutubeProbeRequest | null>(null);
+  const youtubeProbeTimeoutRef = useRef<number | null>(null);
+  const youtubeProbeSuccessTimeoutRef = useRef<number | null>(null);
+  const youtubeProbeRequestIdRef = useRef(0);
+  const autoValidatedUncheckedRef = useRef<Record<string, boolean>>({});
 
   const tabConfig = useMemo(
     () => [
@@ -223,6 +264,247 @@ export default function AdminDashboard({
   const pageSpanishCount = useMemo(
     () => songs.filter((song) => song.isspanish).length,
     [songs]
+  );
+
+  const toPersistedYoutubeValidation = useCallback(
+    (result: YoutubeValidationResult): SongYoutubeValidationPayload | null => {
+      if (
+        result.status !== "operational" &&
+        result.status !== "restricted" &&
+        result.status !== "unavailable" &&
+        result.status !== "invalid"
+      ) {
+        return null;
+      }
+
+      return {
+        status: result.status,
+        message: result.message,
+        code: result.code,
+        validatedAt: new Date().toISOString(),
+      };
+    },
+    []
+  );
+
+  const clearYoutubeProbeTimers = useCallback(() => {
+    if (youtubeProbeTimeoutRef.current) {
+      window.clearTimeout(youtubeProbeTimeoutRef.current);
+      youtubeProbeTimeoutRef.current = null;
+    }
+    if (youtubeProbeSuccessTimeoutRef.current) {
+      window.clearTimeout(youtubeProbeSuccessTimeoutRef.current);
+      youtubeProbeSuccessTimeoutRef.current = null;
+    }
+  }, []);
+
+  const finishYoutubeProbe = useCallback(
+    (result: YoutubeValidationResult) => {
+      const activeRequest = activeYoutubeProbeRef.current;
+      if (!activeRequest) {
+        return;
+      }
+
+      clearYoutubeProbeTimers();
+      activeYoutubeProbeRef.current = null;
+      setActiveYoutubeProbe(null);
+
+      if (activeRequest.songId !== null) {
+        setYoutubeStatusBySongId((prev) => ({
+          ...prev,
+          [activeRequest.songId as number]: {
+            ...result,
+            url: activeRequest.url,
+          },
+        }));
+      }
+
+      activeRequest.resolve(result);
+
+      window.setTimeout(() => {
+        if (activeYoutubeProbeRef.current) {
+          return;
+        }
+
+        const nextRequest = youtubeValidationQueueRef.current.shift();
+        if (!nextRequest) {
+          return;
+        }
+
+        activeYoutubeProbeRef.current = nextRequest;
+        setActiveYoutubeProbe({ id: nextRequest.id, videoId: nextRequest.videoId });
+        setYoutubeProbePlayerKey((prev) => prev + 1);
+
+        if (nextRequest.songId !== null) {
+          setYoutubeStatusBySongId((prev) => ({
+            ...prev,
+            [nextRequest.songId as number]: {
+              status: "checking",
+              message: "Validando enlace de YouTube...",
+              code: null,
+              videoId: nextRequest.videoId,
+              url: nextRequest.url,
+            },
+          }));
+        }
+
+        youtubeProbeTimeoutRef.current = window.setTimeout(() => {
+          finishYoutubeProbe(
+            interpretYoutubePlayerError(null, nextRequest.videoId)
+          );
+        }, 8000);
+      }, 0);
+    },
+    [clearYoutubeProbeTimers]
+  );
+
+  const startNextYoutubeProbe = useCallback(() => {
+    if (activeYoutubeProbeRef.current) {
+      return;
+    }
+
+    const nextRequest = youtubeValidationQueueRef.current.shift();
+    if (!nextRequest) {
+      return;
+    }
+
+    activeYoutubeProbeRef.current = nextRequest;
+    setActiveYoutubeProbe({ id: nextRequest.id, videoId: nextRequest.videoId });
+    setYoutubeProbePlayerKey((prev) => prev + 1);
+
+    if (nextRequest.songId !== null) {
+      setYoutubeStatusBySongId((prev) => ({
+        ...prev,
+        [nextRequest.songId as number]: {
+          status: "checking",
+          message: "Validando enlace de YouTube...",
+          code: null,
+          videoId: nextRequest.videoId,
+          url: nextRequest.url,
+        },
+      }));
+    }
+
+    youtubeProbeTimeoutRef.current = window.setTimeout(() => {
+      finishYoutubeProbe(interpretYoutubePlayerError(null, nextRequest.videoId));
+    }, 8000);
+  }, [finishYoutubeProbe]);
+
+  const enqueueYoutubeValidation = useCallback(
+    (
+      url: string,
+      options?: { songId?: number | null; priority?: "high" | "normal" }
+    ): Promise<YoutubeValidationResult> => {
+      const normalizedUrl = url.trim();
+      const initialValidation = validateYoutubeUrlFormat(normalizedUrl);
+
+      if (initialValidation.status === "invalid" || !initialValidation.videoId) {
+        if (options?.songId !== undefined && options.songId !== null) {
+          setYoutubeStatusBySongId((prev) => ({
+            ...prev,
+            [options.songId as number]: {
+              ...initialValidation,
+              url: normalizedUrl,
+            },
+          }));
+        }
+        return Promise.resolve(initialValidation);
+      }
+
+      return new Promise((resolve) => {
+        const request: YoutubeProbeRequest = {
+          id: youtubeProbeRequestIdRef.current + 1,
+          songId: options?.songId ?? null,
+          url: normalizedUrl,
+          videoId: initialValidation.videoId as string,
+          resolve,
+        };
+        youtubeProbeRequestIdRef.current = request.id;
+
+        if (options?.priority === "high") {
+          youtubeValidationQueueRef.current.unshift(request);
+        } else {
+          youtubeValidationQueueRef.current.push(request);
+        }
+
+        startNextYoutubeProbe();
+      });
+    },
+    [startNextYoutubeProbe]
+  );
+
+  const getYoutubeStatusState = useCallback(
+    (song: Song): YoutubeStatusState => {
+      const currentState = youtubeStatusBySongId[song.id];
+      if (currentState && currentState.url === song.youtube_url.trim()) {
+        return currentState;
+      }
+
+      const urlValidation = validateYoutubeUrlFormat(song.youtube_url);
+      if (urlValidation.status === "invalid") {
+        return {
+          ...urlValidation,
+          url: song.youtube_url.trim(),
+        };
+      }
+
+      const persistedValidation =
+        song.youtube_status !== null
+          ? {
+              status: song.youtube_status,
+              message:
+                song.youtube_validation_message ??
+                createUncheckedYoutubeValidation().message,
+              code: song.youtube_validation_code,
+              videoId: urlValidation.videoId,
+            }
+          : createUncheckedYoutubeValidation();
+
+      return {
+        ...persistedValidation,
+        url: song.youtube_url.trim(),
+      };
+    },
+    [youtubeStatusBySongId]
+  );
+
+  const getYoutubeStatusChipProps = useCallback(
+    (song: Song) => {
+      const state = getYoutubeStatusState(song);
+
+      switch (state.status) {
+        case "operational":
+          return {
+            label: getYoutubeStatusLabel(state.status),
+            color: "success" as const,
+            variant: "filled" as const,
+            tooltip: state.message,
+          };
+        case "restricted":
+          return {
+            label: getYoutubeStatusLabel(state.status),
+            color: "warning" as const,
+            variant: "filled" as const,
+            tooltip: state.message,
+          };
+        case "unavailable":
+        case "invalid":
+          return {
+            label: getYoutubeStatusLabel(state.status),
+            color: "error" as const,
+            variant: "filled" as const,
+            tooltip: state.message,
+          };
+        default:
+          return {
+            label: getYoutubeStatusLabel(state.status),
+            color: "default" as const,
+            variant: "outlined" as const,
+            tooltip: state.message,
+          };
+      }
+    },
+    [getYoutubeStatusState]
   );
 
   const sortConfig = useMemo<{
@@ -396,6 +678,13 @@ export default function AdminDashboard({
     };
   }, [activeTab, reloadToken]);
 
+  useEffect(
+    () => () => {
+      clearYoutubeProbeTimers();
+    },
+    [clearYoutubeProbeTimers]
+  );
+
   const handleChangePage = (_: unknown, newPage: number) => {
     setPage(newPage);
   };
@@ -520,6 +809,64 @@ export default function AdminDashboard({
   const handleImportButtonClick = () => {
     fileInputRef.current?.click();
   };
+
+  const handleValidateSongLink = useCallback(
+    async (song: Song, options?: { showFeedback?: boolean }) => {
+      const result = await enqueueYoutubeValidation(song.youtube_url, {
+        songId: song.id,
+        priority: "high",
+      });
+      const persistedValidation = toPersistedYoutubeValidation(result);
+
+      if (persistedValidation) {
+        const updatedSong = await updateSongYoutubeValidation(
+          song.id,
+          persistedValidation
+        );
+
+        setSongs((prev) =>
+          prev.map((item) => (item.id === song.id ? updatedSong : item))
+        );
+        setSongMenuSong((prev) => (prev?.id === song.id ? updatedSong : prev));
+
+        if (editingSong?.id === song.id) {
+          setEditingSong(updatedSong);
+        }
+      }
+
+      if (options?.showFeedback === false) {
+        return result;
+      }
+
+      setFeedback({
+        severity: result.status === "operational" ? "success" : "error",
+        message:
+          result.status === "operational"
+            ? `El enlace de "${song.title}" está operativo.`
+            : result.message,
+      });
+      setSnackbarOpen(true);
+
+      return result;
+    },
+    [editingSong, enqueueYoutubeValidation, toPersistedYoutubeValidation]
+  );
+
+  useEffect(() => {
+    const uncheckedSongs = songs.filter(
+      (song) => song.youtube_status === null || song.youtube_status === "unchecked"
+    );
+
+    uncheckedSongs.forEach((song) => {
+      const key = `${song.id}:${song.youtube_url.trim()}`;
+      if (autoValidatedUncheckedRef.current[key]) {
+        return;
+      }
+
+      autoValidatedUncheckedRef.current[key] = true;
+      void handleValidateSongLink(song, { showFeedback: false });
+    });
+  }, [handleValidateSongLink, songs]);
 
   const handleImportFromExcel = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -689,16 +1036,19 @@ export default function AdminDashboard({
     setEditingSong(null);
   };
 
-  const persistSong = async (payload: SongInput) => {
+  const persistSong = async (
+    payload: SongInput,
+    youtubeValidation?: SongYoutubeValidationPayload | null
+  ) => {
     if (formMode === "create") {
-      await createSong(payload);
+      await createSong(payload, { youtubeValidation });
       setFeedback({
         severity: "success",
         message: "Canción creada correctamente.",
       });
       setPage(0);
     } else if (editingSong) {
-      await updateSong(editingSong.id, payload);
+      await updateSong(editingSong.id, payload, { youtubeValidation });
       setFeedback({ severity: "success", message: "Canción actualizada." });
     }
 
@@ -713,16 +1063,67 @@ export default function AdminDashboard({
     setFormLoading(true);
 
     try {
+      const currentYoutubeUrl = editingSong?.youtube_url.trim() ?? null;
+      const nextYoutubeUrl = payload.youtube_url.trim();
+      const shouldValidateYoutube =
+        formMode === "create" || currentYoutubeUrl !== nextYoutubeUrl;
+
+      let persistedYoutubeValidation: SongYoutubeValidationPayload | null = null;
+
+      if (shouldValidateYoutube) {
+      const youtubeValidation = await enqueueYoutubeValidation(
+        payload.youtube_url,
+        { priority: "high" }
+      );
+
+      if (youtubeValidation.status !== "operational") {
+        setFeedback({
+          severity: "error",
+          message: youtubeValidation.message,
+        });
+        setSnackbarOpen(true);
+        return false;
+      }
+        persistedYoutubeValidation = toPersistedYoutubeValidation(youtubeValidation);
+      } else if (
+        editingSong?.youtube_status === "operational" ||
+        editingSong?.youtube_status === "restricted" ||
+        editingSong?.youtube_status === "unavailable" ||
+        editingSong?.youtube_status === "invalid"
+      ) {
+        persistedYoutubeValidation = {
+          status: editingSong.youtube_status,
+          message: editingSong.youtube_validation_message ?? "",
+          code: editingSong.youtube_validation_code,
+          validatedAt:
+            editingSong.youtube_validated_at ?? new Date().toISOString(),
+        };
+      }
+
+      if (formMode === "create" && !persistedYoutubeValidation) {
+        setFeedback({
+          severity: "error",
+          message:
+            "No hay una validación de YouTube disponible para este enlace. Vuelve a validar antes de guardar.",
+        });
+        setSnackbarOpen(true);
+        return false;
+      }
+
       const matches = await findSongDuplicates(payload, {
         excludeId: formMode === "edit" ? editingSong?.id ?? null : null,
       });
 
       if (matches.length > 0) {
-        setDuplicateReview({ payload, matches });
+        setDuplicateReview({
+          payload,
+          matches,
+          youtubeValidation: persistedYoutubeValidation,
+        });
         return false;
       }
 
-      await persistSong(payload);
+      await persistSong(payload, persistedYoutubeValidation);
       return true;
     } catch (err) {
       const message =
@@ -752,7 +1153,10 @@ export default function AdminDashboard({
     setFormLoading(true);
 
     try {
-      await persistSong(duplicateReview.payload);
+      await persistSong(
+        duplicateReview.payload,
+        duplicateReview.youtubeValidation
+      );
     } catch (err) {
       const message =
         err instanceof Error
@@ -899,7 +1303,7 @@ export default function AdminDashboard({
     if (loading) {
       return (
         <TableRow>
-          <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+          <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
             <CircularProgress color="primary" />
           </TableCell>
         </TableRow>
@@ -909,7 +1313,7 @@ export default function AdminDashboard({
     if (!songs.length) {
       return (
         <TableRow>
-          <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+          <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
             <Typography variant="body1" color="text.secondary">
               {searchTerm
                 ? "No hay resultados que coincidan con tu búsqueda."
@@ -921,50 +1325,66 @@ export default function AdminDashboard({
     }
 
     return songs.map((song, index) => (
-      <TableRow
-        key={song.id}
-        hover
-        sx={{
-          animation: "admin-row-in 360ms ease",
-          animationDelay: `${Math.min(index * 20, 240)}ms`,
-          animationFillMode: "both",
-        }}
-      >
-        <TableCell width={80}>{song.id}</TableCell>
-        <TableCell sx={{ minWidth: 180 }}>
-          <Typography variant="body2" fontWeight={600} noWrap>
-            {song.artist}
-          </Typography>
-        </TableCell>
-        <TableCell sx={{ minWidth: 220 }}>
-          <Typography variant="body2" noWrap>
-            {song.title}
-          </Typography>
-        </TableCell>
-        <TableCell width={120}>{song.year ?? "-"}</TableCell>
-        <TableCell width={140} align="center">
-          <Switch
-            checked={song.isspanish}
-            onChange={() => handleToggleSpanish(song)}
-            color="primary"
-            size="small"
-            disabled={
-              !dataReady || languageToggleId === song.id || loading
-            }
-            inputProps={{
-              "aria-label": `Cambiar estado de idioma para ${song.title}`,
+      (() => {
+        const youtubeStatus = getYoutubeStatusChipProps(song);
+
+        return (
+          <TableRow
+            key={song.id}
+            hover
+            sx={{
+              animation: "admin-row-in 360ms ease",
+              animationDelay: `${Math.min(index * 20, 240)}ms`,
+              animationFillMode: "both",
             }}
-          />
-        </TableCell>
-        <TableCell align="right" width={140}>
-          <IconButton
-            aria-label="Opciones de canción"
-            onClick={(event) => handleSongMenuOpen(event, song)}
           >
-            <MoreVertIcon fontSize="small" />
-          </IconButton>
-        </TableCell>
-      </TableRow>
+            <TableCell width={80}>{song.id}</TableCell>
+            <TableCell sx={{ minWidth: 180 }}>
+              <Typography variant="body2" fontWeight={600} noWrap>
+                {song.artist}
+              </Typography>
+            </TableCell>
+            <TableCell sx={{ minWidth: 220 }}>
+              <Typography variant="body2" noWrap>
+                {song.title}
+              </Typography>
+            </TableCell>
+            <TableCell width={120}>{song.year ?? "-"}</TableCell>
+            <TableCell width={160} align="center">
+              <Tooltip title={youtubeStatus.tooltip} disableInteractive>
+                <Chip
+                  label={youtubeStatus.label}
+                  color={youtubeStatus.color}
+                  variant={youtubeStatus.variant}
+                  size="small"
+                />
+              </Tooltip>
+            </TableCell>
+            <TableCell width={140} align="center">
+              <Switch
+                checked={song.isspanish}
+                onChange={() => handleToggleSpanish(song)}
+                color="primary"
+                size="small"
+                disabled={
+                  !dataReady || languageToggleId === song.id || loading
+                }
+                inputProps={{
+                  "aria-label": `Cambiar estado de idioma para ${song.title}`,
+                }}
+              />
+            </TableCell>
+            <TableCell align="right" width={140}>
+              <IconButton
+                aria-label="Opciones de canción"
+                onClick={(event) => handleSongMenuOpen(event, song)}
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            </TableCell>
+          </TableRow>
+        );
+      })()
     ));
   };
 
@@ -991,6 +1411,7 @@ export default function AdminDashboard({
 
     return songs.map((song, index) => {
       const yearLabel = song.year ? song.year.toString() : "Sin año";
+      const youtubeStatus = getYoutubeStatusChipProps(song);
 
       return (
         <Paper
@@ -1038,6 +1459,15 @@ export default function AdminDashboard({
                     borderRadius: 0,
                   }}
                 />
+                <Tooltip title={youtubeStatus.tooltip} disableInteractive>
+                  <Chip
+                    label={youtubeStatus.label}
+                    size="small"
+                    color={youtubeStatus.color}
+                    variant={youtubeStatus.variant}
+                    sx={{ borderRadius: 0, fontWeight: 600 }}
+                  />
+                </Tooltip>
                 <IconButton
                   aria-label="Opciones de canción"
                   onClick={(event) => handleSongMenuOpen(event, song)}
@@ -1909,8 +2339,9 @@ export default function AdminDashboard({
                               <TableCell>Artista</TableCell>
                               <TableCell>Canción</TableCell>
                               <TableCell>Año</TableCell>
+                              <TableCell align="center">YouTube</TableCell>
                               <TableCell align="center">Español</TableCell>
-                        <TableCell align="right">Acciones</TableCell>
+                              <TableCell align="right">Acciones</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>{renderTableBody()}</TableBody>
@@ -1958,6 +2389,20 @@ export default function AdminDashboard({
                           <InfoOutlinedIcon fontSize="small" />
                         </ListItemIcon>
                         <ListItemText>Abrir enlace</ListItemText>
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          if (songMenuSong) {
+                            void handleValidateSongLink(songMenuSong);
+                          }
+                          handleSongMenuClose();
+                        }}
+                        disabled={!songMenuSong?.youtube_url}
+                      >
+                        <ListItemIcon>
+                          <RefreshIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Validar enlace</ListItemText>
                       </MenuItem>
                       <MenuItem
                         onClick={() => {
@@ -2066,6 +2511,73 @@ export default function AdminDashboard({
           <AddIcon />
         </Fab>
       </Zoom>
+
+      {activeYoutubeProbe ? (
+        <Box
+          sx={{
+            position: "fixed",
+            width: 1,
+            height: 1,
+            overflow: "hidden",
+            opacity: 0,
+            pointerEvents: "none",
+          }}
+        >
+          <YouTube
+            key={youtubeProbePlayerKey}
+            videoId={activeYoutubeProbe.videoId}
+            opts={{
+              width: "1",
+              height: "1",
+              playerVars: {
+                autoplay: 0,
+                controls: 0,
+                rel: 0,
+                playsinline: 1,
+                origin:
+                  typeof window !== "undefined"
+                    ? window.location.origin
+                    : undefined,
+              },
+            }}
+            onReady={() => {
+              clearYoutubeProbeTimers();
+              youtubeProbeSuccessTimeoutRef.current = window.setTimeout(() => {
+                const activeRequest = activeYoutubeProbeRef.current;
+                finishYoutubeProbe(
+                  createOperationalYoutubeValidation(
+                    activeRequest?.videoId ?? null
+                  )
+                );
+              }, 600);
+            }}
+            onStateChange={(event) => {
+              if (![1, 2, 3, 5].includes(event.data)) {
+                return;
+              }
+
+              clearYoutubeProbeTimers();
+              youtubeProbeSuccessTimeoutRef.current = window.setTimeout(() => {
+                const activeRequest = activeYoutubeProbeRef.current;
+                finishYoutubeProbe(
+                  createOperationalYoutubeValidation(
+                    activeRequest?.videoId ?? null
+                  )
+                );
+              }, 300);
+            }}
+            onError={(event) => {
+              const activeRequest = activeYoutubeProbeRef.current;
+              finishYoutubeProbe(
+                interpretYoutubePlayerError(
+                  typeof event.data === "number" ? event.data : null,
+                  activeRequest?.videoId ?? null
+                )
+              );
+            }}
+          />
+        </Box>
+      ) : null}
 
       <SongFormDialog
         open={formOpen}

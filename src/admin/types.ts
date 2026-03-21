@@ -5,6 +5,10 @@ export interface Song {
   year: number | null;
   youtube_url: string;
   isspanish: boolean;
+  youtube_status: YoutubeValidationStatus | null;
+  youtube_validation_message: string | null;
+  youtube_validation_code: number | null;
+  youtube_validated_at: string | null;
 }
 
 export interface SongInput {
@@ -19,6 +23,28 @@ export interface SongDuplicateMatch extends Song {
   similarity: number;
   matchLabel: "high" | "medium";
   reason: string;
+}
+
+export type YoutubeValidationStatus =
+  | "unchecked"
+  | "checking"
+  | "operational"
+  | "restricted"
+  | "unavailable"
+  | "invalid";
+
+export interface YoutubeValidationResult {
+  status: YoutubeValidationStatus;
+  message: string;
+  code: number | null;
+  videoId: string | null;
+}
+
+export interface SongYoutubeValidationPayload {
+  status: Exclude<YoutubeValidationStatus, "checking" | "unchecked">;
+  message: string;
+  code: number | null;
+  validatedAt: string;
 }
 
 export interface StatEntry {

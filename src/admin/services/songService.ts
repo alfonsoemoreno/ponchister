@@ -2,8 +2,10 @@ import type {
   Song,
   SongDuplicateMatch,
   SongInput,
+  SongYoutubeValidationPayload,
   SongStatistics,
   SongStatisticsGroup,
+  YoutubeValidationStatus,
 } from "../types";
 
 const API_BASE = "/api/admin";
@@ -28,6 +30,17 @@ function normalizeSong(raw: Record<string, unknown>): Song {
         isSpanishRaw === 1 ||
         isSpanishRaw === "t";
 
+  const youtubeStatusRaw = raw.youtube_status;
+  const youtubeStatus: YoutubeValidationStatus | null =
+    youtubeStatusRaw === "unchecked" ||
+    youtubeStatusRaw === "checking" ||
+    youtubeStatusRaw === "operational" ||
+    youtubeStatusRaw === "restricted" ||
+    youtubeStatusRaw === "unavailable" ||
+    youtubeStatusRaw === "invalid"
+      ? youtubeStatusRaw
+      : null;
+
   return {
     id: Number(raw.id),
     artist: String(raw.artist ?? ""),
@@ -35,6 +48,20 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     year,
     youtube_url: String(raw.youtube_url ?? ""),
     isspanish: isSpanish,
+    youtube_status: youtubeStatus,
+    youtube_validation_message:
+      typeof raw.youtube_validation_message === "string"
+        ? raw.youtube_validation_message
+        : null,
+    youtube_validation_code:
+      typeof raw.youtube_validation_code === "number" &&
+      Number.isFinite(raw.youtube_validation_code)
+        ? raw.youtube_validation_code
+        : null,
+    youtube_validated_at:
+      typeof raw.youtube_validated_at === "string"
+        ? raw.youtube_validated_at
+        : null,
   };
 }
 
@@ -116,11 +143,17 @@ export async function listSongs({
   };
 }
 
-export async function createSong(payload: SongInput): Promise<Song> {
+export async function createSong(
+  payload: SongInput,
+  options?: { youtubeValidation?: SongYoutubeValidationPayload | null }
+): Promise<Song> {
   const sanitized = sanitizeInput(payload);
   const data = await fetchJson<Record<string, unknown>>(`${API_BASE}/songs`, {
     method: "POST",
-    body: JSON.stringify(sanitized),
+    body: JSON.stringify({
+      ...sanitized,
+      youtubeValidation: options?.youtubeValidation ?? null,
+    }),
   });
   return normalizeSong(data);
 }
@@ -154,14 +187,32 @@ export async function findSongDuplicates(
 
 export async function updateSong(
   id: number,
-  payload: SongInput
+  payload: SongInput,
+  options?: { youtubeValidation?: SongYoutubeValidationPayload | null }
 ): Promise<Song> {
   const sanitized = sanitizeInput(payload);
   const data = await fetchJson<Record<string, unknown>>(
     `${API_BASE}/songs/${id}`,
     {
       method: "PUT",
-      body: JSON.stringify(sanitized),
+      body: JSON.stringify({
+        ...sanitized,
+        youtubeValidation: options?.youtubeValidation ?? null,
+      }),
+    }
+  );
+  return normalizeSong(data);
+}
+
+export async function updateSongYoutubeValidation(
+  id: number,
+  payload: SongYoutubeValidationPayload
+): Promise<Song> {
+  const data = await fetchJson<Record<string, unknown>>(
+    `${API_BASE}/songs/${id}/youtube-validation`,
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
     }
   );
   return normalizeSong(data);

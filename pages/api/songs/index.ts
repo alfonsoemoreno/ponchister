@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { and, asc, eq, gte, lte } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, lte, or } from "drizzle-orm";
 import { songs } from "../../../src/db/schema";
 import { db } from "../_db";
 
@@ -34,6 +34,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   if (onlySpanish) {
     filters.push(eq(songs.isSpanish, true));
   }
+  filters.push(or(isNull(songs.youtubeStatus), eq(songs.youtubeStatus, "operational")));
 
   const rows = await db
     .select({

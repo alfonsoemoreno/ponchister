@@ -50,7 +50,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : null;
       const isSpanish = Boolean(song.isspanish);
       if (!artist || !title || !youtubeUrl) return null;
-      return { artist, title, youtubeUrl, year, isSpanish };
+      return {
+        artist,
+        title,
+        youtubeUrl,
+        year,
+        isSpanish,
+        youtubeStatus: null,
+        youtubeValidationMessage: null,
+        youtubeValidationCode: null,
+        youtubeValidatedAt: null,
+      };
     })
     .filter(Boolean) as Array<{
     artist: string;
@@ -58,6 +68,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     youtubeUrl: string;
     year: number | null;
     isSpanish: boolean;
+    youtubeStatus: null;
+    youtubeValidationMessage: null;
+    youtubeValidationCode: null;
+    youtubeValidatedAt: null;
   }>;
 
   if (!values.length) {
@@ -76,6 +90,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         title: sql`excluded.title`,
         year: sql`excluded.year`,
         isSpanish: sql`excluded.isspanish`,
+        youtubeStatus: sql`null`,
+        youtubeValidationMessage: sql`null`,
+        youtubeValidationCode: sql`null`,
+        youtubeValidatedAt: sql`null`,
       },
     });
 

@@ -17,6 +17,43 @@ const parseBody = (req: NextApiRequest): Record<string, unknown> => {
   return {};
 };
 
+const parseYoutubeValidation = (body: Record<string, unknown>) => {
+  const raw = body.youtubeValidation;
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const value = raw as Record<string, unknown>;
+  const status =
+    value.status === "operational" ||
+    value.status === "restricted" ||
+    value.status === "unavailable" ||
+    value.status === "invalid"
+      ? value.status
+      : null;
+
+  if (!status) {
+    return null;
+  }
+
+  const validatedAtValue =
+    typeof value.validatedAt === "string" ? new Date(value.validatedAt) : null;
+
+  return {
+    youtubeStatus: status,
+    youtubeValidationMessage:
+      typeof value.message === "string" ? value.message : null,
+    youtubeValidationCode:
+      typeof value.code === "number" && Number.isFinite(value.code)
+        ? value.code
+        : null,
+    youtubeValidatedAt:
+      validatedAtValue && !Number.isNaN(validatedAtValue.getTime())
+        ? validatedAtValue
+        : new Date(),
+  };
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await requireAdmin(req, res);
   if (!user) return;
@@ -39,12 +76,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ? body.year
         : null;
     const isSpanish = Boolean(body.isspanish);
+    const youtubeValidation = parseYoutubeValidation(body);
+
+    const [currentSong] = await db
+      .select({ youtubeUrl: songs.youtubeUrl })
+      .from(songs)
+      .where(eq(songs.id, id))
+      .limit(1);
 
     if (!artist || !title || !youtubeUrl) {
       res.statusCode = 400;
       res.end("Datos inválidos.");
       return;
     }
+
+    if (!currentSong) {
+      res.statusCode = 404;
+      res.end("Canción no encontrada.");
+      return;
+    }
+
+    const youtubeChanged = currentSong.youtubeUrl !== youtubeUrl;
 
     const [updated] = await db
       .update(songs)
@@ -54,6 +106,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         youtubeUrl,
         year,
         isSpanish,
+        youtubeStatus: youtubeChanged
+          ? youtubeValidation?.youtubeStatus ?? null
+          : youtubeValidation?.youtubeStatus ?? undefined,
+        youtubeValidationMessage: youtubeChanged
+          ? youtubeValidation?.youtubeValidationMessage ?? null
+          : youtubeValidation?.youtubeValidationMessage ?? undefined,
+        youtubeValidationCode: youtubeChanged
+          ? youtubeValidation?.youtubeValidationCode ?? null
+          : youtubeValidation?.youtubeValidationCode ?? undefined,
+        youtubeValidatedAt: youtubeChanged
+          ? youtubeValidation?.youtubeValidatedAt ?? null
+          : youtubeValidation?.youtubeValidatedAt ?? undefined,
       })
       .where(eq(songs.id, id))
       .returning({
@@ -63,6 +127,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         year: songs.year,
         youtube_url: songs.youtubeUrl,
         isspanish: songs.isSpanish,
+        youtube_status: songs.youtubeStatus,
+        youtube_validation_message: songs.youtubeValidationMessage,
+        youtube_validation_code: songs.youtubeValidationCode,
+        youtube_validated_at: songs.youtubeValidatedAt,
       });
 
     if (!updated) {

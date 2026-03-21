@@ -21,6 +21,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       year: songs.year,
       youtube_url: songs.youtubeUrl,
       isspanish: songs.isSpanish,
+      youtube_status: songs.youtubeStatus,
+      youtube_validation_message: songs.youtubeValidationMessage,
+      youtube_validation_code: songs.youtubeValidationCode,
+      youtube_validated_at: songs.youtubeValidatedAt,
     })
     .from(songs)
     .orderBy(songs.id);

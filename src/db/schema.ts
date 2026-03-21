@@ -17,6 +17,12 @@ export const songs = pgTable(
     year: integer("year"),
     youtubeUrl: text("youtube_url").notNull(),
     isSpanish: boolean("isspanish").notNull().default(false),
+    youtubeStatus: text("youtube_status"),
+    youtubeValidationMessage: text("youtube_validation_message"),
+    youtubeValidationCode: integer("youtube_validation_code"),
+    youtubeValidatedAt: timestamp("youtube_validated_at", {
+      withTimezone: true,
+    }),
   },
   (table) => ({
     youtubeUrlIdx: uniqueIndex("songs_youtube_url_unique").on(table.youtubeUrl),

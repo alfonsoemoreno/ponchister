@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { asc } from "drizzle-orm";
+import { asc, eq, isNull, or } from "drizzle-orm";
 import { songs } from "../../../src/db/schema";
 import { db } from "../_db";
 
@@ -29,6 +29,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       isspanish: songs.isSpanish,
     })
     .from(songs)
+    .where(or(isNull(songs.youtubeStatus), eq(songs.youtubeStatus, "operational")))
     .orderBy(asc(songs.id))
     .limit(1)
     .offset(offset);

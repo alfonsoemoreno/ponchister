@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { sql } from "drizzle-orm";
+import { eq, isNull, or, sql } from "drizzle-orm";
 import { songs } from "../../../src/db/schema";
 import { db } from "../_db";
 
@@ -10,7 +10,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return;
   }
 
-  const [row] = await db.select({ count: sql<number>`count(*)` }).from(songs);
+  const [row] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(songs)
+    .where(or(isNull(songs.youtubeStatus), eq(songs.youtubeStatus, "operational")));
 
   res.setHeader("Content-Type", "application/json");
   res.end(JSON.stringify({ count: Number(row?.count ?? 0) }));

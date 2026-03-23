@@ -51,6 +51,8 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import StopIcon from "@mui/icons-material/Stop";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -126,6 +128,12 @@ interface YoutubeProbeRequest {
 
 interface YoutubeProbeView {
   id: number;
+  videoId: string;
+}
+
+interface AudioPreviewState {
+  songId: number;
+  songLabel: string;
   videoId: string;
 }
 
@@ -217,6 +225,10 @@ export default function AdminDashboard({
   const [songMenuAnchorEl, setSongMenuAnchorEl] =
     useState<null | HTMLElement>(null);
   const [songMenuSong, setSongMenuSong] = useState<Song | null>(null);
+  const [audioPreview, setAudioPreview] = useState<AudioPreviewState | null>(
+    null
+  );
+  const [audioPreviewPlayerKey, setAudioPreviewPlayerKey] = useState(0);
   const [youtubeStatusBySongId, setYoutubeStatusBySongId] = useState<
     Record<number, YoutubeStatusState>
   >({});
@@ -1309,6 +1321,38 @@ export default function AdminDashboard({
     handleSongMenuClose();
   };
 
+  const handlePreviewSong = useCallback(
+    (song: Song) => {
+      if (audioPreview?.songId === song.id) {
+        setAudioPreview(null);
+        return;
+      }
+
+      const validation = validateYoutubeUrlFormat(song.youtube_url);
+      if (validation.status === "invalid" || !validation.videoId) {
+        setFeedback({
+          severity: "error",
+          message:
+            "El enlace de YouTube de esta canción no es válido para reproducirse.",
+        });
+        setSnackbarOpen(true);
+        return;
+      }
+
+      setAudioPreview({
+        songId: song.id,
+        songLabel: `${song.artist} · ${song.title}`,
+        videoId: validation.videoId,
+      });
+      setAudioPreviewPlayerKey((prev) => prev + 1);
+    },
+    [audioPreview]
+  );
+
+  const stopAudioPreview = useCallback(() => {
+    setAudioPreview(null);
+  }, []);
+
   const renderTableBody = () => {
     if (loading) {
       return (
@@ -1337,6 +1381,7 @@ export default function AdminDashboard({
     return songs.map((song, index) => (
       (() => {
         const youtubeStatus = getYoutubeStatusChipProps(song);
+        const isPlaying = audioPreview?.songId === song.id;
 
         return (
           <TableRow
@@ -1384,13 +1429,39 @@ export default function AdminDashboard({
                 }}
               />
             </TableCell>
-            <TableCell align="right" width={140}>
-              <IconButton
-                aria-label="Opciones de canción"
-                onClick={(event) => handleSongMenuOpen(event, song)}
+            <TableCell align="right" width={176}>
+              <Stack
+                direction="row"
+                spacing={0.5}
+                justifyContent="flex-end"
+                alignItems="center"
               >
-                <MoreVertIcon fontSize="small" />
-              </IconButton>
+                <Tooltip title={isPlaying ? "Detener audio" : "Reproducir audio"}>
+                  <span>
+                    <IconButton
+                      aria-label={
+                        isPlaying
+                          ? `Detener ${song.title}`
+                          : `Reproducir ${song.title}`
+                      }
+                      onClick={() => handlePreviewSong(song)}
+                      disabled={!song.youtube_url}
+                    >
+                      {isPlaying ? (
+                        <StopIcon fontSize="small" />
+                      ) : (
+                        <PlayArrowIcon fontSize="small" />
+                      )}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <IconButton
+                  aria-label="Opciones de canción"
+                  onClick={(event) => handleSongMenuOpen(event, song)}
+                >
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
+              </Stack>
             </TableCell>
           </TableRow>
         );
@@ -1422,6 +1493,7 @@ export default function AdminDashboard({
     return songs.map((song, index) => {
       const yearLabel = song.year ? song.year.toString() : "Sin año";
       const youtubeStatus = getYoutubeStatusChipProps(song);
+      const isPlaying = audioPreview?.songId === song.id;
 
       return (
         <Paper
@@ -1579,6 +1651,31 @@ export default function AdminDashboard({
                     },
                   }}
                 />
+              </Stack>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={
+                    isPlaying ? <StopIcon /> : <PlayArrowIcon />
+                  }
+                  onClick={() => handlePreviewSong(song)}
+                  disabled={!song.youtube_url}
+                  fullWidth
+                >
+                  {isPlaying ? "Detener audio" : "Reproducir audio"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() =>
+                    window.open(song.youtube_url, "_blank", "noopener,noreferrer")
+                  }
+                  disabled={!song.youtube_url}
+                  fullWidth
+                >
+                  Ir al enlace
+                </Button>
               </Stack>
             </Stack>
           </Stack>
@@ -2392,6 +2489,20 @@ export default function AdminDashboard({
                       onClose={handleSongMenuClose}
                     >
                       <MenuItem
+                        onClick={() => {
+                          if (songMenuSong) {
+                            handlePreviewSong(songMenuSong);
+                          }
+                          handleSongMenuClose();
+                        }}
+                        disabled={!songMenuSong?.youtube_url}
+                      >
+                        <ListItemIcon>
+                          <PlayArrowIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Reproducir aquí</ListItemText>
+                      </MenuItem>
+                      <MenuItem
                         onClick={handleSongMenuOpenLink}
                         disabled={!songMenuSong?.youtube_url}
                       >
@@ -2591,6 +2702,54 @@ export default function AdminDashboard({
                   activeRequest?.videoId ?? null
                 )
               );
+            }}
+          />
+        </Box>
+      ) : null}
+
+      {audioPreview ? (
+        <Box
+          sx={{
+            position: "fixed",
+            width: 1,
+            height: 1,
+            overflow: "hidden",
+            opacity: 0,
+            pointerEvents: "none",
+          }}
+        >
+          <YouTube
+            key={audioPreviewPlayerKey}
+            videoId={audioPreview.videoId}
+            opts={{
+              width: "1",
+              height: "1",
+              playerVars: {
+                autoplay: 1,
+                controls: 0,
+                rel: 0,
+                playsinline: 1,
+                origin:
+                  typeof window !== "undefined"
+                    ? window.location.origin
+                    : undefined,
+              },
+            }}
+            onReady={(event) => {
+              event.target.playVideo();
+            }}
+            onEnd={stopAudioPreview}
+            onError={(event) => {
+              setFeedback({
+                severity: "error",
+                message:
+                  typeof event.data === "number" &&
+                  (event.data === 101 || event.data === 150)
+                    ? "No es posible reproducir este enlace aquí por restricciones de YouTube."
+                    : `No se pudo reproducir "${audioPreview.songLabel}".`,
+              });
+              setSnackbarOpen(true);
+              stopAudioPreview();
             }}
           />
         </Box>

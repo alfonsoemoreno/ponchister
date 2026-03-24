@@ -11,6 +11,16 @@ async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   return response.json() as Promise<T>;
 }
 
+async function fetchJsonWithCredentials<T>(
+  input: RequestInfo,
+  init?: RequestInit
+): Promise<T> {
+  return fetchJson<T>(input, {
+    credentials: "include",
+    ...init,
+  });
+}
+
 export async function fetchAvailablePlaylists(): Promise<PlaylistSummary[]> {
   const data = await fetchJson<Record<string, unknown>[]>("/api/playlists");
   return data.map((item) => ({
@@ -23,5 +33,24 @@ export async function fetchAvailablePlaylists(): Promise<PlaylistSummary[]> {
       typeof item.songCount === "number"
         ? item.songCount
         : Number.parseInt(String(item.songCount ?? "0"), 10) || 0,
+    scope: item.scope === "personal" ? "personal" : "public",
+  }));
+}
+
+export async function fetchPersonalPlaylists(): Promise<PlaylistSummary[]> {
+  const data = await fetchJsonWithCredentials<Record<string, unknown>[]>(
+    "/api/admin/playlists?scope=personal"
+  );
+  return data.map((item) => ({
+    id: Number(item.id),
+    name: String(item.name ?? ""),
+    description:
+      typeof item.description === "string" ? item.description : null,
+    active: item.active === true,
+    songCount:
+      typeof item.songCount === "number"
+        ? item.songCount
+        : Number.parseInt(String(item.songCount ?? "0"), 10) || 0,
+    scope: "personal",
   }));
 }

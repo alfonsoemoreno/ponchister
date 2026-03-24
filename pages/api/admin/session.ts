@@ -14,5 +14,15 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify({ user }));
+  res.end(
+    JSON.stringify({
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        display_name: user.displayName,
+        avatar_url: user.avatarUrl,
+      },
+    })
+  );
 }

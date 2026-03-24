@@ -23,6 +23,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 
 import { fetchAllSongs } from "./services/songService";
+import { fetchMyCollectionSongs, fetchMyPlaylistSongs } from "./services/songService";
 import { createGameSession } from "./services/gameSessionService";
 import { extractYoutubeId } from "./lib/autoGameQueue";
 import { useAutoGameQueue } from "./hooks/useAutoGameQueue";
@@ -32,7 +33,7 @@ import { NeonLines } from "./auto-game/NeonLines";
 import { YearSpotlight } from "./auto-game/YearSpotlight";
 import { useViewTransition } from "./hooks/useViewTransition";
 import { createAdaptiveTheme } from "./auto-game/theme";
-import type { PlaylistSummary, YearRange } from "./types";
+import type { GameSource, PlaylistSummary, YearRange } from "./types";
 
 interface InternalPlayer {
   playVideo?: () => void;
@@ -53,6 +54,7 @@ interface AutoGameProps {
   onLanguageModeChange: (spanishOnly: boolean) => void;
   timerEnabled: boolean;
   onTimerModeChange: (enabled: boolean) => void;
+  gameSource: GameSource;
   playlist: PlaylistSummary | null;
 }
 
@@ -75,6 +77,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   onLanguageModeChange,
   timerEnabled,
   onTimerModeChange,
+  gameSource,
   playlist,
 }) => {
   const [gameState, setGameState] = useState<GameState>("idle");
@@ -170,14 +173,21 @@ const AutoGame: React.FC<AutoGameProps> = ({
   };
 
   const fetchSongsForRange = useCallback(
-    () =>
-      fetchAllSongs({
+    () => {
+      if (gameSource === "personal_catalog") {
+        return fetchMyCollectionSongs();
+      }
+      if (gameSource === "personal_playlist" && playlist) {
+        return fetchMyPlaylistSongs(playlist.id);
+      }
+      return fetchAllSongs({
         minYear: playlist ? null : yearRange.min,
         maxYear: playlist ? null : yearRange.max,
         onlySpanish: playlist ? false : onlySpanish,
-        playlistId: playlist?.id ?? null,
-      }),
-    [onlySpanish, playlist, yearRange.max, yearRange.min]
+        playlistId: playlist?.scope === "public" ? playlist.id : null,
+      });
+    },
+    [gameSource, onlySpanish, playlist, yearRange.max, yearRange.min]
   );
 
   const {

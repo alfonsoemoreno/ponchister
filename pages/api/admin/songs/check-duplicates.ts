@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { eq } from "drizzle-orm";
 import { songs } from "../../../../src/db/schema";
 import type { Song, SongInput, YoutubeValidationStatus } from "../../../../src/admin/types";
 import { findSongDuplicateMatches } from "../../../../src/admin/songDuplicateUtils";
@@ -64,7 +65,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       youtube_validation_code: songs.youtubeValidationCode,
       youtube_validated_at: songs.youtubeValidatedAt,
     })
-    .from(songs);
+    .from(songs)
+    .where(eq(songs.scope, "public"));
 
   const normalizedSongs: Song[] = existingSongs.map((song) => {
     const youtubeStatus: YoutubeValidationStatus | null =
@@ -83,6 +85,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       youtube_validated_at: song.youtube_validated_at
         ? song.youtube_validated_at.toISOString()
         : null,
+      catalog_status: "pending",
+      created_at: null,
+      updated_at: null,
+      approved_at: null,
+      created_by_user: null,
+      approved_by_user: null,
     };
   });
 

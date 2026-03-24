@@ -40,6 +40,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     filters.push(eq(songs.isSpanish, true));
   }
   filters.push(or(isNull(songs.youtubeStatus), eq(songs.youtubeStatus, "operational")));
+  filters.push(eq(songs.catalogStatus, "approved"));
 
   if (typeof playlistId === "number" && Number.isFinite(playlistId)) {
     const playlistSongRows = await db

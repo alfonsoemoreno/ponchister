@@ -27,10 +27,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       songs,
       and(
         eq(playlistSongs.songId, songs.id),
-        or(isNull(songs.youtubeStatus), eq(songs.youtubeStatus, "operational"))
+        or(isNull(songs.youtubeStatus), eq(songs.youtubeStatus, "operational")),
+        eq(songs.catalogStatus, "approved")
       )
     )
-    .where(eq(playlists.active, true))
+    .where(and(eq(playlists.active, true), eq(playlists.scope, "public")))
     .groupBy(playlists.id)
     .having(sql`count(${songs.id}) > 0`)
     .orderBy(asc(playlists.name));

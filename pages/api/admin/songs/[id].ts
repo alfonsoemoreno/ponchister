@@ -1,8 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { eq } from "drizzle-orm";
-import { songs } from "../../../../src/db/schema";
+import { eq, inArray } from "drizzle-orm";
+import { adminUsers, songs } from "../../../../src/db/schema";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
+import { serializeAdminIdentity } from "../../../../src/admin/serializers";
 
 const parseBody = (req: NextApiRequest): Record<string, unknown> => {
   if (!req.body) return {};
@@ -54,6 +55,76 @@ const parseYoutubeValidation = (body: Record<string, unknown>) => {
   };
 };
 
+async function buildUserMap(userIds: Array<number | null | undefined>) {
+  const ids = Array.from(
+    new Set(
+      userIds.filter(
+        (entry): entry is number => typeof entry === "number" && Number.isFinite(entry)
+      )
+    )
+  );
+
+  if (!ids.length) {
+    return new Map<number, ReturnType<typeof serializeAdminIdentity>>();
+  }
+
+  const rows = await db
+    .select({
+      id: adminUsers.id,
+      email: adminUsers.email,
+      displayName: adminUsers.displayName,
+      avatarUrl: adminUsers.avatarUrl,
+    })
+    .from(adminUsers)
+    .where(inArray(adminUsers.id, ids));
+
+  return new Map(
+    rows.map((entry) => [
+      entry.id,
+      serializeAdminIdentity({
+        id: entry.id,
+        email: entry.email,
+        displayName: entry.displayName,
+        avatarUrl: entry.avatarUrl,
+      }),
+    ])
+  );
+}
+
+function serializeSong(
+  row: {
+    id: number;
+    artist: string;
+    title: string;
+    year: number | null;
+    youtube_url: string;
+    isspanish: boolean;
+    youtube_status: string | null;
+    youtube_validation_message: string | null;
+    youtube_validation_code: number | null;
+    youtube_validated_at: Date | null;
+    catalog_status: string;
+    created_by: number | null;
+    approved_by: number | null;
+    approved_at: Date | null;
+    created_at: Date;
+    updated_at: Date;
+  },
+  userMap: Map<number, ReturnType<typeof serializeAdminIdentity>>
+) {
+  return {
+    ...row,
+    youtube_validated_at: row.youtube_validated_at?.toISOString() ?? null,
+    approved_at: row.approved_at?.toISOString() ?? null,
+    created_at: row.created_at.toISOString(),
+    updated_at: row.updated_at.toISOString(),
+    created_by_user:
+      row.created_by !== null ? (userMap.get(row.created_by) ?? null) : null,
+    approved_by_user:
+      row.approved_by !== null ? (userMap.get(row.approved_by) ?? null) : null,
+  };
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await requireAdmin(req, res);
   if (!user) return;
@@ -79,7 +150,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const youtubeValidation = parseYoutubeValidation(body);
 
     const [currentSong] = await db
-      .select({ youtubeUrl: songs.youtubeUrl })
+      .select({
+        youtubeUrl: songs.youtubeUrl,
+        catalogStatus: songs.catalogStatus,
+        scope: songs.scope,
+      })
       .from(songs)
       .where(eq(songs.id, id))
       .limit(1);
@@ -91,6 +166,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!currentSong) {
+      res.statusCode = 404;
+      res.end("Canción no encontrada.");
+      return;
+    }
+    if (currentSong.scope !== "public") {
       res.statusCode = 404;
       res.end("Canción no encontrada.");
       return;
@@ -118,6 +198,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         youtubeValidatedAt: youtubeChanged
           ? youtubeValidation?.youtubeValidatedAt ?? null
           : youtubeValidation?.youtubeValidatedAt ?? undefined,
+        catalogStatus:
+          user.role === "superadmin" ? currentSong.catalogStatus : "pending",
+        approvedBy: user.role === "superadmin" ? undefined : null,
+        approvedAt: user.role === "superadmin" ? undefined : null,
+        updatedAt: new Date(),
       })
       .where(eq(songs.id, id))
       .returning({
@@ -131,6 +216,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         youtube_validation_message: songs.youtubeValidationMessage,
         youtube_validation_code: songs.youtubeValidationCode,
         youtube_validated_at: songs.youtubeValidatedAt,
+        catalog_status: songs.catalogStatus,
+        created_by: songs.createdBy,
+        approved_by: songs.approvedBy,
+        approved_at: songs.approvedAt,
+        created_at: songs.createdAt,
+        updated_at: songs.updatedAt,
       });
 
     if (!updated) {
@@ -139,12 +230,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return;
     }
 
+    const userMap = await buildUserMap([updated.created_by, updated.approved_by]);
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify(updated));
+    res.end(JSON.stringify(serializeSong(updated, userMap)));
     return;
   }
 
   if (req.method === "DELETE") {
+    const [existing] = await db
+      .select({ catalogStatus: songs.catalogStatus, scope: songs.scope })
+      .from(songs)
+      .where(eq(songs.id, id))
+      .limit(1);
+
+    if (!existing) {
+      res.statusCode = 404;
+      res.end("Canción no encontrada.");
+      return;
+    }
+
+    if (existing.scope !== "public") {
+      res.statusCode = 404;
+      res.end("Canción no encontrada.");
+      return;
+    }
+
+    if (user.role !== "superadmin" && existing.catalogStatus === "approved") {
+      res.statusCode = 403;
+      res.end("Los editores no pueden eliminar canciones del catálogo oficial.");
+      return;
+    }
+
     await db.delete(songs).where(eq(songs.id, id));
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ ok: true }));

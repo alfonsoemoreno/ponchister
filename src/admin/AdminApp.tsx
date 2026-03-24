@@ -139,8 +139,10 @@ function AdminAppContent({ onExit }: AdminAppProps) {
         <AdminDashboard
           onExit={onExit}
           onSignOut={handleSignOut}
+          currentUser={user}
           userEmail={user.email}
           userRole={user.role}
+          onSessionRefresh={refresh}
         />
       ) : null}
 

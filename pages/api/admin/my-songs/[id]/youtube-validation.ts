@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { and, eq, inArray } from "drizzle-orm";
-import { adminUsers, songs } from "../../../../../src/db/schema";
+import { and, eq } from "drizzle-orm";
+import { songs } from "../../../../../src/db/schema";
 import { db } from "../../../_db";
 import { requireAdmin } from "../../../_admin";
 import { serializeAdminIdentity } from "../../../../../src/admin/serializers";
@@ -69,7 +69,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : new Date(),
       updatedAt: new Date(),
     })
-    .where(and(eq(songs.id, id), eq(songs.scope, "public")))
+    .where(
+      and(
+        eq(songs.id, id),
+        eq(songs.scope, "personal"),
+        eq(songs.ownerUserId, user.id)
+      )
+    )
     .returning({
       id: songs.id,
       artist: songs.artist,
@@ -82,8 +88,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       youtube_validation_code: songs.youtubeValidationCode,
       youtube_validated_at: songs.youtubeValidatedAt,
       catalog_status: songs.catalogStatus,
-      created_by: songs.createdBy,
-      approved_by: songs.approvedBy,
       approved_at: songs.approvedAt,
       created_at: songs.createdAt,
       updated_at: songs.updatedAt,
@@ -95,49 +99,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
-  const userIds = [updated.created_by, updated.approved_by].filter(
-    (entry): entry is number => typeof entry === "number" && Number.isFinite(entry)
-  );
-  const users = userIds.length
-    ? await db
-        .select({
-          id: adminUsers.id,
-          email: adminUsers.email,
-          displayName: adminUsers.displayName,
-          avatarUrl: adminUsers.avatarUrl,
-        })
-        .from(adminUsers)
-        .where(inArray(adminUsers.id, userIds))
-    : [];
-
-  const userMap = new Map(
-    users.map((entry) => [
-      entry.id,
-      serializeAdminIdentity({
-        id: entry.id,
-        email: entry.email,
-        displayName: entry.displayName,
-        avatarUrl: entry.avatarUrl,
-      }),
-    ])
-  );
+  const owner = serializeAdminIdentity({
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+  });
 
   res.setHeader("Content-Type", "application/json");
   res.end(
     JSON.stringify({
       ...updated,
+      scope: "personal",
       youtube_validated_at: updated.youtube_validated_at?.toISOString() ?? null,
       approved_at: updated.approved_at?.toISOString() ?? null,
       created_at: updated.created_at.toISOString(),
       updated_at: updated.updated_at.toISOString(),
-      created_by_user:
-        updated.created_by !== null
-          ? (userMap.get(updated.created_by) ?? null)
-          : null,
-      approved_by_user:
-        updated.approved_by !== null
-          ? (userMap.get(updated.approved_by) ?? null)
-          : null,
+      created_by_user: owner,
+      approved_by_user: null,
     })
   );
 }

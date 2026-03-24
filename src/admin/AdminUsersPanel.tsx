@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Dialog,
@@ -238,16 +239,27 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
                     border: "1px solid",
                     borderColor: "divider",
                   }}
-                >
+                  >
                   <Stack spacing={1.5}>
-                    <Box>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Avatar
+                        src={user.avatar_url ?? undefined}
+                        sx={{ width: 42, height: 42, bgcolor: "#0f172a" }}
+                      >
+                        {(user.display_name || user.email || "U").charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Box>
                       <Typography variant="caption" color="text.secondary">
                         Email
                       </Typography>
                       <Typography variant="body1" sx={{ fontWeight: 600 }}>
                         {user.email}
                       </Typography>
-                    </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        {user.display_name || "Sin nombre visible"}
+                      </Typography>
+                      </Box>
+                    </Stack>
                     <Stack direction="row" justifyContent="space-between">
                       <Box>
                         <Typography variant="caption" color="text.secondary">
@@ -290,6 +302,7 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
               <TableHead>
                 <TableRow>
                   <TableCell>Email</TableCell>
+                  <TableCell>Nombre</TableCell>
                   <TableCell>Rol</TableCell>
                   <TableCell>Activo</TableCell>
                   <TableCell align="right">Acciones</TableCell>
@@ -298,14 +311,27 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
               <TableBody>
                 {users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} align="center">
+                    <TableCell colSpan={5} align="center">
                       {loading ? "Cargando..." : "No hay usuarios aún."}
                     </TableCell>
                   </TableRow>
                 ) : (
                   users.map((user) => (
                     <TableRow key={user.id} hover>
-                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1.2} alignItems="center">
+                          <Avatar
+                            src={user.avatar_url ?? undefined}
+                            sx={{ width: 30, height: 30, bgcolor: "#0f172a", fontSize: 13 }}
+                          >
+                            {(user.display_name || user.email || "U")
+                              .charAt(0)
+                              .toUpperCase()}
+                          </Avatar>
+                          <Typography variant="body2">{user.email}</Typography>
+                        </Stack>
+                      </TableCell>
+                      <TableCell>{user.display_name || "-"}</TableCell>
                       <TableCell>
                         {user.role === "superadmin" ? "Superadmin" : "Editor"}
                       </TableCell>

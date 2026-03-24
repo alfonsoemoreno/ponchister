@@ -1,3 +1,13 @@
+export interface AdminIdentity {
+  id: number;
+  email: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+export type CatalogStatus = "pending" | "approved";
+export type LibraryScope = "public" | "personal";
+
 export interface Song {
   id: number;
   artist: string;
@@ -9,6 +19,13 @@ export interface Song {
   youtube_validation_message: string | null;
   youtube_validation_code: number | null;
   youtube_validated_at: string | null;
+  catalog_status: CatalogStatus;
+  created_at: string | null;
+  updated_at: string | null;
+  approved_at: string | null;
+  scope?: LibraryScope;
+  created_by_user: AdminIdentity | null;
+  approved_by_user: AdminIdentity | null;
 }
 
 export interface SongInput {
@@ -53,6 +70,10 @@ export interface Playlist {
   description: string | null;
   active: boolean;
   songCount: number;
+  scope?: LibraryScope;
+  created_at?: string | null;
+  updated_at?: string | null;
+  created_by_user?: AdminIdentity | null;
   songs?: Song[];
 }
 
@@ -102,6 +123,8 @@ export interface AdminUser {
   id: number;
   email: string;
   role: AdminRole;
+  display_name?: string | null;
+  avatar_url?: string | null;
   active: boolean;
   created_at?: string;
   updated_at?: string;

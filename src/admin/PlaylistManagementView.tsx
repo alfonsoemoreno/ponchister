@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -30,6 +31,7 @@ import {
   updatePlaylist,
 } from "./services/playlistService";
 import { fetchAllSongs } from "./services/songService";
+import { listMySongs } from "./services/mySongService";
 
 interface PlaylistManagementViewProps {
   onFeedback: (payload: {
@@ -54,6 +56,41 @@ const EMPTY_FORM: FormState = {
   songIds: [],
 };
 
+const SCOPE_META = {
+  public: {
+    title: "Playlists públicas",
+    shortLabel: "Público",
+    description: "Disponibles para todos en el inicio del juego.",
+    summary:
+      "Estas playlists forman parte de la oferta general del juego y pueden mezclar canciones del catálogo oficial.",
+    editorHint:
+      "Estás editando una playlist pública. Lo que guardes quedará disponible para todos.",
+    availableSongsLabel: "Catálogo público disponible",
+    availableSongsHint:
+      "Solo se muestran canciones aprobadas del catálogo oficial.",
+    emptyState: "Todavía no hay playlists públicas creadas.",
+    chipColor: "success" as const,
+    accent: "#ecfdf5",
+    border: "#bbf7d0",
+  },
+  personal: {
+    title: "Mis playlists",
+    shortLabel: "Personal",
+    description: "Solo tú las ves y usas al iniciar una partida.",
+    summary:
+      "Estas playlists usan canciones de tu colección personal y no afectan el catálogo público.",
+    editorHint:
+      "Estás editando una playlist personal. Solo tú podrás usarla en el modo privado.",
+    availableSongsLabel: "Mi colección disponible",
+    availableSongsHint:
+      "Aquí aparecen únicamente las canciones de tu colección personal.",
+    emptyState: "Todavía no has creado playlists personales.",
+    chipColor: "info" as const,
+    accent: "#eff6ff",
+    border: "#bfdbfe",
+  },
+};
+
 function songLabel(song: Song): string {
   return `${song.artist} · ${song.title}${song.year ? ` (${song.year})` : ""}`;
 }
@@ -63,6 +100,7 @@ export default function PlaylistManagementView({
 }: PlaylistManagementViewProps) {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [songs, setSongs] = useState<Song[]>([]);
+  const [scope, setScope] = useState<"public" | "personal">("public");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,14 +110,15 @@ export default function PlaylistManagementView({
   const [songSearch, setSongSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Playlist | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const scopeMeta = SCOPE_META[scope];
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [playlistData, songData] = await Promise.all([
-        listPlaylists(),
-        fetchAllSongs(),
+        listPlaylists(scope),
+        scope === "personal" ? listMySongs() : fetchAllSongs(),
       ]);
       setPlaylists(playlistData);
       setSongs(songData);
@@ -92,7 +131,7 @@ export default function PlaylistManagementView({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     void loadData();
@@ -240,7 +279,7 @@ export default function PlaylistManagementView({
           message: "Playlist actualizada correctamente.",
         });
       } else {
-        const created = await createPlaylist(payload);
+        const created = await createPlaylist(payload, scope);
         setPlaylists((prev) =>
           [...prev, created].sort((left, right) =>
             left.name.localeCompare(right.name, "es")
@@ -321,11 +360,37 @@ export default function PlaylistManagementView({
           spacing={1.5}
         >
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {playlist.name}
-            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+              <Avatar
+                src={playlist.created_by_user?.avatar_url ?? undefined}
+                sx={{ width: 28, height: 28, bgcolor: "#0f172a", fontSize: 12 }}
+              >
+                {(
+                  playlist.created_by_user?.display_name ||
+                  playlist.created_by_user?.email ||
+                  "U"
+                )
+                  .charAt(0)
+                  .toUpperCase()}
+              </Avatar>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                {playlist.name}
+              </Typography>
+              <Chip
+                label={playlist.scope === "personal" ? "Personal" : "Pública"}
+                size="small"
+                color={playlist.scope === "personal" ? "info" : "success"}
+                variant="outlined"
+              />
+            </Stack>
             <Typography variant="body2" color="text.secondary">
               {playlist.description || "Sin descripción"}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Creada por{" "}
+              {playlist.created_by_user?.display_name ||
+                playlist.created_by_user?.email ||
+                "Sin registro"}
             </Typography>
           </Box>
           <Chip
@@ -395,6 +460,33 @@ export default function PlaylistManagementView({
   if (viewMode === "editor") {
     return (
       <Stack spacing={3}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2,
+            borderRadius: 0,
+            border: "1px solid",
+            borderColor: scopeMeta.border,
+            backgroundColor: scopeMeta.accent,
+          }}
+        >
+          <Stack spacing={1}>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+              <Chip
+                label={scopeMeta.shortLabel}
+                size="small"
+                color={scopeMeta.chipColor}
+                variant="filled"
+              />
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                {scopeMeta.title}
+              </Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary">
+              {scopeMeta.editorHint}
+            </Typography>
+          </Stack>
+        </Paper>
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={2}
@@ -408,7 +500,7 @@ export default function PlaylistManagementView({
             <Typography variant="body2" color="text.secondary">
               {editingPlaylist
                 ? "Ajusta los datos y las canciones incluidas en la playlist."
-                : "Crea una playlist en una vista dedicada."}
+                : `Crea una ${scope === "personal" ? "playlist personal" : "playlist pública"} en una vista dedicada.`}
             </Typography>
           </Box>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
@@ -510,8 +602,7 @@ export default function PlaylistManagementView({
                       Canciones de la playlist
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Vista dedicada para agregar y quitar canciones sin
-                      compartir espacio con el listado general.
+                      {scopeMeta.availableSongsHint}
                     </Typography>
                   </Box>
                   <Stack direction="row" spacing={1} flexWrap="wrap">
@@ -587,7 +678,7 @@ export default function PlaylistManagementView({
                       }}
                     >
                       <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                        Catálogo disponible
+                        {scopeMeta.availableSongsLabel}
                       </Typography>
                       <Button
                         size="small"
@@ -618,7 +709,7 @@ export default function PlaylistManagementView({
                         )
                       ) : (
                         <Typography variant="body2" color="text.secondary">
-                          No hay canciones que coincidan con la búsqueda.
+                          No hay canciones que coincidan con la búsqueda en este ámbito.
                         </Typography>
                       )}
                     </Stack>
@@ -713,8 +804,7 @@ export default function PlaylistManagementView({
                         ))
                       ) : (
                         <Typography variant="body2" color="text.secondary">
-                          Aún no agregas canciones. Selecciónalas desde el
-                          panel del catálogo.
+                          Aún no agregas canciones. Selecciónalas desde el panel de la izquierda.
                         </Typography>
                       )}
                     </Stack>
@@ -730,25 +820,65 @@ export default function PlaylistManagementView({
 
   return (
     <Stack spacing={3}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          borderRadius: 0,
+          border: "1px solid",
+          borderColor: scopeMeta.border,
+          backgroundColor: scopeMeta.accent,
+        }}
+      >
+        <Stack spacing={1}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+            <Chip
+              label={scopeMeta.shortLabel}
+              size="small"
+              color={scopeMeta.chipColor}
+              variant="filled"
+            />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              {scopeMeta.title}
+            </Typography>
+          </Stack>
+          <Typography variant="body2" color="text.secondary">
+            {scopeMeta.summary}
+          </Typography>
+        </Stack>
+      </Paper>
       <Stack
         direction={{ xs: "column", md: "row" }}
         spacing={2}
         justifyContent="space-between"
         alignItems={{ xs: "stretch", md: "center" }}
       >
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Playlists
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Gestiona tus playlists desde el listado y abre una vista separada
-            cuando necesites crear o editar una.
-          </Typography>
-        </Box>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          <Button
-            variant="outlined"
-            onClick={() => void loadData()}
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {scope === "personal" ? "Mis playlists" : "Playlists públicas"}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {scopeMeta.description}
+            </Typography>
+          </Box>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <Button
+              variant={scope === "public" ? "contained" : "outlined"}
+              onClick={() => setScope("public")}
+              disabled={loading || saving}
+            >
+              Públicas
+            </Button>
+            <Button
+              variant={scope === "personal" ? "contained" : "outlined"}
+              onClick={() => setScope("personal")}
+              disabled={loading || saving}
+            >
+              Personales
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => void loadData()}
             disabled={loading || saving}
           >
             Recargar
@@ -798,9 +928,7 @@ export default function PlaylistManagementView({
                 />
               </Stack>
               <Typography variant="body2" color="text.secondary">
-                El editor se abre como una vista aparte para que el trabajo sea
-                más cómodo, especialmente cuando la playlist tiene muchas
-                canciones.
+                {scopeMeta.summary}
               </Typography>
             </Stack>
           </Paper>
@@ -829,7 +957,7 @@ export default function PlaylistManagementView({
               }}
             >
               <Typography variant="body2" color="text.secondary">
-                Todavía no hay playlists creadas.
+                {scopeMeta.emptyState}
               </Typography>
             </Paper>
           )}

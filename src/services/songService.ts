@@ -18,6 +18,16 @@ async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   return response.json() as Promise<T>;
 }
 
+async function fetchJsonWithCredentials<T>(
+  input: RequestInfo,
+  init?: RequestInit
+): Promise<T> {
+  return fetchJson<T>(input, {
+    credentials: "include",
+    ...init,
+  });
+}
+
 function hasValidYoutubeId(url: string): boolean {
   if (!url) return false;
   const match = url.match(YOUTUBE_ID_REGEX);
@@ -181,5 +191,27 @@ export async function fetchAllSongs(options?: {
     );
   }
 
+  return collected;
+}
+
+export async function fetchMyCollectionSongs(): Promise<Song[]> {
+  const data = await fetchJsonWithCredentials<Record<string, unknown>[]>(
+    "/api/admin/my-songs"
+  );
+  const collected = data.map((raw) => normalizeSong(raw));
+  if (!collected.length) {
+    throw new Error("Tu colección personal no tiene canciones disponibles.");
+  }
+  return collected;
+}
+
+export async function fetchMyPlaylistSongs(playlistId: number): Promise<Song[]> {
+  const data = await fetchJsonWithCredentials<Record<string, unknown>[]>(
+    `/api/admin/my-playlist-songs?playlistId=${playlistId}`
+  );
+  const collected = data.map((raw) => normalizeSong(raw));
+  if (!collected.length) {
+    throw new Error("La playlist personal seleccionada no tiene canciones.");
+  }
   return collected;
 }

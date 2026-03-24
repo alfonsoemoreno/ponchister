@@ -1,4 +1,6 @@
 import type {
+  AdminIdentity,
+  CatalogStatus,
   Song,
   SongDuplicateMatch,
   SongInput,
@@ -41,6 +43,26 @@ function normalizeSong(raw: Record<string, unknown>): Song {
       ? youtubeStatusRaw
       : null;
 
+  const catalogStatus: CatalogStatus =
+    raw.catalog_status === "approved" ? "approved" : "pending";
+
+  const normalizeIdentity = (value: unknown): AdminIdentity | null => {
+    if (!value || typeof value !== "object") return null;
+    const rawIdentity = value as Record<string, unknown>;
+    const id = Number(rawIdentity.id);
+    if (!Number.isFinite(id)) return null;
+    return {
+      id,
+      email: String(rawIdentity.email ?? ""),
+      display_name:
+        typeof rawIdentity.display_name === "string"
+          ? rawIdentity.display_name
+          : null,
+      avatar_url:
+        typeof rawIdentity.avatar_url === "string" ? rawIdentity.avatar_url : null,
+    };
+  };
+
   return {
     id: Number(raw.id),
     artist: String(raw.artist ?? ""),
@@ -62,6 +84,12 @@ function normalizeSong(raw: Record<string, unknown>): Song {
       typeof raw.youtube_validated_at === "string"
         ? raw.youtube_validated_at
         : null,
+    catalog_status: catalogStatus,
+    created_at: typeof raw.created_at === "string" ? raw.created_at : null,
+    updated_at: typeof raw.updated_at === "string" ? raw.updated_at : null,
+    approved_at: typeof raw.approved_at === "string" ? raw.approved_at : null,
+    created_by_user: normalizeIdentity(raw.created_by_user),
+    approved_by_user: normalizeIdentity(raw.approved_by_user),
   };
 }
 
@@ -231,6 +259,22 @@ export async function bulkUpsertSongs(payload: SongInput[]): Promise<void> {
 
 export async function deleteSong(id: number): Promise<void> {
   await fetchJson(`${API_BASE}/songs/${id}`, { method: "DELETE" });
+}
+
+export async function approveSong(id: number): Promise<Song> {
+  const data = await fetchJson<Record<string, unknown>>(
+    `${API_BASE}/songs/${id}/approve`,
+    { method: "POST" }
+  );
+  return normalizeSong(data);
+}
+
+export async function bulkApproveSongs(songIds: number[]): Promise<number> {
+  const data = await fetchJson<{ count: number }>(`${API_BASE}/songs/bulk-approve`, {
+    method: "POST",
+    body: JSON.stringify({ songIds }),
+  });
+  return typeof data.count === "number" ? data.count : 0;
 }
 
 export async function fetchSongStatistics(): Promise<SongStatisticsGroup> {

@@ -10,8 +10,10 @@ import {
 import YouTube from "react-youtube";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Container,
   Dialog,
@@ -63,6 +65,8 @@ import LibraryMusicOutlinedIcon from "@mui/icons-material/LibraryMusicOutlined";
 import QueueMusicOutlinedIcon from "@mui/icons-material/QueueMusicOutlined";
 import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
+import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -71,6 +75,8 @@ import * as XLSX from "xlsx";
 
 import AdminUsersPanel from "./AdminUsersPanel";
 import PlaylistManagementView from "./PlaylistManagementView";
+import ProfilePanel from "./ProfilePanel";
+import MyCollectionView from "./MyCollectionView";
 import SongFormDialog from "./SongFormDialog";
 import SongStatisticsView from "./SongStatisticsView";
 import GameSessionStatisticsView from "./GameSessionStatisticsView";
@@ -78,6 +84,8 @@ import {
   createSong,
   deleteSong,
   listSongs,
+  approveSong,
+  bulkApproveSongs,
   fetchSongStatistics,
   fetchAllSongs,
   bulkUpsertSongs,
@@ -85,6 +93,7 @@ import {
   updateSongYoutubeValidation,
   updateSong,
 } from "./services/songService";
+import { copyPublicSongToMyCollection } from "./services/mySongService";
 import { fetchGameSessionStatistics } from "./services/gameSessionService";
 import {
   createUncheckedYoutubeValidation,
@@ -95,6 +104,7 @@ import {
 } from "./youtubeValidation";
 import type {
   GameSessionStatistics,
+  AdminUser,
   Song,
   SongDuplicateMatch,
   SongInput,
@@ -166,15 +176,19 @@ const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
 interface AdminDashboardProps {
   onExit: () => void;
   onSignOut: () => void;
+  currentUser?: AdminUser | null;
   userEmail?: string | null;
   userRole?: "superadmin" | "editor";
+  onSessionRefresh?: () => Promise<void>;
 }
 
 export default function AdminDashboard({
   onExit,
   onSignOut,
+  currentUser,
   userEmail,
   userRole,
+  onSessionRefresh,
 }: AdminDashboardProps) {
   const dataReady = true;
   const [songs, setSongs] = useState<Song[]>([]);
@@ -206,10 +220,17 @@ export default function AdminDashboard({
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
-    "songs" | "playlists" | "stats" | "users"
+    "songs" | "playlists" | "stats" | "users" | "profile"
+    | "my-collection"
   >(
     "songs"
   );
+  const [sessionUser, setSessionUser] = useState<AdminUser | null>(
+    currentUser ?? null
+  );
+  const [approvingSongId, setApprovingSongId] = useState<number | null>(null);
+  const [selectedSongIds, setSelectedSongIds] = useState<number[]>([]);
+  const [bulkApproving, setBulkApproving] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [songStatistics, setSongStatistics] = useState<SongStatisticsGroup | null>(
@@ -248,18 +269,28 @@ export default function AdminDashboard({
   const youtubeProbeRequestIdRef = useRef(0);
   const autoValidatedUncheckedRef = useRef<Record<string, boolean>>({});
 
+  useEffect(() => {
+    setSessionUser(currentUser ?? null);
+  }, [currentUser]);
+
+  useEffect(() => {
+    setSelectedSongIds((prev) =>
+      prev.filter((songId) => songs.some((song) => song.id === songId))
+    );
+  }, [songs]);
+
   const tabConfig = useMemo(
     () => [
       {
         value: "songs" as const,
-        label: "Canciones",
-        description: "Gestiona el catalogo y sus detalles clave.",
+        label: "Catálogo público",
+        description: "Gestiona las canciones oficiales y sus aprobaciones.",
         icon: <LibraryMusicOutlinedIcon fontSize="small" />,
       },
       {
         value: "playlists" as const,
         label: "Playlists",
-        description: "Crea listas curadas para partidas temáticas.",
+        description: "Administra playlists públicas y personales.",
         icon: <QueueMusicOutlinedIcon fontSize="small" />,
       },
       {
@@ -273,6 +304,18 @@ export default function AdminDashboard({
         label: "Usuarios",
         description: "Controla accesos y roles.",
         icon: <PeopleAltOutlinedIcon fontSize="small" />,
+      },
+      {
+        value: "profile" as const,
+        label: "Perfil",
+        description: "Gestiona tu identidad visible dentro del panel.",
+        icon: <AccountCircleOutlinedIcon fontSize="small" />,
+      },
+      {
+        value: "my-collection" as const,
+        label: "Mis canciones",
+        description: "Administra tu colección personal y sus publicaciones.",
+        icon: <LibraryMusicOutlinedIcon fontSize="small" />,
       },
     ],
     []
@@ -1192,6 +1235,14 @@ export default function AdminDashboard({
   };
 
   const requestDelete = (song: Song) => {
+    if (!isSuperAdmin && song.catalog_status === "approved") {
+      setFeedback({
+        severity: "error",
+        message: "Los editores no pueden eliminar canciones del catálogo oficial.",
+      });
+      setSnackbarOpen(true);
+      return;
+    }
     setDeleteTarget(song);
   };
 
@@ -1283,9 +1334,95 @@ export default function AdminDashboard({
     setFeedback(null);
   };
 
+  const handleApproveSong = async (song: Song) => {
+    if (!isSuperAdmin) {
+      return;
+    }
+
+    setApprovingSongId(song.id);
+    try {
+      const updated = await approveSong(song.id);
+      setSongs((prev) => prev.map((entry) => (entry.id === song.id ? updated : entry)));
+      if (editingSong?.id === song.id) {
+        setEditingSong(updated);
+      }
+      setFeedback({
+        severity: "success",
+        message: `"${song.title}" ya forma parte del catálogo oficial.`,
+      });
+      setSnackbarOpen(true);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "No se pudo aprobar la canción.";
+      setFeedback({ severity: "error", message });
+      setSnackbarOpen(true);
+    } finally {
+      setApprovingSongId(null);
+    }
+  };
+
+  const toggleSongSelection = useCallback((songId: number) => {
+    setSelectedSongIds((prev) =>
+      prev.includes(songId)
+        ? prev.filter((entry) => entry !== songId)
+        : [...prev, songId]
+    );
+  }, []);
+
+  const selectableSongs = useMemo(
+    () => songs.filter((song) => song.catalog_status !== "approved"),
+    [songs]
+  );
+
+  const allSelectableSelected =
+    selectableSongs.length > 0 &&
+    selectableSongs.every((song) => selectedSongIds.includes(song.id));
+
+  const someSelectableSelected =
+    selectableSongs.some((song) => selectedSongIds.includes(song.id)) &&
+    !allSelectableSelected;
+
+  const handleToggleSelectAllSongs = useCallback(() => {
+    if (allSelectableSelected) {
+      setSelectedSongIds((prev) =>
+        prev.filter((songId) => !selectableSongs.some((song) => song.id === songId))
+      );
+      return;
+    }
+
+    setSelectedSongIds((prev) =>
+      Array.from(new Set([...prev, ...selectableSongs.map((song) => song.id)]))
+    );
+  }, [allSelectableSelected, selectableSongs]);
+
+  const handleBulkApproveSongs = async () => {
+    if (!isSuperAdmin || selectedSongIds.length === 0) {
+      return;
+    }
+
+    setBulkApproving(true);
+    try {
+      const approvedCount = await bulkApproveSongs(selectedSongIds);
+      setSelectedSongIds([]);
+      setFeedback({
+        severity: "success",
+        message: `${approvedCount} canción(es) aprobadas para el catálogo oficial.`,
+      });
+      setSnackbarOpen(true);
+      setReloadToken((prev) => prev + 1);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "No se pudieron aprobar las canciones.";
+      setFeedback({ severity: "error", message });
+      setSnackbarOpen(true);
+    } finally {
+      setBulkApproving(false);
+    }
+  };
+
   const handleTabChange = (
     _event: SyntheticEvent,
-    value: "songs" | "playlists" | "stats" | "users"
+    value: "songs" | "playlists" | "stats" | "users" | "profile" | "my-collection"
   ) => {
     setActiveTab(value);
     if (!isDesktop) {
@@ -1353,11 +1490,43 @@ export default function AdminDashboard({
     setAudioPreview(null);
   }, []);
 
+  const getSongOwnerLabel = useCallback((song: Song) => {
+    return (
+      song.created_by_user?.display_name ||
+      song.created_by_user?.email ||
+      "Sin registro"
+    );
+  }, []);
+
+  const getCatalogChipProps = useCallback((song: Song) => {
+    if (song.catalog_status === "approved") {
+      return {
+        label: "Oficial",
+        color: "success" as const,
+        variant: "filled" as const,
+      };
+    }
+
+    return {
+      label: "Pendiente",
+      color: "warning" as const,
+      variant: "outlined" as const,
+    };
+  }, []);
+
+  const handleProfileUpdated = useCallback(
+    (user: AdminUser) => {
+      setSessionUser(user);
+      void onSessionRefresh?.();
+    },
+    [onSessionRefresh]
+  );
+
   const renderTableBody = () => {
     if (loading) {
       return (
         <TableRow>
-          <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+          <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
             <CircularProgress color="primary" />
           </TableCell>
         </TableRow>
@@ -1367,7 +1536,7 @@ export default function AdminDashboard({
     if (!songs.length) {
       return (
         <TableRow>
-          <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+          <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
             <Typography variant="body1" color="text.secondary">
               {searchTerm
                 ? "No hay resultados que coincidan con tu búsqueda."
@@ -1382,6 +1551,9 @@ export default function AdminDashboard({
       (() => {
         const youtubeStatus = getYoutubeStatusChipProps(song);
         const isPlaying = audioPreview?.songId === song.id;
+        const catalogChip = getCatalogChipProps(song);
+        const isSelected = selectedSongIds.includes(song.id);
+        const isSelectable = isSuperAdmin && song.catalog_status !== "approved";
 
         return (
           <TableRow
@@ -1393,6 +1565,16 @@ export default function AdminDashboard({
               animationFillMode: "both",
             }}
           >
+            <TableCell padding="checkbox" width={56}>
+              {isSuperAdmin ? (
+                <Checkbox
+                  checked={isSelected}
+                  disabled={!isSelectable}
+                  onChange={() => toggleSongSelection(song.id)}
+                  inputProps={{ "aria-label": `Seleccionar ${song.title}` }}
+                />
+              ) : null}
+            </TableCell>
             <TableCell width={80}>{song.id}</TableCell>
             <TableCell sx={{ minWidth: 180 }}>
               <Typography variant="body2" fontWeight={600} noWrap>
@@ -1403,8 +1585,19 @@ export default function AdminDashboard({
               <Typography variant="body2" noWrap>
                 {song.title}
               </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                Alta: {getSongOwnerLabel(song)}
+              </Typography>
             </TableCell>
             <TableCell width={120}>{song.year ?? "-"}</TableCell>
+            <TableCell width={140} align="center">
+              <Chip
+                label={catalogChip.label}
+                color={catalogChip.color}
+                variant={catalogChip.variant}
+                size="small"
+              />
+            </TableCell>
             <TableCell width={160} align="center">
               <Tooltip title={youtubeStatus.tooltip} disableInteractive>
                 <Chip
@@ -1493,7 +1686,10 @@ export default function AdminDashboard({
     return songs.map((song, index) => {
       const yearLabel = song.year ? song.year.toString() : "Sin año";
       const youtubeStatus = getYoutubeStatusChipProps(song);
+      const catalogChip = getCatalogChipProps(song);
       const isPlaying = audioPreview?.songId === song.id;
+      const isSelected = selectedSongIds.includes(song.id);
+      const isSelectable = isSuperAdmin && song.catalog_status !== "approved";
 
       return (
         <Paper
@@ -1530,6 +1726,14 @@ export default function AdminDashboard({
                 #{String(song.id).padStart(3, "0")}
               </Typography>
               <Stack direction="row" spacing={1} alignItems="center">
+                {isSuperAdmin ? (
+                  <Checkbox
+                    checked={isSelected}
+                    disabled={!isSelectable}
+                    onChange={() => toggleSongSelection(song.id)}
+                    inputProps={{ "aria-label": `Seleccionar ${song.title}` }}
+                  />
+                ) : null}
                 <Chip
                   label={yearLabel}
                   size="small"
@@ -1550,6 +1754,13 @@ export default function AdminDashboard({
                     sx={{ borderRadius: 0, fontWeight: 600 }}
                   />
                 </Tooltip>
+                <Chip
+                  label={catalogChip.label}
+                  size="small"
+                  color={catalogChip.color}
+                  variant={catalogChip.variant}
+                  sx={{ borderRadius: 0, fontWeight: 600 }}
+                />
                 <IconButton
                   aria-label="Opciones de canción"
                   onClick={(event) => handleSongMenuOpen(event, song)}
@@ -1607,6 +1818,9 @@ export default function AdminDashboard({
                   }}
                 >
                   {song.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Alta: {getSongOwnerLabel(song)}
                 </Typography>
               </Box>
             </Stack>
@@ -2095,7 +2309,7 @@ export default function AdminDashboard({
                   <Stack
                     direction="row"
                     spacing={1.5}
-                    alignItems="flex-start"
+                    alignItems="center"
                   >
                     <IconButton
                       aria-label="Abrir menu"
@@ -2110,16 +2324,16 @@ export default function AdminDashboard({
                       <MenuIcon />
                     </IconButton>
                     <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      {activeTabMeta?.label ?? "Administracion"}
-                    </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                      {activeTabMeta?.label ?? "Panel"}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {activeTabMeta?.description ??
-                        "Gestion y control de contenidos."}
-                    </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {activeTabMeta?.label ?? "Administracion"}
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                        {activeTabMeta?.label ?? "Panel"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {activeTabMeta?.description ??
+                          "Gestion y control de contenidos."}
+                      </Typography>
                     </Box>
                   </Stack>
                   <Stack
@@ -2127,6 +2341,37 @@ export default function AdminDashboard({
                     spacing={1}
                     alignItems={{ xs: "stretch", sm: "center" }}
                   >
+                    {sessionUser ? (
+                      <Stack
+                        direction="row"
+                        spacing={1.2}
+                        alignItems="center"
+                        sx={{
+                          px: 1.25,
+                          py: 0.8,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          backgroundColor: "#f8fafc",
+                        }}
+                      >
+                        <Avatar
+                          src={sessionUser.avatar_url ?? undefined}
+                          sx={{ width: 34, height: 34, bgcolor: "#0f172a" }}
+                        >
+                          {(sessionUser.display_name || sessionUser.email || "U")
+                            .charAt(0)
+                            .toUpperCase()}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
+                            {sessionUser.display_name || sessionUser.email}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {sessionUser.role === "superadmin" ? "Superadmin" : "Editor"}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    ) : null}
                   </Stack>
                 </Stack>
 
@@ -2197,6 +2442,49 @@ export default function AdminDashboard({
                         </Typography>
                       </Paper>
                     </Box>
+
+                    {isSuperAdmin ? (
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2,
+                          borderRadius: 0,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          backgroundColor: "#f8fafc",
+                        }}
+                      >
+                        <Stack
+                          direction={{ xs: "column", md: "row" }}
+                          spacing={2}
+                          alignItems={{ xs: "stretch", md: "center" }}
+                          justifyContent="space-between"
+                        >
+                          <Typography variant="body2" color="text.secondary">
+                            {selectedSongIds.length > 0
+                              ? `${selectedSongIds.length} canción(es) seleccionadas para aprobar.`
+                              : "Selecciona canciones pendientes para aprobarlas en bloque."}
+                          </Typography>
+                          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                            <Button
+                              variant="outlined"
+                              onClick={() => setSelectedSongIds([])}
+                              disabled={selectedSongIds.length === 0 || bulkApproving}
+                            >
+                              Limpiar selección
+                            </Button>
+                            <Button
+                              variant="contained"
+                              startIcon={<VerifiedOutlinedIcon />}
+                              onClick={handleBulkApproveSongs}
+                              disabled={selectedSongIds.length === 0 || bulkApproving}
+                            >
+                              {bulkApproving ? "Aprobando..." : "Aprobar seleccionadas"}
+                            </Button>
+                          </Stack>
+                        </Stack>
+                      </Paper>
+                    ) : null}
 
                     <Paper
                       elevation={0}
@@ -2308,22 +2596,24 @@ export default function AdminDashboard({
                             open={Boolean(actionsAnchorEl)}
                             onClose={handleActionsClose}
                           >
-                            <MenuItem
-                              onClick={() => {
-                                handleActionsClose();
-                                handleImportButtonClick();
-                              }}
-                              disabled={!dataReady || importing}
-                            >
-                              <ListItemIcon>
-                                {importing ? (
-                                  <CircularProgress size={16} />
-                                ) : (
-                                  <UploadFileIcon fontSize="small" />
-                                )}
-                              </ListItemIcon>
-                              <ListItemText>Importar Excel</ListItemText>
-                            </MenuItem>
+                            {isSuperAdmin ? (
+                              <MenuItem
+                                onClick={() => {
+                                  handleActionsClose();
+                                  handleImportButtonClick();
+                                }}
+                                disabled={!dataReady || importing}
+                              >
+                                <ListItemIcon>
+                                  {importing ? (
+                                    <CircularProgress size={16} />
+                                  ) : (
+                                    <UploadFileIcon fontSize="small" />
+                                  )}
+                                </ListItemIcon>
+                                <ListItemText>Importar Excel</ListItemText>
+                              </MenuItem>
+                            ) : null}
                             <MenuItem
                               onClick={() => {
                                 handleActionsClose();
@@ -2442,10 +2732,23 @@ export default function AdminDashboard({
                         >
                           <TableHead>
                             <TableRow>
+                              <TableCell padding="checkbox">
+                                {isSuperAdmin ? (
+                                  <Checkbox
+                                    checked={allSelectableSelected}
+                                    indeterminate={someSelectableSelected}
+                                    onChange={handleToggleSelectAllSongs}
+                                    inputProps={{
+                                      "aria-label": "Seleccionar canciones pendientes",
+                                    }}
+                                  />
+                                ) : null}
+                              </TableCell>
                               <TableCell>ID</TableCell>
                               <TableCell>Artista</TableCell>
                               <TableCell>Canción</TableCell>
                               <TableCell>Año</TableCell>
+                              <TableCell align="center">Catálogo</TableCell>
                               <TableCell align="center">YouTube</TableCell>
                               <TableCell align="center">Español</TableCell>
                               <TableCell align="right">Acciones</TableCell>
@@ -2528,6 +2831,56 @@ export default function AdminDashboard({
                       <MenuItem
                         onClick={() => {
                           if (songMenuSong) {
+                            void handleApproveSong(songMenuSong);
+                          }
+                          handleSongMenuClose();
+                        }}
+                        disabled={
+                          !songMenuSong ||
+                          !isSuperAdmin ||
+                          songMenuSong.catalog_status === "approved" ||
+                          approvingSongId === songMenuSong?.id
+                        }
+                      >
+                        <ListItemIcon>
+                          <VerifiedOutlinedIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Aprobar para catálogo</ListItemText>
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          if (songMenuSong) {
+                            void copyPublicSongToMyCollection(songMenuSong.id)
+                              .then(() => {
+                                setFeedback({
+                                  severity: "success",
+                                  message: "La canción se copió a tu colección personal.",
+                                });
+                                setSnackbarOpen(true);
+                              })
+                              .catch((err) => {
+                                setFeedback({
+                                  severity: "error",
+                                  message:
+                                    err instanceof Error
+                                      ? err.message
+                                      : "No se pudo copiar la canción.",
+                                });
+                                setSnackbarOpen(true);
+                              });
+                          }
+                          handleSongMenuClose();
+                        }}
+                        disabled={!songMenuSong}
+                      >
+                        <ListItemIcon>
+                          <AddIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Copiar a mi colección</ListItemText>
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          if (songMenuSong) {
                             openEditForm(songMenuSong);
                           }
                           handleSongMenuClose();
@@ -2546,7 +2899,10 @@ export default function AdminDashboard({
                           }
                           handleSongMenuClose();
                         }}
-                        disabled={!songMenuSong}
+                        disabled={
+                          !songMenuSong ||
+                          (!isSuperAdmin && songMenuSong.catalog_status === "approved")
+                        }
                       >
                         <ListItemIcon>
                           <DeleteIcon fontSize="small" />
@@ -2610,6 +2966,22 @@ export default function AdminDashboard({
                       </Stack>
                     )}
                   </>
+                ) : activeTab === "profile" ? (
+                  <ProfilePanel
+                    currentUser={sessionUser}
+                    onProfileUpdated={handleProfileUpdated}
+                    onFeedback={(payload) => {
+                      setFeedback(payload);
+                      setSnackbarOpen(true);
+                    }}
+                  />
+                ) : activeTab === "my-collection" ? (
+                  <MyCollectionView
+                    onFeedback={(payload) => {
+                      setFeedback(payload);
+                      setSnackbarOpen(true);
+                    }}
+                  />
                 ) : (
                   <AdminUsersPanel isSuperAdmin={isSuperAdmin} />
                 )}

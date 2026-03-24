@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  Avatar,
   Box,
   Button,
   Dialog,
@@ -13,14 +14,24 @@ import {
 } from "@mui/material";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
-import type { PlaylistSummary, YearRange } from "./types";
+import LogoutIcon from "@mui/icons-material/Logout";
+import type { GameSource, PlaylistSummary, YearRange } from "./types";
+import type { AdminUser } from "./admin/types";
+import AdminAccessDialog from "./admin/AdminAccessDialog";
+import { loginAdmin, logoutAdmin } from "./admin/services/adminAuth";
 
 interface WelcomeProps {
-  onStartAuto: (playlist: PlaylistSummary | null) => void;
+  onStartAuto: (payload: {
+    source: GameSource;
+    playlist: PlaylistSummary | null;
+  }) => void;
   onOpenAdmin: () => void;
+  onAdminSessionRefresh: () => Promise<void>;
   yearRange: YearRange;
   playlists: PlaylistSummary[];
+  personalPlaylists: PlaylistSummary[];
   selectedPlaylist: PlaylistSummary | null;
+  currentAdminUser: AdminUser | null;
 }
 
 const requestFullscreen = () => {
@@ -40,24 +51,64 @@ const requestFullscreen = () => {
 const Welcome: React.FC<WelcomeProps> = ({
   onStartAuto,
   onOpenAdmin,
+  onAdminSessionRefresh,
   yearRange,
   playlists,
+  personalPlaylists,
   selectedPlaylist,
+  currentAdminUser,
 }) => {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [playlistDraftId, setPlaylistDraftId] = useState<string>(
     selectedPlaylist ? String(selectedPlaylist.id) : ""
   );
 
-  const handleStartAutoMode = (playlist: PlaylistSummary | null) => {
+  const [personalPlaylistDraftId, setPersonalPlaylistDraftId] = useState<string>("");
+
+  const handleStartAutoMode = (
+    source: GameSource,
+    playlist: PlaylistSummary | null
+  ) => {
     setModeDialogOpen(false);
     requestFullscreen();
-    onStartAuto(playlist);
+    onStartAuto({ source, playlist });
   };
 
   const handleOpenAdmin = () => {
     onOpenAdmin();
+  };
+
+  const handleLogin = async ({
+    email,
+    password,
+  }: {
+    email: string;
+    password: string;
+  }) => {
+    setLoginLoading(true);
+    setLoginError(null);
+    try {
+      await loginAdmin({ email, password });
+      await onAdminSessionRefresh();
+      setLoginOpen(false);
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutAdmin();
+      await onAdminSessionRefresh();
+    } catch {
+      /* noop */
+    }
   };
 
   const handleOpenRules = () => {
@@ -70,6 +121,7 @@ const Welcome: React.FC<WelcomeProps> = ({
 
   const handleOpenModeDialog = () => {
     setPlaylistDraftId(selectedPlaylist ? String(selectedPlaylist.id) : "");
+    setPersonalPlaylistDraftId("");
     setModeDialogOpen(true);
   };
 
@@ -80,12 +132,15 @@ const Welcome: React.FC<WelcomeProps> = ({
   const playlistSelection = playlists.find(
     (playlist) => String(playlist.id) === playlistDraftId
   );
+  const personalPlaylistSelection = personalPlaylists.find(
+    (playlist) => String(playlist.id) === personalPlaylistDraftId
+  );
 
   return (
     <Box
       sx={{
         position: "relative",
-        width: "100vw",
+        width: "100%",
         minHeight: "100dvh",
         display: "flex",
         flexDirection: "column",
@@ -120,6 +175,128 @@ const Welcome: React.FC<WelcomeProps> = ({
       }}
     >
       {/* Sin animaciones pesadas en inicio */}
+      <Stack
+        direction="row"
+        spacing={2}
+        alignItems="flex-start"
+        justifyContent="space-between"
+        sx={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 4,
+          px: { xs: 1, sm: 2, md: 3 },
+          pt: {
+            xs: "calc(env(safe-area-inset-top, 0px) + 16px)",
+            sm: "calc(env(safe-area-inset-top, 0px) + 20px)",
+          },
+          pb: 0.5,
+        }}
+      >
+        {currentAdminUser ? (
+          <Stack
+            direction="row"
+            spacing={1.2}
+            alignItems="center"
+            sx={{
+              minWidth: 0,
+              flex: 1,
+              maxWidth: {
+                xs: "calc(100% - 108px)",
+                sm: "calc(100% - 148px)",
+              },
+              pl: { xs: 1, sm: 1.5 },
+            }}
+          >
+            <Avatar
+              src={currentAdminUser.avatar_url ?? undefined}
+              sx={{ width: 34, height: 34, bgcolor: "#0ea5e9", fontSize: 14 }}
+            >
+              {(currentAdminUser.display_name || currentAdminUser.email || "U")
+                .charAt(0)
+                .toUpperCase()}
+            </Avatar>
+            <Box sx={{ textAlign: "left", minWidth: 0 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 700,
+                  lineHeight: 1.1,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {currentAdminUser.display_name || currentAdminUser.email}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "rgba(224,239,255,0.72)" }}>
+                {currentAdminUser.role === "superadmin" ? "Superadmin" : "Editor"}
+              </Typography>
+            </Box>
+          </Stack>
+        ) : (
+          <Box sx={{ flex: 1, ml: { xs: 1, sm: 1.5 } }} />
+        )}
+
+        <Stack
+          direction="row"
+          spacing={{ xs: 0.5, sm: 1 }}
+          alignItems="center"
+          justifyContent="flex-end"
+          sx={{ flexShrink: 0, minWidth: "fit-content" }}
+        >
+          {currentAdminUser ? (
+            <Stack
+              direction="row"
+              spacing={{ xs: 0.5, sm: 1 }}
+              alignItems="center"
+            >
+            <Button
+              variant="text"
+              color="inherit"
+              startIcon={<AdminPanelSettingsIcon />}
+              onClick={handleOpenAdmin}
+              sx={{
+                borderRadius: 0,
+                textTransform: "none",
+                minWidth: 0,
+                px: 1,
+              }}
+            >
+              Panel
+            </Button>
+            <Button
+              variant="text"
+              color="inherit"
+              startIcon={<LogoutIcon />}
+              onClick={() => void handleLogout()}
+              sx={{ textTransform: "none", borderRadius: 0 }}
+            >
+              Salir
+            </Button>
+            </Stack>
+          ) : (
+            <Button
+              variant="text"
+              color="inherit"
+              startIcon={<AdminPanelSettingsIcon />}
+              onClick={() => {
+                setLoginError(null);
+                setLoginOpen(true);
+              }}
+              sx={{
+                borderRadius: 0,
+                textTransform: "none",
+                minWidth: 0,
+                px: 1,
+              }}
+            >
+              Ingresar
+            </Button>
+          )}
+        </Stack>
+      </Stack>
       <Box
         sx={{
           position: "relative",
@@ -253,30 +430,6 @@ const Welcome: React.FC<WelcomeProps> = ({
             >
               Ver reglas
             </Button>
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={<AdminPanelSettingsIcon />}
-              onClick={handleOpenAdmin}
-              sx={{
-                width: { xs: "100%", sm: "auto" },
-                flex: { sm: 1 },
-                textTransform: "none",
-                fontWeight: 700,
-                borderRadius: 999,
-                px: 3.5,
-                py: 1.6,
-                borderColor: "rgba(255,255,255,0.32)",
-                color: "rgba(224,239,255,0.92)",
-                backgroundColor: "rgba(6,24,58,0.4)",
-                "&:hover": {
-                  borderColor: "rgba(255,255,255,0.6)",
-                  backgroundColor: "rgba(255,255,255,0.08)",
-                },
-              }}
-            >
-              Administración
-            </Button>
           </Stack>
         </Stack>
       </Box>
@@ -361,7 +514,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                 <Button
                   variant="contained"
                   color="inherit"
-                  onClick={() => handleStartAutoMode(null)}
+                  onClick={() => handleStartAutoMode("classic", null)}
                   sx={{
                     alignSelf: "flex-start",
                     textTransform: "none",
@@ -469,7 +622,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                     if (!playlistSelection) {
                       return;
                     }
-                    handleStartAutoMode(playlistSelection);
+                    handleStartAutoMode("public_playlist", playlistSelection);
                   }}
                   disabled={!playlistSelection}
                   sx={{
@@ -491,6 +644,103 @@ const Welcome: React.FC<WelcomeProps> = ({
                 </Button>
               </Stack>
             </Box>
+            {currentAdminUser ? (
+              <>
+                <Box
+                  sx={{
+                    borderRadius: 3,
+                    border: "1px solid rgba(244,196,122,0.28)",
+                    background:
+                      "linear-gradient(180deg, rgba(89,60,11,0.28) 0%, rgba(41,25,6,0.54) 100%)",
+                    p: 2.25,
+                  }}
+                >
+                  <Stack spacing={1.25}>
+                    <Typography variant="overline" sx={{ letterSpacing: 1.8, fontWeight: 700, color: "rgba(255,221,161,0.88)" }}>
+                      Opción 3
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}>
+                      Mi catálogo
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.65 }}>
+                      Juega usando solo las canciones de tu colección personal.
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      onClick={() => handleStartAutoMode("personal_catalog", null)}
+                      sx={{
+                        alignSelf: "flex-start",
+                        textTransform: "none",
+                        fontWeight: 700,
+                        borderRadius: 999,
+                        px: 2.6,
+                        borderColor: "rgba(255,221,161,0.4)",
+                        color: "#ffe6bf",
+                      }}
+                    >
+                      Jugar mi catálogo
+                    </Button>
+                  </Stack>
+                </Box>
+                <Box
+                  sx={{
+                    borderRadius: 3,
+                    border: "1px solid rgba(255,173,173,0.28)",
+                    background:
+                      "linear-gradient(180deg, rgba(96,36,36,0.28) 0%, rgba(45,16,16,0.54) 100%)",
+                    p: 2.25,
+                  }}
+                >
+                  <Stack spacing={1.25}>
+                    <Typography variant="overline" sx={{ letterSpacing: 1.8, fontWeight: 700, color: "rgba(255,196,196,0.88)" }}>
+                      Opción 4
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}>
+                      Mi playlist personal
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.65 }}>
+                      Elige una playlist armada con canciones de tu colección personal.
+                    </Typography>
+                    <TextField
+                      select
+                      label="Playlist personal"
+                      value={personalPlaylistDraftId}
+                      onChange={(event) => setPersonalPlaylistDraftId(event.target.value)}
+                      fullWidth
+                      disabled={personalPlaylists.length === 0}
+                    >
+                      {personalPlaylists.map((playlist) => (
+                        <MenuItem key={playlist.id} value={String(playlist.id)}>
+                          {playlist.name} ({playlist.songCount})
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      disabled={!personalPlaylistSelection}
+                      onClick={() =>
+                        personalPlaylistSelection
+                          ? handleStartAutoMode("personal_playlist", personalPlaylistSelection)
+                          : undefined
+                      }
+                      sx={{
+                        alignSelf: "flex-start",
+                        textTransform: "none",
+                        fontWeight: 700,
+                        borderRadius: 999,
+                        px: 2.6,
+                        borderColor: "rgba(255,196,196,0.4)",
+                        color: "#ffd1d1",
+                      }}
+                    >
+                      Jugar mi playlist
+                    </Button>
+                  </Stack>
+                </Box>
+              </>
+            ) : null}
           </Stack>
         </DialogContent>
         <DialogActions
@@ -672,6 +922,18 @@ const Welcome: React.FC<WelcomeProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+      <AdminAccessDialog
+        open={loginOpen}
+        loading={loginLoading}
+        onClose={() => {
+          if (!loginLoading) {
+            setLoginOpen(false);
+            setLoginError(null);
+          }
+        }}
+        onSubmit={handleLogin}
+        error={loginError}
+      />
     </Box>
   );
 };

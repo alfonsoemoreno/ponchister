@@ -21,6 +21,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await requireAdmin(req, res);
   if (!user) return;
 
+  if (user.role !== "superadmin") {
+    res.statusCode = 403;
+    res.end("Solo un superadmin puede importar canciones por lote.");
+    return;
+  }
+
   if (req.method !== "POST") {
     res.statusCode = 405;
     res.end("Método no permitido.");
@@ -60,6 +66,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         youtubeValidationMessage: null,
         youtubeValidationCode: null,
         youtubeValidatedAt: null,
+        catalogStatus: "approved" as const,
+        createdBy: user.id,
+        approvedBy: user.id,
+        approvedAt: new Date(),
+        updatedAt: new Date(),
       };
     })
     .filter(Boolean) as Array<{
@@ -72,6 +83,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     youtubeValidationMessage: null;
     youtubeValidationCode: null;
     youtubeValidatedAt: null;
+    catalogStatus: "approved";
+    createdBy: number;
+    approvedBy: number;
+    approvedAt: Date;
+    updatedAt: Date;
   }>;
 
   if (!values.length) {
@@ -94,6 +110,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         youtubeValidationMessage: sql`null`,
         youtubeValidationCode: sql`null`,
         youtubeValidatedAt: sql`null`,
+        catalogStatus: sql`'approved'`,
+        approvedBy: sql`${user.id}`,
+        approvedAt: sql`now()`,
+        updatedAt: sql`now()`,
       },
     });
 

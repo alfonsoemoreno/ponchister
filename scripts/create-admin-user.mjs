@@ -1,10 +1,11 @@
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import { Pool } from "pg";
+import { normalizeDatabaseUrl } from "../src/db/connectionString.js";
 
 dotenv.config({ path: ".env.local", quiet: true });
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl = normalizeDatabaseUrl(process.env.DATABASE_URL ?? "");
 const email = process.env.ADMIN_EMAIL;
 const password = process.env.ADMIN_PASSWORD;
 const role = process.env.ADMIN_ROLE ?? "superadmin";

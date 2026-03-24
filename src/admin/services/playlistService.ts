@@ -1,4 +1,4 @@
-import type { Playlist, PlaylistInput, Song } from "../types";
+import type { AdminIdentity, Playlist, PlaylistInput, Song } from "../types";
 
 const API_BASE = "/api/admin/playlists";
 
@@ -31,6 +31,23 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     year = Number.isNaN(parsed) ? null : parsed;
   }
 
+  const normalizeIdentity = (value: unknown): AdminIdentity | null => {
+    if (!value || typeof value !== "object") return null;
+    const rawIdentity = value as Record<string, unknown>;
+    const id = Number(rawIdentity.id);
+    if (!Number.isFinite(id)) return null;
+    return {
+      id,
+      email: String(rawIdentity.email ?? ""),
+      display_name:
+        typeof rawIdentity.display_name === "string"
+          ? rawIdentity.display_name
+          : null,
+      avatar_url:
+        typeof rawIdentity.avatar_url === "string" ? rawIdentity.avatar_url : null,
+    };
+  };
+
   return {
     id: Number(raw.id),
     artist: String(raw.artist ?? ""),
@@ -59,10 +76,33 @@ function normalizeSong(raw: Record<string, unknown>): Song {
       typeof raw.youtube_validated_at === "string"
         ? raw.youtube_validated_at
         : null,
+    catalog_status: raw.catalog_status === "approved" ? "approved" : "pending",
+    created_at: typeof raw.created_at === "string" ? raw.created_at : null,
+    updated_at: typeof raw.updated_at === "string" ? raw.updated_at : null,
+    approved_at: typeof raw.approved_at === "string" ? raw.approved_at : null,
+    created_by_user: normalizeIdentity(raw.created_by_user),
+    approved_by_user: normalizeIdentity(raw.approved_by_user),
   };
 }
 
 function normalizePlaylist(raw: Record<string, unknown>): Playlist {
+  const normalizeIdentity = (value: unknown): AdminIdentity | null => {
+    if (!value || typeof value !== "object") return null;
+    const rawIdentity = value as Record<string, unknown>;
+    const id = Number(rawIdentity.id);
+    if (!Number.isFinite(id)) return null;
+    return {
+      id,
+      email: String(rawIdentity.email ?? ""),
+      display_name:
+        typeof rawIdentity.display_name === "string"
+          ? rawIdentity.display_name
+          : null,
+      avatar_url:
+        typeof rawIdentity.avatar_url === "string" ? rawIdentity.avatar_url : null,
+    };
+  };
+
   return {
     id: Number(raw.id),
     name: String(raw.name ?? ""),
@@ -73,6 +113,10 @@ function normalizePlaylist(raw: Record<string, unknown>): Playlist {
       typeof raw.songCount === "number"
         ? raw.songCount
         : Number.parseInt(String(raw.songCount ?? "0"), 10) || 0,
+    scope: raw.scope === "personal" ? "personal" : "public",
+    created_at: typeof raw.created_at === "string" ? raw.created_at : null,
+    updated_at: typeof raw.updated_at === "string" ? raw.updated_at : null,
+    created_by_user: normalizeIdentity(raw.created_by_user),
     songs: Array.isArray(raw.songs)
       ? raw.songs.map((song) => normalizeSong(song as Record<string, unknown>))
       : undefined,
@@ -90,8 +134,8 @@ function sanitizePlaylistInput(payload: PlaylistInput): PlaylistInput {
   };
 }
 
-export async function listPlaylists(): Promise<Playlist[]> {
-  const data = await fetchJson<Record<string, unknown>[]>(API_BASE);
+export async function listPlaylists(scope: "public" | "personal" = "public"): Promise<Playlist[]> {
+  const data = await fetchJson<Record<string, unknown>[]>(`${API_BASE}?scope=${scope}`);
   return data.map(normalizePlaylist);
 }
 
@@ -100,10 +144,13 @@ export async function getPlaylist(id: number): Promise<Playlist> {
   return normalizePlaylist(data);
 }
 
-export async function createPlaylist(payload: PlaylistInput): Promise<Playlist> {
+export async function createPlaylist(
+  payload: PlaylistInput,
+  scope: "public" | "personal" = "public"
+): Promise<Playlist> {
   const data = await fetchJson<Record<string, unknown>>(API_BASE, {
     method: "POST",
-    body: JSON.stringify(sanitizePlaylistInput(payload)),
+    body: JSON.stringify({ ...sanitizePlaylistInput(payload), scope }),
   });
   return normalizePlaylist(data);
 }

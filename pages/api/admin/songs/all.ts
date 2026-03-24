@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { eq } from "drizzle-orm";
 import { songs } from "../../../../src/db/schema";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
@@ -27,6 +28,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       youtube_validated_at: songs.youtubeValidatedAt,
     })
     .from(songs)
+    .where(eq(songs.scope, "public"))
     .orderBy(songs.id);
 
   res.setHeader("Content-Type", "application/json");

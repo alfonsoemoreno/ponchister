@@ -3,10 +3,11 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "../../src/db/schema";
+import { normalizeDatabaseUrl } from "../../src/db/connectionString.js";
 
 dotenv.config({ path: ".env.local", quiet: true });
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl = normalizeDatabaseUrl(process.env.DATABASE_URL ?? "");
 
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is not configured.");

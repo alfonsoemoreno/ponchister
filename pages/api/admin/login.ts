@@ -47,6 +47,8 @@ export default async function handler(
       email: adminUsers.email,
       passwordHash: adminUsers.passwordHash,
       role: adminUsers.role,
+      displayName: adminUsers.displayName,
+      avatarUrl: adminUsers.avatarUrl,
       active: adminUsers.active,
     })
     .from(adminUsers)
@@ -76,7 +78,13 @@ export default async function handler(
   res.setHeader("Content-Type", "application/json");
   res.end(
     JSON.stringify({
-      user: { id: user.id, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        display_name: user.displayName,
+        avatar_url: user.avatarUrl,
+      },
     })
   );
 }

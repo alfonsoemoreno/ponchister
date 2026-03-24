@@ -3,9 +3,14 @@ import Welcome from "./Welcome";
 const AutoGame = lazy(() => import("./AutoGame"));
 const AdminApp = lazy(() => import("./admin/AdminApp"));
 import "./App.css";
-import type { PlaylistSummary, YearRange } from "./types";
+import type { GameSource, PlaylistSummary, YearRange } from "./types";
 import { fetchSongYearBounds } from "./services/songService";
-import { fetchAvailablePlaylists } from "./services/playlistService";
+import {
+  fetchAvailablePlaylists,
+  fetchPersonalPlaylists,
+} from "./services/playlistService";
+import { fetchAdminSession } from "./admin/services/adminAuth";
+import type { AdminUser } from "./admin/types";
 
 const YEAR_RANGE_STORAGE_KEY = "ponchister_year_range";
 const LANGUAGE_FILTER_STORAGE_KEY = "ponchister_language_filter";
@@ -99,6 +104,7 @@ const readStoredPlaylist = (): PlaylistSummary | null => {
         typeof parsed.description === "string" ? parsed.description : null,
       active: parsed.active === true,
       songCount: coerceYear((parsed as { songCount?: unknown }).songCount, 0),
+      scope: parsed.scope === "personal" ? "personal" : "public",
     };
   } catch {
     return null;
@@ -121,9 +127,12 @@ function App() {
   const [availablePlaylists, setAvailablePlaylists] = useState<PlaylistSummary[]>(
     [],
   );
+  const [personalPlaylists, setPersonalPlaylists] = useState<PlaylistSummary[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<PlaylistSummary | null>(
     () => readStoredPlaylist(),
   );
+  const [gameSource, setGameSource] = useState<GameSource>("classic");
+  const [currentAdminUser, setCurrentAdminUser] = useState<AdminUser | null>(null);
 
   const effectiveLimits = availableRange ?? fallbackRange;
 
@@ -213,16 +222,27 @@ function App() {
 
   const loadPlaylists = useCallback(async () => {
     try {
-      const playlists = await fetchAvailablePlaylists();
+      const [playlists, adminUser] = await Promise.all([
+        fetchAvailablePlaylists(),
+        fetchAdminSession().catch(() => null),
+      ]);
+      const personal = adminUser
+        ? await fetchPersonalPlaylists().catch(() => [])
+        : [];
       setAvailablePlaylists(playlists);
+      setCurrentAdminUser(adminUser);
+      setPersonalPlaylists(personal);
       setSelectedPlaylist((prev) => {
         if (!prev) return null;
-        const match = playlists.find((playlist) => playlist.id === prev.id);
+        const match = [...playlists, ...personal].find(
+          (playlist) => playlist.id === prev.id && playlist.scope === prev.scope
+        );
         return match ?? null;
       });
     } catch (error) {
       console.error("[ponchister] No se pudieron cargar las playlists.", error);
       setAvailablePlaylists([]);
+      setPersonalPlaylists([]);
       setSelectedPlaylist(null);
     }
   }, []);
@@ -232,19 +252,32 @@ function App() {
 
     const run = async () => {
       try {
-        const playlists = await fetchAvailablePlaylists();
+        const [playlists, adminUser] = await Promise.all([
+          fetchAvailablePlaylists(),
+          fetchAdminSession().catch(() => null),
+        ]);
         if (cancelled) return;
         setAvailablePlaylists(playlists);
+        setCurrentAdminUser(adminUser);
+        const personal = adminUser
+          ? await fetchPersonalPlaylists().catch(() => [])
+          : [];
+        if (cancelled) return;
+        setPersonalPlaylists(personal);
         setSelectedPlaylist((prev) => {
           if (!prev) return null;
-          const match = playlists.find((playlist) => playlist.id === prev.id);
+          const match = [...playlists, ...personal].find(
+            (playlist) => playlist.id === prev.id && playlist.scope === prev.scope
+          );
           return match ?? null;
         });
       } catch (error) {
         console.error("[ponchister] No se pudieron cargar las playlists.", error);
         if (!cancelled) {
           setAvailablePlaylists([]);
+          setPersonalPlaylists([]);
           setSelectedPlaylist(null);
+          setCurrentAdminUser(null);
         }
       }
     };
@@ -274,7 +307,14 @@ function App() {
     });
   };
 
-  const handleStartAuto = (playlist: PlaylistSummary | null) => {
+  const handleStartAuto = ({
+    source,
+    playlist,
+  }: {
+    source: GameSource;
+    playlist: PlaylistSummary | null;
+  }) => {
+    setGameSource(source);
     setSelectedPlaylist(playlist);
     setView("auto");
   };
@@ -314,9 +354,12 @@ function App() {
       <Welcome
         onStartAuto={handleStartAuto}
         onOpenAdmin={handleOpenAdmin}
+        onAdminSessionRefresh={loadPlaylists}
         yearRange={normalizedYearRange}
         playlists={availablePlaylists}
+        personalPlaylists={personalPlaylists}
         selectedPlaylist={selectedPlaylist}
+        currentAdminUser={currentAdminUser}
       />
     );
   if (view === "auto")
@@ -331,6 +374,7 @@ function App() {
           onLanguageModeChange={handleLanguageModeChange}
           timerEnabled={timerEnabled}
           onTimerModeChange={handleTimerModeChange}
+          gameSource={gameSource}
           playlist={selectedPlaylist}
         />
       </Suspense>

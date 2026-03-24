@@ -23,3 +23,4 @@ ADMIN_EMAIL="tu@email" ADMIN_PASSWORD="tu-password" node scripts/create-admin-us
 
 ## Notas
 - `ADMIN_JWT_SECRET` debe ser un string largo y seguro.
+- Si `DATABASE_URL` viene con `sslmode=require`, `prefer` o `verify-ca`, el proyecto lo normaliza a `sslmode=verify-full` para mantener el comportamiento seguro actual de `pg` y evitar el cambio de semántica anunciado para `pg` v9.

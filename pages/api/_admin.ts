@@ -10,7 +10,13 @@ type RequestLike = Pick<IncomingMessage, "headers">;
 export async function requireAdmin(
   req: RequestLike,
   res: ResponseLike
-): Promise<{ id: number; email: string; role: "superadmin" | "editor" } | null> {
+): Promise<{
+  id: number;
+  email: string;
+  role: "superadmin" | "editor";
+  displayName: string | null;
+  avatarUrl: string | null;
+} | null> {
   const session = getAdminSession(req);
   if (!session) {
     res.statusCode = 401;
@@ -23,6 +29,8 @@ export async function requireAdmin(
       id: adminUsers.id,
       email: adminUsers.email,
       role: adminUsers.role,
+      displayName: adminUsers.displayName,
+      avatarUrl: adminUsers.avatarUrl,
       active: adminUsers.active,
     })
     .from(adminUsers)
@@ -36,7 +44,13 @@ export async function requireAdmin(
     return null;
   }
 
-  return { id: user.id, email: user.email, role: user.role as "superadmin" | "editor" };
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role as "superadmin" | "editor",
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+  };
 }
 
 export default function handler(_: IncomingMessage, res: ServerResponse) {

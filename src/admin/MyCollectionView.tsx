@@ -32,6 +32,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
+import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -1281,22 +1282,49 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
         <Box
           sx={{
             position: "fixed",
-            width: 1,
-            height: 1,
+            right: 16,
+            bottom: 16,
+            width: { xs: "calc(100% - 32px)", sm: 280 },
+            zIndex: (theme) => theme.zIndex.snackbar + 1,
+            borderRadius: 2,
             overflow: "hidden",
-            opacity: 0,
-            pointerEvents: "none",
+            boxShadow: 6,
+            bgcolor: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
           }}
         >
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={1}
+            sx={{ px: 1.5, py: 1 }}
+          >
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: 700, minWidth: 0 }}
+              noWrap
+            >
+              Reproduciendo: {audioPreview.songLabel}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={stopAudioPreview}
+              aria-label="Detener audio"
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Stack>
           <YouTube
             key={audioPreviewPlayerKey}
             videoId={audioPreview.videoId}
             opts={{
-              width: "1",
-              height: "1",
+              width: "100%",
+              height: "158",
               playerVars: {
                 autoplay: 1,
-                controls: 0,
+                controls: 1,
                 rel: 0,
                 playsinline: 1,
                 origin:
@@ -1306,6 +1334,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
               },
             }}
             onReady={(event) => {
+              event.target.unMute?.();
               event.target.playVideo();
             }}
             onEnd={stopAudioPreview}

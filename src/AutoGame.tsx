@@ -486,14 +486,14 @@ const AutoGame: React.FC<AutoGameProps> = ({
     if (yearSpotlightTimerRef.current) {
       return;
     }
-    const currentYear = new Date().getFullYear();
-    const minYear = 1950;
+    const minYear = Math.min(localRange.min, localRange.max);
+    const maxYear = Math.max(localRange.min, localRange.max);
     const randomYear =
-      Math.floor(Math.random() * (currentYear - minYear + 1)) + minYear;
+      Math.floor(Math.random() * (maxYear - minYear + 1)) + minYear;
     void runViewTransition(() => {
       triggerSpotlight("Año", randomYear);
     });
-  }, [runViewTransition, triggerSpotlight]);
+  }, [localRange.max, localRange.min, runViewTransition, triggerSpotlight]);
 
   const handleNextAfterReveal = useCallback(() => {
     advanceToNextSong();

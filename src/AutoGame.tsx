@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, MouseEvent, SyntheticEvent } from "react";
+import type { ChangeEvent, SyntheticEvent } from "react";
 import YouTube from "react-youtube";
 import type { YouTubeProps } from "react-youtube";
 import {
@@ -12,8 +12,6 @@ import {
   Stack,
   Slider,
   Switch,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -81,6 +79,22 @@ const SPECIAL_SONG_CHANCE = 0.12;
 const GOLDEN_BACKDROP =
   "radial-gradient(circle at 20% 18%, rgba(255,212,108,0.85) 0%, rgba(196,137,34,0.72) 38%, rgba(98,58,8,0.75) 70%), radial-gradient(circle at 78% 26%, rgba(255,238,178,0.7) 0%, rgba(200,140,28,0.6) 40%, rgba(96,56,7,0.7) 68%), linear-gradient(180deg, #5a3504 0%, #241100 100%)";
 const GOLDEN_OVERLAY = "rgba(66, 38, 6, 0.58)";
+const TAG_MATCH_MODE_OPTIONS: Array<{
+  value: SongTagMatchMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "any",
+    label: "Cualquiera",
+    description: "Incluye canciones que tengan una o más de las etiquetas elegidas.",
+  },
+  {
+    value: "all",
+    label: "Todas",
+    description: "Incluye solo canciones que tengan todas las etiquetas elegidas.",
+  },
+];
 
 const AutoGame: React.FC<AutoGameProps> = ({
   onExit,
@@ -187,11 +201,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     onSongTagsChange(nextTags);
   };
 
-  const handleTagMatchModeChange = (
-    _event: MouseEvent<HTMLElement>,
-    value: SongTagMatchMode | null
-  ) => {
-    if (!value) return;
+  const handleTagMatchModeChange = (value: SongTagMatchMode) => {
     setLocalTagMatchMode(value);
     onSongTagMatchModeChange(value);
   };
@@ -1469,26 +1479,76 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   </Typography>
                 </Box>
                 <Stack spacing={1.25} sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "rgba(204,231,255,0.72)", fontWeight: 700 }}
-                  >
-                    Mostrar canciones que coincidan con
-                  </Typography>
-                  <ToggleButtonGroup
-                    value={localTagMatchMode}
-                    exclusive
-                    onChange={handleTagMatchModeChange}
-                    size="small"
-                    color="info"
+                  <Box
                     sx={{
-                      backgroundColor: "rgba(5,24,64,0.2)",
+                      borderRadius: 2,
                       border: "1px solid rgba(99,216,255,0.12)",
+                      backgroundColor: "rgba(4,17,29,0.28)",
+                      p: 0.75,
                     }}
                   >
-                    <ToggleButton value="any">Cualquiera de las etiquetas</ToggleButton>
-                    <ToggleButton value="all">Todas las etiquetas</ToggleButton>
-                  </ToggleButtonGroup>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        px: 0.75,
+                        pb: 0.75,
+                        color: "rgba(204,231,255,0.72)",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Cómo combinar etiquetas
+                    </Typography>
+                    <Stack direction="row" spacing={0.75}>
+                      {TAG_MATCH_MODE_OPTIONS.map((option) => {
+                        const selected = localTagMatchMode === option.value;
+                        return (
+                          <Button
+                            key={option.value}
+                            size="small"
+                            variant={selected ? "contained" : "text"}
+                            color="info"
+                            onClick={() => handleTagMatchModeChange(option.value)}
+                            sx={{
+                              minWidth: 112,
+                              borderRadius: 999,
+                              px: 1.75,
+                              textTransform: "none",
+                              fontWeight: 700,
+                              color: selected ? "#04111d" : "rgba(224,239,255,0.88)",
+                              backgroundColor: selected
+                                ? "#63d8ff"
+                                : "rgba(7,33,57,0.3)",
+                              border: selected
+                                ? "1px solid rgba(99,216,255,0.58)"
+                                : "1px solid rgba(99,216,255,0.14)",
+                              "&:hover": {
+                                backgroundColor: selected
+                                  ? "#7ce2ff"
+                                  : "rgba(10,43,72,0.42)",
+                              },
+                            }}
+                          >
+                            {option.label}
+                          </Button>
+                        );
+                      })}
+                    </Stack>
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      maxWidth: 320,
+                      color: "rgba(204,231,255,0.72)",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {
+                      TAG_MATCH_MODE_OPTIONS.find(
+                        (option) => option.value === localTagMatchMode
+                      )?.description
+                    }
+                  </Typography>
                   <Stack
                     direction="row"
                     spacing={1}

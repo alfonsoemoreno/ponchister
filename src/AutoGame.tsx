@@ -684,7 +684,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
       ? currentSong.artist
       : "Escucha, siente y deja que la intuición te guíe.";
     const description = showDetails
-      ? "Captura la magia del momento con visuales envolventes inspirados en tu canción. Sigue jugando para descubrir nuevas portadas y atmósferas impactantes."
+      ? "Disfruta visuales envolventes inspirados en tu canción. Sigue jugando para descubrir nuevas portadas y ambientes memorables."
       : 'Mantén el suspenso: cuando creas tener la respuesta, presiona "Mostrar" para confirmar tu apuesta.';
     const highlightedYear = showDetails && songYear !== null ? songYear : null;
 

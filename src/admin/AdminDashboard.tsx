@@ -155,7 +155,7 @@ interface AudioPreviewState {
 }
 
 const DEFAULT_PAGE_SIZE = 25;
-const PAGE_SIZE_OPTIONS = [10, 25, 50];
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 150, 200];
 
 type SortOption =
   | "id_asc"

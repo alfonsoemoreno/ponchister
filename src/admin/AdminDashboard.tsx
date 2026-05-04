@@ -116,6 +116,8 @@ import {
   getSongTagLabel,
   isSpanishTagSelected,
   normalizeSongTags,
+  SONG_TAG_OPTIONS,
+  type SongTag,
 } from "../lib/songTags";
 
 interface FeedbackState {
@@ -236,6 +238,9 @@ export default function AdminDashboard({
   const [approvingSongId, setApprovingSongId] = useState<number | null>(null);
   const [selectedSongIds, setSelectedSongIds] = useState<number[]>([]);
   const [bulkApproving, setBulkApproving] = useState(false);
+  const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
+  const [bulkTagSelection, setBulkTagSelection] = useState<SongTag[]>([]);
+  const [bulkTagSaving, setBulkTagSaving] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [songStatistics, setSongStatistics] = useState<SongStatisticsGroup | null>(
@@ -1327,9 +1332,13 @@ export default function AdminDashboard({
     );
   }, []);
 
-  const selectableSongs = useMemo(
-    () => songs.filter((song) => song.catalog_status !== "approved"),
-    [songs]
+  const selectableSongs = useMemo(() => songs, [songs]);
+  const approvableSelectedSongIds = useMemo(
+    () =>
+      selectedSongIds.filter((songId) =>
+        songs.some((song) => song.id === songId && song.catalog_status !== "approved")
+      ),
+    [selectedSongIds, songs]
   );
 
   const allSelectableSelected =
@@ -1354,13 +1363,13 @@ export default function AdminDashboard({
   }, [allSelectableSelected, selectableSongs]);
 
   const handleBulkApproveSongs = async () => {
-    if (!isSuperAdmin || selectedSongIds.length === 0) {
+    if (!isSuperAdmin || approvableSelectedSongIds.length === 0) {
       return;
     }
 
     setBulkApproving(true);
     try {
-      const approvedCount = await bulkApproveSongs(selectedSongIds);
+      const approvedCount = await bulkApproveSongs(approvableSelectedSongIds);
       setSelectedSongIds([]);
       setFeedback({
         severity: "success",
@@ -1377,6 +1386,73 @@ export default function AdminDashboard({
       setBulkApproving(false);
     }
   };
+
+  const handleToggleBulkTag = useCallback((tag: SongTag) => {
+    setBulkTagSelection((prev) =>
+      prev.includes(tag)
+        ? prev.filter((item) => item !== tag)
+        : normalizeSongTags([...prev, tag])
+    );
+  }, []);
+
+  const openBulkTagDialog = useCallback(() => {
+    setBulkTagSelection([]);
+    setBulkTagDialogOpen(true);
+  }, []);
+
+  const closeBulkTagDialog = useCallback(() => {
+    if (bulkTagSaving) {
+      return;
+    }
+    setBulkTagDialogOpen(false);
+    setBulkTagSelection([]);
+  }, [bulkTagSaving]);
+
+  const handleBulkApplyTags = useCallback(async () => {
+    if (selectedSongIds.length === 0 || bulkTagSelection.length === 0) {
+      return;
+    }
+
+    const selectedSongs = songs.filter((song) => selectedSongIds.includes(song.id));
+    if (!selectedSongs.length) {
+      return;
+    }
+
+    setBulkTagSaving(true);
+    try {
+      await Promise.all(
+        selectedSongs.map((song) => {
+          const nextTags = normalizeSongTags([...song.tags, ...bulkTagSelection]);
+          return updateSong(song.id, {
+            artist: song.artist,
+            title: song.title,
+            youtube_url: song.youtube_url,
+            year: song.year,
+            tags: nextTags,
+            isspanish: isSpanishTagSelected(nextTags),
+          });
+        })
+      );
+
+      setFeedback({
+        severity: "success",
+        message: `Se agregaron etiquetas a ${selectedSongs.length} canción(es).`,
+      });
+      setSnackbarOpen(true);
+      setBulkTagDialogOpen(false);
+      setBulkTagSelection([]);
+      setReloadToken((prev) => prev + 1);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "No se pudieron actualizar las etiquetas.";
+      setFeedback({ severity: "error", message });
+      setSnackbarOpen(true);
+    } finally {
+      setBulkTagSaving(false);
+    }
+  }, [bulkTagSelection, selectedSongIds, songs]);
 
   const handleTabChange = (
     _event: SyntheticEvent,
@@ -2412,22 +2488,41 @@ export default function AdminDashboard({
                         >
                           <Typography variant="body2" color="text.secondary">
                             {selectedSongIds.length > 0
-                              ? `${selectedSongIds.length} canción(es) seleccionadas para aprobar.`
-                              : "Selecciona canciones pendientes para aprobarlas en bloque."}
+                              ? `${selectedSongIds.length} canción(es) seleccionadas.`
+                              : "Selecciona canciones para aplicar acciones en bloque."}
                           </Typography>
                           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                             <Button
                               variant="outlined"
                               onClick={() => setSelectedSongIds([])}
-                              disabled={selectedSongIds.length === 0 || bulkApproving}
+                              disabled={
+                                selectedSongIds.length === 0 ||
+                                bulkApproving ||
+                                bulkTagSaving
+                              }
                             >
                               Limpiar selección
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              onClick={openBulkTagDialog}
+                              disabled={
+                                selectedSongIds.length === 0 ||
+                                bulkApproving ||
+                                bulkTagSaving
+                              }
+                            >
+                              Agregar etiquetas
                             </Button>
                             <Button
                               variant="contained"
                               startIcon={<VerifiedOutlinedIcon />}
                               onClick={handleBulkApproveSongs}
-                              disabled={selectedSongIds.length === 0 || bulkApproving}
+                              disabled={
+                                approvableSelectedSongIds.length === 0 ||
+                                bulkApproving ||
+                                bulkTagSaving
+                              }
                             >
                               {bulkApproving ? "Aprobando..." : "Aprobar seleccionadas"}
                             </Button>
@@ -3210,6 +3305,51 @@ export default function AdminDashboard({
             disabled={deleteLoading}
           >
             {deleteLoading ? "Eliminando..." : "Eliminar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={bulkTagDialogOpen}
+        onClose={closeBulkTagDialog}
+        fullWidth
+        maxWidth="sm"
+        fullScreen={isSmallScreen}
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>Agregar etiquetas en bloque</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Typography variant="body2" color="text.secondary">
+              Las etiquetas seleccionadas se agregarán a las {selectedSongIds.length} canción(es) elegidas, sin borrar las etiquetas actuales.
+            </Typography>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              {SONG_TAG_OPTIONS.map((option) => {
+                const selected = bulkTagSelection.includes(option.value);
+                return (
+                  <Chip
+                    key={option.value}
+                    label={getSongTagLabel(option.value)}
+                    clickable
+                    color={selected ? "primary" : "default"}
+                    variant={selected ? "filled" : "outlined"}
+                    onClick={() => handleToggleBulkTag(option.value)}
+                    disabled={bulkTagSaving}
+                  />
+                );
+              })}
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeBulkTagDialog} disabled={bulkTagSaving} variant="outlined">
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleBulkApplyTags}
+            disabled={bulkTagSaving || bulkTagSelection.length === 0}
+            variant="contained"
+          >
+            {bulkTagSaving ? "Guardando..." : "Aplicar etiquetas"}
           </Button>
         </DialogActions>
       </Dialog>

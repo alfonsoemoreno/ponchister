@@ -1409,7 +1409,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                       color: "rgba(148,216,255,0.86)",
                     }}
                   >
-                    Idioma
+                    Etiquetas
                   </Typography>
                   <Typography
                     variant="body2"

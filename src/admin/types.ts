@@ -100,6 +100,7 @@ export interface SongStatistics {
   yearsLeastCommon: StatEntry[];
   decadesLeastCommon: StatEntry[];
   artistsMostCommon: StatEntry[];
+  tagsMostCommon: StatEntry[];
 }
 
 export interface SongStatisticsGroup {

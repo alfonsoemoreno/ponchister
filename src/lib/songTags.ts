@@ -1,4 +1,5 @@
 export type SongTag = string;
+export type SongTagMatchMode = "any" | "all";
 
 export interface SongTagDefinition {
   id: number;
@@ -118,6 +119,24 @@ export function songMatchesAllTags(
 ): boolean {
   if (!selectedTags.length) return true;
   return selectedTags.every((tag) => songTags.includes(tag));
+}
+
+export function songMatchesAnyTag(
+  songTags: readonly string[],
+  selectedTags: readonly string[]
+): boolean {
+  if (!selectedTags.length) return true;
+  return selectedTags.some((tag) => songTags.includes(tag));
+}
+
+export function songMatchesSelectedTags(
+  songTags: readonly string[],
+  selectedTags: readonly string[],
+  mode: SongTagMatchMode
+): boolean {
+  return mode === "all"
+    ? songMatchesAllTags(songTags, selectedTags)
+    : songMatchesAnyTag(songTags, selectedTags);
 }
 
 export function getSongTagLabel(

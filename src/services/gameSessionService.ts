@@ -1,3 +1,10 @@
+import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+  type SongTag,
+  type SongTagMatchMode,
+} from "../lib/songTags";
+
 async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init);
   if (!response.ok) {
@@ -9,13 +16,12 @@ async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   return response.json() as Promise<T>;
 }
 
-import { isSpanishTagSelected, normalizeSongTags, type SongTag } from "../lib/songTags";
-
 export interface CreateGameSessionInput {
   mode?: string;
   yearMin?: number | null;
   yearMax?: number | null;
   selectedTags?: SongTag[];
+  tagMatchMode?: SongTagMatchMode;
   onlySpanish?: boolean;
   timerEnabled?: boolean;
   playlistId?: number | null;
@@ -46,6 +52,7 @@ export async function createGameSession(
           ? Math.trunc(payload.yearMax)
           : null,
       selectedTags,
+      tagMatchMode: payload.tagMatchMode === "all" ? "all" : "any",
       onlySpanish: isSpanishTagSelected(selectedTags),
       timerEnabled: payload.timerEnabled === true,
       playlistId:

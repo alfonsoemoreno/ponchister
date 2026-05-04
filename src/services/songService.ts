@@ -2,6 +2,7 @@ import type { Song, YearRange } from "../types";
 import {
   isSpanishTagSelected,
   normalizeSongTags,
+  type SongTagMatchMode,
 } from "../lib/songTags";
 
 let cachedSongCount: number | null = null;
@@ -165,6 +166,7 @@ export async function fetchAllSongs(options?: {
   minYear?: number | null;
   maxYear?: number | null;
   selectedTags?: string[];
+  tagMatchMode?: SongTagMatchMode;
   playlistId?: number | null;
 }): Promise<Song[]> {
   const minYear =
@@ -172,6 +174,7 @@ export async function fetchAllSongs(options?: {
   const maxYear =
     typeof options?.maxYear === "number" ? Math.floor(options.maxYear) : null;
   const selectedTags = normalizeSongTags(options?.selectedTags ?? []);
+  const tagMatchMode = options?.tagMatchMode === "all" ? "all" : "any";
   const playlistId =
     typeof options?.playlistId === "number" ? Math.trunc(options.playlistId) : null;
   const hasYearFilter =
@@ -180,6 +183,7 @@ export async function fetchAllSongs(options?: {
   if (typeof minYear === "number") params.set("minYear", String(minYear));
   if (typeof maxYear === "number") params.set("maxYear", String(maxYear));
   if (selectedTags.length) params.set("tags", selectedTags.join(","));
+  if (selectedTags.length) params.set("tagMatchMode", tagMatchMode);
   if (typeof playlistId === "number") params.set("playlistId", String(playlistId));
   const data = await fetchJson<Record<string, unknown>[]>(
     `/api/songs?${params.toString()}`

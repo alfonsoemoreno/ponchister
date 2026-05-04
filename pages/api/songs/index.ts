@@ -4,7 +4,7 @@ import { playlistSongs, songs } from "../../../src/db/schema";
 import { db } from "../_db";
 import {
   normalizeSongTags,
-  songMatchesAllTags,
+  songMatchesSelectedTags,
 } from "../../../src/lib/songTags";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
@@ -18,6 +18,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   const minYearParam = url.searchParams.get("minYear");
   const maxYearParam = url.searchParams.get("maxYear");
   const selectedTags = normalizeSongTags(url.searchParams.get("tags"));
+  const tagMatchMode = url.searchParams.get("tagMatchMode") === "all" ? "all" : "any";
   const playlistIdParam = url.searchParams.get("playlistId");
 
   const minYear =
@@ -75,9 +76,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
   const filteredRows = selectedTags.length
     ? rows.filter((row) =>
-        songMatchesAllTags(
+        songMatchesSelectedTags(
           normalizeSongTags(row.tags, row.isspanish),
-          selectedTags
+          selectedTags,
+          tagMatchMode
         )
       )
     : rows;

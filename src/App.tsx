@@ -9,6 +9,7 @@ import {
   DEFAULT_SONG_TAG_DEFINITIONS,
   isSpanishTagSelected,
   normalizeSongTags,
+  type SongTagMatchMode,
   type SongTagDefinition,
   type SongTag,
 } from "./lib/songTags";
@@ -22,6 +23,7 @@ import type { AdminUser } from "./admin/types";
 
 const YEAR_RANGE_STORAGE_KEY = "ponchister_year_range";
 const SONG_TAG_FILTER_STORAGE_KEY = "ponchister_song_tag_filter";
+const SONG_TAG_MATCH_MODE_STORAGE_KEY = "ponchister_song_tag_match_mode";
 const LANGUAGE_FILTER_STORAGE_KEY = "ponchister_language_filter";
 const TIMER_ENABLED_STORAGE_KEY = "ponchister_timer_enabled";
 const SELECTED_PLAYLIST_STORAGE_KEY = "ponchister_selected_playlist";
@@ -87,6 +89,18 @@ const readStoredSongTags = (): SongTag[] => {
   }
 };
 
+const readStoredSongTagMatchMode = (): SongTagMatchMode => {
+  if (typeof window === "undefined") {
+    return "any";
+  }
+  try {
+    const stored = window.localStorage.getItem(SONG_TAG_MATCH_MODE_STORAGE_KEY);
+    return stored === "all" ? "all" : "any";
+  } catch {
+    return "any";
+  }
+};
+
 const readStoredTimerEnabled = (): boolean => {
   if (typeof window === "undefined") {
     return false;
@@ -132,6 +146,9 @@ function App() {
   );
   const [selectedSongTags, setSelectedSongTags] = useState<SongTag[]>(() =>
     readStoredSongTags(),
+  );
+  const [songTagMatchMode, setSongTagMatchMode] = useState<SongTagMatchMode>(() =>
+    readStoredSongTagMatchMode()
   );
   const [timerEnabled, setTimerEnabled] = useState<boolean>(() =>
     readStoredTimerEnabled(),
@@ -179,6 +196,16 @@ function App() {
       isSpanishTagSelected(selectedSongTags) ? "true" : "false",
     );
   }, [selectedSongTags]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(
+      SONG_TAG_MATCH_MODE_STORAGE_KEY,
+      songTagMatchMode
+    );
+  }, [songTagMatchMode]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -393,6 +420,10 @@ function App() {
     setSelectedSongTags(normalizeSongTags(tags));
   };
 
+  const handleSongTagMatchModeChange = (mode: SongTagMatchMode) => {
+    setSongTagMatchMode(mode);
+  };
+
   const handleTimerModeChange = (enabled: boolean) => {
     setTimerEnabled(enabled);
   };
@@ -427,11 +458,13 @@ function App() {
         <AutoGame
           onExit={handleExitAuto}
           yearRange={normalizedYearRange}
-        availableRange={effectiveLimits}
+          availableRange={effectiveLimits}
           availableSongTags={availableSongTags}
           onYearRangeChange={handleYearRangeChange}
           selectedSongTags={selectedSongTags}
           onSongTagsChange={handleSongTagsChange}
+          songTagMatchMode={songTagMatchMode}
+          onSongTagMatchModeChange={handleSongTagMatchModeChange}
           timerEnabled={timerEnabled}
           onTimerModeChange={handleTimerModeChange}
           gameSource={gameSource}

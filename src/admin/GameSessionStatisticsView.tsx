@@ -85,7 +85,6 @@ export default function GameSessionStatisticsView({
 }: GameSessionStatisticsViewProps) {
   const dailySeries = stats?.daily ?? [];
   const monthlySeries = stats?.monthly ?? [];
-  const yearlySeries = stats?.yearly ?? [];
 
   const dailyLabels = dailySeries.map((item) => item.label.slice(5));
 
@@ -180,23 +179,6 @@ export default function GameSessionStatisticsView({
         </ChartCard>
       </Box>
 
-      <ChartCard
-        title="Partidas por año"
-        isEmpty={yearlySeries.length === 0}
-        emptyMessage="Sin datos anuales para mostrar."
-      >
-        <BarChart
-          height={260}
-          series={[{ data: yearlySeries.map((item) => item.count) }]}
-          xAxis={[
-            {
-              data: yearlySeries.map((item) => item.label),
-              scaleType: "band",
-            },
-          ]}
-          margin={{ left: 48, right: 12, top: 10, bottom: 30 }}
-        />
-      </ChartCard>
     </Stack>
   );
 }

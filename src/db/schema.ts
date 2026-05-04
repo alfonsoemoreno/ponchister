@@ -153,6 +153,7 @@ export const gameSessions = pgTable("game_sessions", {
     .array()
     .notNull()
     .default(sql`'{}'::text[]`),
+  tagMatchMode: text("tag_match_mode").notNull().default("any"),
   timerEnabled: boolean("timer_enabled").notNull().default(false),
   playlistId: integer("playlist_id"),
   playlistName: text("playlist_name"),

@@ -165,6 +165,7 @@ type SortOption =
   | "year_asc";
 
 const DEFAULT_SORT_OPTION: SortOption = "id_asc";
+type CatalogStatusFilter = "all" | "pending" | "approved";
 
 const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
   { value: "id_asc", label: "ID ascendente" },
@@ -203,6 +204,9 @@ export default function AdminDashboard({
   const [searchTerm, setSearchTerm] = useState("");
   const [yearInput, setYearInput] = useState("");
   const [yearFilter, setYearFilter] = useState<number | null>(null);
+  const [selectedFilterTags, setSelectedFilterTags] = useState<SongTag[]>([]);
+  const [catalogStatusFilter, setCatalogStatusFilter] =
+    useState<CatalogStatusFilter>("all");
   const [sortOption, setSortOption] = useState<SortOption>(DEFAULT_SORT_OPTION);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -622,9 +626,11 @@ export default function AdminDashboard({
   const filtersActive = useMemo(
     () =>
       yearFilter !== null ||
+      selectedFilterTags.length > 0 ||
+      catalogStatusFilter !== "all" ||
       sortOption !== DEFAULT_SORT_OPTION ||
       yearInput.trim() !== "",
-    [yearFilter, sortOption, yearInput]
+    [catalogStatusFilter, selectedFilterTags.length, sortOption, yearFilter, yearInput]
   );
 
   useEffect(() => {
@@ -679,6 +685,8 @@ export default function AdminDashboard({
           pageSize: rowsPerPage,
           search: searchTerm || undefined,
           year: yearFilter,
+          tags: selectedFilterTags,
+          catalogStatus: catalogStatusFilter,
           sortBy: sortConfig.sortBy,
           sortDirection: sortConfig.direction,
         });
@@ -716,6 +724,8 @@ export default function AdminDashboard({
     rowsPerPage,
     searchTerm,
     sortConfig,
+    selectedFilterTags,
+    catalogStatusFilter,
     yearFilter,
     reloadToken,
     dataReady,
@@ -802,20 +812,37 @@ export default function AdminDashboard({
   const handleClearFilters = () => {
     const hadYear = yearFilter !== null || yearInput.trim() !== "";
     const hadSort = sortOption !== DEFAULT_SORT_OPTION;
+    const hadTags = selectedFilterTags.length > 0;
+    const hadStatus = catalogStatusFilter !== "all";
 
     if (hadYear) {
       setYearFilter(null);
       setYearInput("");
+    }
+    if (hadTags) {
+      setSelectedFilterTags([]);
+    }
+    if (hadStatus) {
+      setCatalogStatusFilter("all");
     }
 
     if (hadSort) {
       setSortOption(DEFAULT_SORT_OPTION);
     }
 
-    if (hadYear || hadSort) {
+    if (hadYear || hadSort || hadTags || hadStatus) {
       setPage(0);
     }
   };
+
+  const handleToggleFilterTag = useCallback((tag: SongTag) => {
+    setSelectedFilterTags((prev) =>
+      prev.includes(tag)
+        ? prev.filter((item) => item !== tag)
+        : normalizeSongTags([...prev, tag])
+    );
+    setPage(0);
+  }, []);
 
   const handleRefresh = () => {
     setReloadToken((prev) => prev + 1);
@@ -2506,6 +2533,27 @@ export default function AdminDashboard({
                           />
                           <TextField
                             select
+                            label="Estado"
+                            value={catalogStatusFilter}
+                            onChange={(event) => {
+                              setCatalogStatusFilter(
+                                event.target.value as CatalogStatusFilter
+                              );
+                              setPage(0);
+                            }}
+                            sx={{
+                              width: { xs: "100%", md: "auto" },
+                              minWidth: { md: 180 },
+                            }}
+                            disabled={!dataReady}
+                            size="small"
+                          >
+                            <MenuItem value="all">Todas</MenuItem>
+                            <MenuItem value="pending">Solo pendientes</MenuItem>
+                            <MenuItem value="approved">Solo aprobadas</MenuItem>
+                          </TextField>
+                          <TextField
+                            select
                             label="Ordenar por"
                             value={sortOption}
                             onChange={(event) =>
@@ -2537,6 +2585,22 @@ export default function AdminDashboard({
                           >
                             Limpiar filtros
                           </Button>
+                        </Stack>
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                          {availableSongTags.map((tag) => {
+                            const selected = selectedFilterTags.includes(tag.slug);
+                            return (
+                              <Chip
+                                key={tag.slug}
+                                label={tag.label}
+                                clickable
+                                color={selected ? "primary" : "default"}
+                                variant={selected ? "filled" : "outlined"}
+                                onClick={() => handleToggleFilterTag(tag.slug)}
+                                disabled={!dataReady}
+                              />
+                            );
+                          })}
                         </Stack>
                       </Stack>
                     </Paper>
@@ -2812,6 +2876,7 @@ export default function AdminDashboard({
                           loading={false}
                           error={null}
                           stats={songStatistics}
+                          availableSongTags={availableSongTags}
                         />
                       </Stack>
                     )}

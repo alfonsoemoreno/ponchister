@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, SyntheticEvent } from "react";
+import type { ChangeEvent, MouseEvent, SyntheticEvent } from "react";
 import YouTube from "react-youtube";
 import type { YouTubeProps } from "react-youtube";
 import {
@@ -12,6 +12,8 @@ import {
   Stack,
   Slider,
   Switch,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -38,7 +40,8 @@ import type { GameSource, PlaylistSummary, YearRange } from "./types";
 import {
   getSongTagLabel,
   normalizeSongTags,
-  songMatchesAllTags,
+  songMatchesSelectedTags,
+  type SongTagMatchMode,
   type SongTagDefinition,
   type SongTag,
 } from "./lib/songTags";
@@ -61,6 +64,8 @@ interface AutoGameProps {
   onYearRangeChange: (range: YearRange) => void;
   selectedSongTags: SongTag[];
   onSongTagsChange: (tags: SongTag[]) => void;
+  songTagMatchMode: SongTagMatchMode;
+  onSongTagMatchModeChange: (mode: SongTagMatchMode) => void;
   timerEnabled: boolean;
   onTimerModeChange: (enabled: boolean) => void;
   gameSource: GameSource;
@@ -85,6 +90,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
   onYearRangeChange,
   selectedSongTags,
   onSongTagsChange,
+  songTagMatchMode,
+  onSongTagMatchModeChange,
   timerEnabled,
   onTimerModeChange,
   gameSource,
@@ -112,6 +119,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const [localRange, setLocalRange] = useState<YearRange>(yearRange);
   const [localSelectedTags, setLocalSelectedTags] =
     useState<SongTag[]>(selectedSongTags);
+  const [localTagMatchMode, setLocalTagMatchMode] =
+    useState<SongTagMatchMode>(songTagMatchMode);
   const [localTimerEnabled, setLocalTimerEnabled] =
     useState<boolean>(timerEnabled);
   const specialSongSeedRef = useRef(Math.random());
@@ -123,6 +132,10 @@ const AutoGame: React.FC<AutoGameProps> = ({
   useEffect(() => {
     setLocalSelectedTags(selectedSongTags);
   }, [selectedSongTags]);
+
+  useEffect(() => {
+    setLocalTagMatchMode(songTagMatchMode);
+  }, [songTagMatchMode]);
 
   useEffect(() => {
     setLocalTimerEnabled(timerEnabled);
@@ -174,6 +187,15 @@ const AutoGame: React.FC<AutoGameProps> = ({
     onSongTagsChange(nextTags);
   };
 
+  const handleTagMatchModeChange = (
+    _event: MouseEvent<HTMLElement>,
+    value: SongTagMatchMode | null
+  ) => {
+    if (!value) return;
+    setLocalTagMatchMode(value);
+    onSongTagMatchModeChange(value);
+  };
+
   const handleTimerToggle = (
     _event: ChangeEvent<HTMLInputElement>,
     checked: boolean
@@ -187,7 +209,11 @@ const AutoGame: React.FC<AutoGameProps> = ({
       if (gameSource === "personal_catalog") {
         return fetchMyCollectionSongs().then((songs) => {
           const filtered = songs.filter((song) =>
-            songMatchesAllTags(song.tags, localSelectedTags)
+            songMatchesSelectedTags(
+              song.tags,
+              localSelectedTags,
+              localTagMatchMode
+            )
           );
           if (!filtered.length) {
             throw new Error(
@@ -200,7 +226,11 @@ const AutoGame: React.FC<AutoGameProps> = ({
       if (gameSource === "personal_playlist" && playlist) {
         return fetchMyPlaylistSongs(playlist.id).then((songs) => {
           const filtered = songs.filter((song) =>
-            songMatchesAllTags(song.tags, localSelectedTags)
+            songMatchesSelectedTags(
+              song.tags,
+              localSelectedTags,
+              localTagMatchMode
+            )
           );
           if (!filtered.length) {
             throw new Error(
@@ -214,10 +244,18 @@ const AutoGame: React.FC<AutoGameProps> = ({
         minYear: playlist ? null : yearRange.min,
         maxYear: playlist ? null : yearRange.max,
         selectedTags: localSelectedTags,
+        tagMatchMode: localTagMatchMode,
         playlistId: playlist?.scope === "public" ? playlist.id : null,
       });
     },
-    [gameSource, localSelectedTags, playlist, yearRange.max, yearRange.min]
+    [
+      gameSource,
+      localSelectedTags,
+      localTagMatchMode,
+      playlist,
+      yearRange.max,
+      yearRange.min,
+    ]
   );
 
   const {
@@ -469,6 +507,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
             yearMin: playlist ? null : yearRange.min,
             yearMax: playlist ? null : yearRange.max,
             selectedTags: localSelectedTags,
+            tagMatchMode: localTagMatchMode,
             timerEnabled,
             playlistId: playlist?.id ?? null,
             playlistName: playlist?.name ?? null,
@@ -483,6 +522,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [
     clearYearSpotlightTimeout,
     localSelectedTags,
+    localTagMatchMode,
     playlist,
     resetTimerState,
     runViewTransition,
@@ -1422,31 +1462,54 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     {playlist
                       ? "Puedes filtrar la playlist por una o más etiquetas."
                       : localSelectedTags.length
-                      ? "Se incluirán canciones que tengan todas las etiquetas seleccionadas."
+                      ? localTagMatchMode === "all"
+                        ? "Se mostrarán canciones que tengan todas las etiquetas elegidas."
+                        : "Se mostrarán canciones que tengan al menos una de las etiquetas elegidas."
                       : "Sin filtro por etiquetas."}
                   </Typography>
                 </Box>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  useFlexGap
-                  flexWrap="wrap"
-                  sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
-                >
-                  {availableSongTags.map((option) => {
-                    const selected = localSelectedTags.includes(option.slug);
-                    return (
-                      <Chip
-                        key={option.slug}
-                        label={getSongTagLabel(option.slug, availableSongTags)}
-                        clickable
-                        onClick={() => handleTagToggle(option.slug)}
-                        color={selected ? "info" : "default"}
-                        variant={selected ? "filled" : "outlined"}
-                        sx={{ color: selected ? "#04111d" : "#dfeeff" }}
-                      />
-                    );
-                  })}
+                <Stack spacing={1.25} sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "rgba(204,231,255,0.72)", fontWeight: 700 }}
+                  >
+                    Mostrar canciones que coincidan con
+                  </Typography>
+                  <ToggleButtonGroup
+                    value={localTagMatchMode}
+                    exclusive
+                    onChange={handleTagMatchModeChange}
+                    size="small"
+                    color="info"
+                    sx={{
+                      backgroundColor: "rgba(5,24,64,0.2)",
+                      border: "1px solid rgba(99,216,255,0.12)",
+                    }}
+                  >
+                    <ToggleButton value="any">Cualquiera de las etiquetas</ToggleButton>
+                    <ToggleButton value="all">Todas las etiquetas</ToggleButton>
+                  </ToggleButtonGroup>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    useFlexGap
+                    flexWrap="wrap"
+                  >
+                    {availableSongTags.map((option) => {
+                      const selected = localSelectedTags.includes(option.slug);
+                      return (
+                        <Chip
+                          key={option.slug}
+                          label={getSongTagLabel(option.slug, availableSongTags)}
+                          clickable
+                          onClick={() => handleTagToggle(option.slug)}
+                          color={selected ? "info" : "default"}
+                          variant={selected ? "filled" : "outlined"}
+                          sx={{ color: selected ? "#04111d" : "#dfeeff" }}
+                        />
+                      );
+                    })}
+                  </Stack>
                 </Stack>
               </Stack>
             </Box>

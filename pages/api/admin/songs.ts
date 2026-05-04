@@ -144,6 +144,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       typeof yearParam === "string" && yearParam !== ""
         ? Number(yearParam)
         : null;
+    const tags = normalizeSongTags(url.searchParams.get("tags"));
+    const catalogStatus =
+      url.searchParams.get("catalogStatus") === "approved"
+        ? "approved"
+        : url.searchParams.get("catalogStatus") === "pending"
+        ? "pending"
+        : null;
     const sortBy =
       (url.searchParams.get("sortBy") as "id" | "artist" | "title" | "year") ??
       "id";
@@ -155,6 +162,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       filters.push(eq(songs.year, year));
     }
     filters.push(eq(songs.scope, "public"));
+    if (catalogStatus) {
+      filters.push(eq(songs.catalogStatus, catalogStatus));
+    }
+    if (tags.length) {
+      filters.push(
+        sql`${songs.songAttributes} @> ARRAY[${sql.join(
+          tags.map((tag) => sql`${tag}`),
+          sql.raw(", ")
+        )}]::text[]`
+      );
+    }
     if (search) {
       const likeTerm = `%${search}%`;
       filters.push(

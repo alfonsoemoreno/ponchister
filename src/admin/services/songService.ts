@@ -9,10 +9,7 @@ import type {
   SongStatisticsGroup,
   YoutubeValidationStatus,
 } from "../types";
-import {
-  isSpanishTagSelected,
-  normalizeSongTags,
-} from "../../lib/songTags";
+import { isSpanishTagSelected, normalizeSongTags } from "../../lib/songTags";
 
 const API_BASE = "/api/admin";
 
@@ -136,6 +133,8 @@ export async function listSongs({
   pageSize,
   search,
   year,
+  tags,
+  catalogStatus,
   sortBy = "id",
   sortDirection = "asc",
 }: {
@@ -143,6 +142,8 @@ export async function listSongs({
   pageSize: number;
   search?: string;
   year?: number | null;
+  tags?: string[];
+  catalogStatus?: "all" | "pending" | "approved";
   sortBy?: "id" | "artist" | "title" | "year";
   sortDirection?: "asc" | "desc";
 }): Promise<{ songs: Song[]; total: number }> {
@@ -158,6 +159,13 @@ export async function listSongs({
   }
   if (search && search.trim() !== "") {
     params.set("search", search.trim());
+  }
+  const normalizedTags = normalizeSongTags(tags ?? []);
+  if (normalizedTags.length) {
+    params.set("tags", normalizedTags.join(","));
+  }
+  if (catalogStatus === "pending" || catalogStatus === "approved") {
+    params.set("catalogStatus", catalogStatus);
   }
 
   const data = await fetchJson<{
@@ -291,10 +299,14 @@ export async function fetchSongStatistics(): Promise<SongStatisticsGroup> {
     const yearMap = new Map<number, number>();
     const decadeMap = new Map<number, number>();
     const artistMap = new Map<string, number>();
+    const tagMap = new Map<string, number>();
 
     collection.forEach((song) => {
       const artistKey = song.artist.trim() || "Sin artista";
       artistMap.set(artistKey, (artistMap.get(artistKey) ?? 0) + 1);
+      song.tags.forEach((tag) => {
+        tagMap.set(tag, (tagMap.get(tag) ?? 0) + 1);
+      });
 
       if (song.year === null) {
         return;
@@ -359,6 +371,19 @@ export async function fetchSongStatistics(): Promise<SongStatisticsGroup> {
       })
       .slice(0, STAT_LIMIT);
 
+    const tagsMostCommon = Array.from(tagMap.entries())
+      .map(([tag, count]) => ({
+        label: tag,
+        count,
+      }))
+      .sort((a, b) => {
+        if (b.count === a.count) {
+          return a.label.localeCompare(b.label);
+        }
+        return b.count - a.count;
+      })
+      .slice(0, STAT_LIMIT);
+
     return {
       totalSongs,
       missingYearCount,
@@ -366,6 +391,7 @@ export async function fetchSongStatistics(): Promise<SongStatisticsGroup> {
       yearsLeastCommon,
       decadesLeastCommon,
       artistsMostCommon,
+      tagsMostCommon,
     };
   };
 

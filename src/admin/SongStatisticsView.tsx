@@ -16,11 +16,14 @@ import { BarChart, LineChart, PieChart } from "@mui/x-charts";
 import { useMemo, useState, type ReactNode } from "react";
 
 import type { SongStatistics, SongStatisticsGroup, StatEntry } from "./types";
+import type { SongTagDefinition } from "../lib/songTags";
+import { getSongTagLabel } from "../lib/songTags";
 
 interface SongStatisticsViewProps {
   loading: boolean;
   error: string | null;
   stats: SongStatisticsGroup | null;
+  availableSongTags: SongTagDefinition[];
 }
 
 function StatisticsList({
@@ -165,6 +168,7 @@ export default function SongStatisticsView({
   loading,
   error,
   stats,
+  availableSongTags,
 }: SongStatisticsViewProps) {
   const [scope, setScope] = useState<"overall" | "spanish">("overall");
 
@@ -189,6 +193,15 @@ export default function SongStatisticsView({
         value: item.count,
       })),
     [selectedStats]
+  );
+
+  const tagSeries = useMemo(
+    () =>
+      (selectedStats?.tagsMostCommon ?? []).slice(0, 8).map((item) => ({
+        label: getSongTagLabel(item.label, availableSongTags),
+        value: item.count,
+      })),
+    [availableSongTags, selectedStats]
   );
 
   const { languageSeries, languageTotal } = useMemo(() => {
@@ -333,12 +346,38 @@ export default function SongStatisticsView({
       });
     }
 
+    if (tagSeries.length > 0) {
+      charts.push({
+        key: "tag-series",
+        title: "Etiquetas más usadas",
+        node: (
+          <BarChart
+            height={260}
+            series={[
+              {
+                data: tagSeries.map((item) => item.value),
+                color: "#10b981",
+              },
+            ]}
+            xAxis={[
+              {
+                data: tagSeries.map((item) => item.label),
+                scaleType: "band",
+              },
+            ]}
+            margin={{ left: 48, right: 12, top: 10, bottom: 52 }}
+          />
+        ),
+      });
+    }
+
     return charts;
   }, [
     decadeSeries,
     formatLanguageValue,
     languageSeries,
     scope,
+    tagSeries,
     yearSeries,
   ]);
 
@@ -390,8 +429,20 @@ export default function SongStatisticsView({
       });
     }
 
+    if (selectedStats.tagsMostCommon.length > 0) {
+      blocks.push({
+        key: "tags-most",
+        title: "Etiquetas más frecuentes",
+        items: selectedStats.tagsMostCommon.map((item) => ({
+          ...item,
+          label: getSongTagLabel(item.label, availableSongTags),
+        })),
+        highlight: "top",
+      });
+    }
+
     return blocks;
-  }, [selectedStats]);
+  }, [availableSongTags, selectedStats]);
 
   if (loading) {
     return (

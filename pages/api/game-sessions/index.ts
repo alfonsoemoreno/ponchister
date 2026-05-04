@@ -50,6 +50,7 @@ export default async function handler(
   const yearMin = toFiniteInteger(body.yearMin);
   const yearMax = toFiniteInteger(body.yearMax);
   const selectedTags = normalizeSongTags(body.selectedTags, body.onlySpanish);
+  const tagMatchMode = body.tagMatchMode === "all" ? "all" : "any";
   const onlySpanish = isSpanishTagSelected(selectedTags);
   const timerEnabled = body.timerEnabled === true;
   const playlistId = toFiniteInteger(body.playlistId);
@@ -69,6 +70,7 @@ export default async function handler(
     yearMax,
     onlySpanish,
     selectedSongAttributes: selectedTags,
+    tagMatchMode,
     timerEnabled,
     playlistId,
     playlistName,

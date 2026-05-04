@@ -218,6 +218,7 @@ const statements = [
     year_max integer,
     only_spanish boolean not null default false,
     selected_song_attributes text[] not null default '{}'::text[],
+    tag_match_mode text not null default 'any',
     timer_enabled boolean not null default false,
     created_at timestamptz not null default now()
   );
@@ -225,6 +226,10 @@ const statements = [
   `
   alter table game_sessions
   add column if not exists selected_song_attributes text[] not null default '{}'::text[];
+  `,
+  `
+  alter table game_sessions
+  add column if not exists tag_match_mode text not null default 'any';
   `,
   `
   update game_sessions

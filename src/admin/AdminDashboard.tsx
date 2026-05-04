@@ -1587,7 +1587,7 @@ export default function AdminDashboard({
         const isPlaying = audioPreview?.songId === song.id;
         const catalogChip = getCatalogChipProps(song);
         const isSelected = selectedSongIds.includes(song.id);
-        const isSelectable = isSuperAdmin && song.catalog_status !== "approved";
+        const isSelectable = isSuperAdmin;
 
         return (
           <TableRow
@@ -1733,7 +1733,7 @@ export default function AdminDashboard({
       const catalogChip = getCatalogChipProps(song);
       const isPlaying = audioPreview?.songId === song.id;
       const isSelected = selectedSongIds.includes(song.id);
-      const isSelectable = isSuperAdmin && song.catalog_status !== "approved";
+      const isSelectable = isSuperAdmin;
 
       return (
         <Paper

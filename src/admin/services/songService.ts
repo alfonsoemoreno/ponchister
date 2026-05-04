@@ -9,6 +9,10 @@ import type {
   SongStatisticsGroup,
   YoutubeValidationStatus,
 } from "../types";
+import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+} from "../../lib/songTags";
 
 const API_BASE = "/api/admin";
 
@@ -23,14 +27,8 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     year = Number.isNaN(parsed) ? null : parsed;
   }
 
-  const isSpanishRaw = raw.isspanish;
-  const isSpanish =
-    typeof isSpanishRaw === "boolean"
-      ? isSpanishRaw
-      : isSpanishRaw === "true" ||
-        isSpanishRaw === "1" ||
-        isSpanishRaw === 1 ||
-        isSpanishRaw === "t";
+  const tags = normalizeSongTags(raw.tags ?? raw.song_attributes, raw.isspanish);
+  const isSpanish = isSpanishTagSelected(tags);
 
   const youtubeStatusRaw = raw.youtube_status;
   const youtubeStatus: YoutubeValidationStatus | null =
@@ -69,6 +67,7 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     title: String(raw.title ?? ""),
     year,
     youtube_url: String(raw.youtube_url ?? ""),
+    tags,
     isspanish: isSpanish,
     youtube_status: youtubeStatus,
     youtube_validation_message:
@@ -97,7 +96,7 @@ function sanitizeInput(payload: SongInput): SongInput {
   const trimmedArtist = payload.artist.trim();
   const trimmedTitle = payload.title.trim();
   const trimmedYoutube = payload.youtube_url.trim();
-  const isSpanish = Boolean(payload.isspanish);
+  const tags = normalizeSongTags(payload.tags, payload.isspanish);
 
   const numericYear =
     typeof payload.year === "number" && Number.isFinite(payload.year)
@@ -109,7 +108,8 @@ function sanitizeInput(payload: SongInput): SongInput {
     title: trimmedTitle,
     youtube_url: trimmedYoutube,
     year: numericYear,
-    isspanish: isSpanish,
+    tags,
+    isspanish: isSpanishTagSelected(tags),
   };
 }
 
@@ -370,7 +370,9 @@ export async function fetchSongStatistics(): Promise<SongStatisticsGroup> {
   };
 
   const overallStats = computeStats(songs);
-  const spanishStats = computeStats(songs.filter((song) => song.isspanish));
+  const spanishStats = computeStats(
+    songs.filter((song) => song.tags.includes("espanol"))
+  );
 
   return {
     overall: overallStats,

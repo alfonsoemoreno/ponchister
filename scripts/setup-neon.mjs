@@ -29,6 +29,22 @@ const statements = [
   `,
   `
   alter table songs
+  add column if not exists song_attributes text[] not null default '{}'::text[];
+  `,
+  `
+  update songs
+  set song_attributes = case
+    when coalesce(isspanish, false) then array['espanol']::text[]
+    else '{}'::text[]
+  end
+  where song_attributes is null or array_length(song_attributes, 1) is null;
+  `,
+  `
+  create index if not exists songs_song_attributes_gin_idx
+  on songs using gin (song_attributes);
+  `,
+  `
+  alter table songs
   add column if not exists youtube_validation_message text;
   `,
   `
@@ -179,9 +195,23 @@ const statements = [
     year_min integer,
     year_max integer,
     only_spanish boolean not null default false,
+    selected_song_attributes text[] not null default '{}'::text[],
     timer_enabled boolean not null default false,
     created_at timestamptz not null default now()
   );
+  `,
+  `
+  alter table game_sessions
+  add column if not exists selected_song_attributes text[] not null default '{}'::text[];
+  `,
+  `
+  update game_sessions
+  set selected_song_attributes = case
+    when coalesce(only_spanish, false) then array['espanol']::text[]
+    else '{}'::text[]
+  end
+  where selected_song_attributes is null
+    or array_length(selected_song_attributes, 1) is null;
   `,
   `
   alter table game_sessions

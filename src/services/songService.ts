@@ -1,4 +1,8 @@
 import type { Song, YearRange } from "../types";
+import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+} from "../lib/songTags";
 
 let cachedSongCount: number | null = null;
 let cachedYearBounds: YearRange | null = null;
@@ -44,13 +48,16 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     year = Number.isNaN(parsed) ? null : parsed;
   }
 
+  const tags = normalizeSongTags(raw.tags ?? raw.song_attributes, raw.isspanish);
+
   return {
     id: Number(raw.id),
     artist: String(raw.artist ?? ""),
     title: String(raw.title ?? ""),
     year,
     youtube_url: String(raw.youtube_url ?? ""),
-    isSpanish: (raw as Record<string, unknown>).isspanish === true,
+    tags,
+    isSpanish: isSpanishTagSelected(tags),
   };
 }
 
@@ -157,14 +164,14 @@ export async function fetchSongYearBounds(options?: {
 export async function fetchAllSongs(options?: {
   minYear?: number | null;
   maxYear?: number | null;
-  onlySpanish?: boolean;
+  selectedTags?: string[];
   playlistId?: number | null;
 }): Promise<Song[]> {
   const minYear =
     typeof options?.minYear === "number" ? Math.floor(options.minYear) : null;
   const maxYear =
     typeof options?.maxYear === "number" ? Math.floor(options.maxYear) : null;
-  const onlySpanish = options?.onlySpanish === true;
+  const selectedTags = normalizeSongTags(options?.selectedTags ?? []);
   const playlistId =
     typeof options?.playlistId === "number" ? Math.trunc(options.playlistId) : null;
   const hasYearFilter =
@@ -172,7 +179,7 @@ export async function fetchAllSongs(options?: {
   const params = new URLSearchParams();
   if (typeof minYear === "number") params.set("minYear", String(minYear));
   if (typeof maxYear === "number") params.set("maxYear", String(maxYear));
-  if (onlySpanish) params.set("onlySpanish", "true");
+  if (selectedTags.length) params.set("tags", selectedTags.join(","));
   if (typeof playlistId === "number") params.set("playlistId", String(playlistId));
   const data = await fetchJson<Record<string, unknown>[]>(
     `/api/songs?${params.toString()}`
@@ -182,6 +189,12 @@ export async function fetchAllSongs(options?: {
   if (!collected.length && typeof playlistId === "number") {
     throw new Error(
       "La playlist seleccionada no tiene canciones disponibles para reproducirse."
+    );
+  }
+
+  if (!collected.length && selectedTags.length) {
+    throw new Error(
+      "No hay canciones que coincidan con las etiquetas seleccionadas. Ajusta los filtros para continuar."
     );
   }
 

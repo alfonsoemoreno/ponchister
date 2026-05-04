@@ -21,6 +21,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       title: songs.title,
       year: songs.year,
       youtube_url: songs.youtubeUrl,
+      tags: songs.songAttributes,
       isspanish: songs.isSpanish,
       youtube_status: songs.youtubeStatus,
       youtube_validation_message: songs.youtubeValidationMessage,

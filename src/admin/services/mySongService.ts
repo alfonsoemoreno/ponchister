@@ -1,4 +1,8 @@
 import type { Song, SongInput, SongYoutubeValidationPayload } from "../types";
+import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+} from "../../lib/songTags";
 
 const API_BASE = "/api/admin/my-songs";
 
@@ -30,13 +34,16 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     year = Number.isNaN(parsed) ? null : parsed;
   }
 
+  const tags = normalizeSongTags(raw.tags ?? raw.song_attributes, raw.isspanish);
+
   return {
     id: Number(raw.id),
     artist: String(raw.artist ?? ""),
     title: String(raw.title ?? ""),
     year,
     youtube_url: String(raw.youtube_url ?? ""),
-    isspanish: raw.isspanish === true,
+    tags,
+    isspanish: isSpanishTagSelected(tags),
     youtube_status:
       raw.youtube_status === "unchecked" ||
       raw.youtube_status === "checking" ||
@@ -70,6 +77,7 @@ function normalizeSong(raw: Record<string, unknown>): Song {
 }
 
 function sanitizeInput(payload: SongInput): SongInput {
+  const tags = normalizeSongTags(payload.tags, payload.isspanish);
   return {
     artist: payload.artist.trim(),
     title: payload.title.trim(),
@@ -78,7 +86,8 @@ function sanitizeInput(payload: SongInput): SongInput {
       typeof payload.year === "number" && Number.isFinite(payload.year)
         ? payload.year
         : null,
-    isspanish: Boolean(payload.isspanish),
+    tags,
+    isspanish: isSpanishTagSelected(tags),
   };
 }
 

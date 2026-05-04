@@ -2,6 +2,10 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { and, asc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
 import { playlistSongs, songs } from "../../../src/db/schema";
 import { db } from "../_db";
+import {
+  normalizeSongTags,
+  songMatchesAllTags,
+} from "../../../src/lib/songTags";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   if (req.method !== "GET") {
@@ -13,7 +17,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   const url = new URL(req.url ?? "", "http://localhost");
   const minYearParam = url.searchParams.get("minYear");
   const maxYearParam = url.searchParams.get("maxYear");
-  const onlySpanish = url.searchParams.get("onlySpanish") === "true";
+  const selectedTags = normalizeSongTags(url.searchParams.get("tags"));
   const playlistIdParam = url.searchParams.get("playlistId");
 
   const minYear =
@@ -35,9 +39,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
   if (typeof maxYear === "number" && Number.isFinite(maxYear)) {
     filters.push(lte(songs.year, maxYear));
-  }
-  if (onlySpanish) {
-    filters.push(eq(songs.isSpanish, true));
   }
   filters.push(or(isNull(songs.youtubeStatus), eq(songs.youtubeStatus, "operational")));
   filters.push(eq(songs.catalogStatus, "approved"));
@@ -65,12 +66,22 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       title: songs.title,
       year: songs.year,
       youtube_url: songs.youtubeUrl,
+      tags: songs.songAttributes,
       isspanish: songs.isSpanish,
     })
     .from(songs)
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(asc(songs.id));
 
+  const filteredRows = selectedTags.length
+    ? rows.filter((row) =>
+        songMatchesAllTags(
+          normalizeSongTags(row.tags, row.isspanish),
+          selectedTags
+        )
+      )
+    : rows;
+
   res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(rows));
+  res.end(JSON.stringify(filteredRows));
 }

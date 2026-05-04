@@ -3,6 +3,10 @@ import { and, eq } from "drizzle-orm";
 import { songs } from "../../../../src/db/schema";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
+import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+} from "../../../../src/lib/songTags";
 
 const parseBody = (req: NextApiRequest): Record<string, unknown> => {
   if (!req.body) return {};
@@ -72,7 +76,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       typeof body.year === "number" && Number.isFinite(body.year)
         ? body.year
         : null;
-    const isSpanish = Boolean(body.isspanish);
+    const tags = normalizeSongTags(body.tags, body.isspanish);
+    const isSpanish = isSpanishTagSelected(tags);
     const youtubeValidation = parseYoutubeValidation(body);
 
     if (!artist || !title || !youtubeUrl) {
@@ -87,6 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         title,
         youtubeUrl,
         year,
+        songAttributes: tags,
         isSpanish,
         youtubeStatus: youtubeValidation?.youtubeStatus ?? undefined,
         youtubeValidationMessage:

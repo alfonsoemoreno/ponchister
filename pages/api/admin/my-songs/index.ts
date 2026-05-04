@@ -4,6 +4,10 @@ import { songs } from "../../../../src/db/schema";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
 import { serializeAdminIdentity } from "../../../../src/admin/serializers";
+import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+} from "../../../../src/lib/songTags";
 
 const parseBody = (req: NextApiRequest): Record<string, unknown> => {
   if (!req.body) return {};
@@ -54,6 +58,7 @@ function serializeSong(
     title: string;
     year: number | null;
     youtube_url: string;
+    tags: string[];
     isspanish: boolean;
     youtube_status: string | null;
     youtube_validation_message: string | null;
@@ -97,6 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         title: songs.title,
         year: songs.year,
         youtube_url: songs.youtubeUrl,
+        tags: songs.songAttributes,
         isspanish: songs.isSpanish,
         youtube_status: songs.youtubeStatus,
         youtube_validation_message: songs.youtubeValidationMessage,
@@ -126,7 +132,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       typeof body.year === "number" && Number.isFinite(body.year)
         ? body.year
         : null;
-    const isSpanish = Boolean(body.isspanish);
+    const tags = normalizeSongTags(body.tags, body.isspanish);
+    const isSpanish = isSpanishTagSelected(tags);
     const youtubeValidation = parseYoutubeValidation(body);
 
     if (!artist || !title || !youtubeUrl) {
@@ -141,6 +148,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         title,
         youtubeUrl,
         year,
+        songAttributes: tags,
         isSpanish,
         scope: "personal",
         ownerUserId: user.id,
@@ -159,6 +167,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         title: songs.title,
         year: songs.year,
         youtube_url: songs.youtubeUrl,
+        tags: songs.songAttributes,
         isspanish: songs.isSpanish,
         youtube_status: songs.youtubeStatus,
         youtube_validation_message: songs.youtubeValidationMessage,

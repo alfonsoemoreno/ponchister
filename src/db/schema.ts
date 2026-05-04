@@ -34,6 +34,10 @@ export const songs = pgTable(
     year: integer("year"),
     youtubeUrl: text("youtube_url").notNull(),
     isSpanish: boolean("isspanish").notNull().default(false),
+    songAttributes: text("song_attributes")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     youtubeStatus: text("youtube_status"),
     youtubeValidationMessage: text("youtube_validation_message"),
     youtubeValidationCode: integer("youtube_validation_code"),
@@ -129,6 +133,10 @@ export const gameSessions = pgTable("game_sessions", {
   yearMin: integer("year_min"),
   yearMax: integer("year_max"),
   onlySpanish: boolean("only_spanish").notNull().default(false),
+  selectedSongAttributes: text("selected_song_attributes")
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
   timerEnabled: boolean("timer_enabled").notNull().default(false),
   playlistId: integer("playlist_id"),
   playlistName: text("playlist_name"),

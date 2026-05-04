@@ -44,7 +44,6 @@ import {
   TableRow,
   TextField,
   Tooltip,
-  Switch,
   Typography,
   useMediaQuery,
   useTheme,
@@ -112,6 +111,12 @@ import type {
   SongYoutubeValidationPayload,
   YoutubeValidationResult,
 } from "./types";
+import {
+  formatSongTags,
+  getSongTagLabel,
+  isSpanishTagSelected,
+  normalizeSongTags,
+} from "../lib/songTags";
 
 interface FeedbackState {
   severity: "success" | "error";
@@ -238,7 +243,6 @@ export default function AdminDashboard({
   );
   const [gameStatistics, setGameStatistics] =
     useState<GameSessionStatistics | null>(null);
-  const [languageToggleId, setLanguageToggleId] = useState<number | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [actionsAnchorEl, setActionsAnchorEl] = useState<null | HTMLElement>(
     null
@@ -978,8 +982,16 @@ export default function AdminDashboard({
         const youtubeIndex = findIndex("YOUTUBE");
         const spanishIndex = findIndex("ESPANOL");
         const spanishAltIndex = findIndex("ESPAÑOL");
+        const tagsIndex = findIndex("ETIQUETAS");
+        const tagsAltIndex = findIndex("TAGS");
         const languageIndex =
-          spanishIndex !== -1 ? spanishIndex : spanishAltIndex;
+          tagsIndex !== -1
+            ? tagsIndex
+            : tagsAltIndex !== -1
+            ? tagsAltIndex
+            : spanishIndex !== -1
+            ? spanishIndex
+            : spanishAltIndex;
 
         if (artistIndex === -1 || titleIndex === -1 || youtubeIndex === -1) {
           throw new Error(
@@ -1020,22 +1032,12 @@ export default function AdminDashboard({
             }
           }
 
+          let tags = normalizeSongTags([]);
           let isspanish = false;
           if (languageIndex !== -1) {
             const rawLanguage = cells[languageIndex];
-            if (typeof rawLanguage === "boolean") {
-              isspanish = rawLanguage;
-            } else if (typeof rawLanguage === "number") {
-              isspanish = rawLanguage === 1;
-            } else if (
-              typeof rawLanguage === "string" &&
-              rawLanguage.trim().length > 0
-            ) {
-              const normalized = rawLanguage.trim().toLowerCase();
-              isspanish = ["si", "sí", "yes", "true", "1", "x", "es"].includes(
-                normalized
-              );
-            }
+            tags = normalizeSongTags(rawLanguage);
+            isspanish = isSpanishTagSelected(tags);
           }
 
           payload.push({
@@ -1043,6 +1045,7 @@ export default function AdminDashboard({
             title,
             youtube_url: youtubeUrl,
             year,
+            tags,
             isspanish,
           });
         });
@@ -1275,51 +1278,6 @@ export default function AdminDashboard({
       setSnackbarOpen(true);
     } finally {
       setDeleteLoading(false);
-    }
-  };
-
-  const handleToggleSpanish = async (song: Song) => {
-    if (!dataReady) {
-      return;
-    }
-
-    const nextValue = !song.isspanish;
-    setLanguageToggleId(song.id);
-    setSongs((prev) =>
-      prev.map((item) =>
-        item.id === song.id ? { ...item, isspanish: nextValue } : item
-      )
-    );
-
-    try {
-      await updateSong(song.id, {
-        artist: song.artist,
-        title: song.title,
-        youtube_url: song.youtube_url,
-        year: song.year,
-        isspanish: nextValue,
-      });
-      setFeedback({
-        severity: "success",
-        message: nextValue
-          ? "Marcada como canción en español."
-          : "Marcada como canción en otro idioma.",
-      });
-      setSnackbarOpen(true);
-    } catch (err) {
-      setSongs((prev) =>
-        prev.map((item) =>
-          item.id === song.id ? { ...item, isspanish: song.isspanish } : item
-        )
-      );
-      const message =
-        err instanceof Error
-          ? err.message
-          : "No se pudo actualizar el estado de idioma.";
-      setFeedback({ severity: "error", message });
-      setSnackbarOpen(true);
-    } finally {
-      setLanguageToggleId(null);
     }
   };
 
@@ -1608,19 +1566,29 @@ export default function AdminDashboard({
                 />
               </Tooltip>
             </TableCell>
-            <TableCell width={140} align="center">
-              <Switch
-                checked={song.isspanish}
-                onChange={() => handleToggleSpanish(song)}
-                color="primary"
-                size="small"
-                disabled={
-                  !dataReady || languageToggleId === song.id || loading
-                }
-                inputProps={{
-                  "aria-label": `Cambiar estado de idioma para ${song.title}`,
-                }}
-              />
+            <TableCell width={220} align="center">
+              <Stack
+                direction="row"
+                spacing={0.75}
+                useFlexGap
+                flexWrap="wrap"
+                justifyContent="center"
+              >
+                {song.tags.length ? (
+                  song.tags.map((tag) => (
+                    <Chip
+                      key={`${song.id}-${tag}`}
+                      label={getSongTagLabel(tag)}
+                      size="small"
+                      variant="outlined"
+                    />
+                  ))
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    Sin etiquetas
+                  </Typography>
+                )}
+              </Stack>
             </TableCell>
             <TableCell align="right" width={176}>
               <Stack
@@ -1842,29 +1810,11 @@ export default function AdminDashboard({
                     letterSpacing: 0.4,
                   }}
                 >
-                  Español
+                  Etiquetas
                 </Typography>
-                <Switch
-                  checked={song.isspanish}
-                  onChange={() => handleToggleSpanish(song)}
-                  color="default"
-                  disabled={
-                    !dataReady ||
-                    languageToggleId === song.id ||
-                    loading
-                  }
-                  inputProps={{
-                    "aria-label": `Cambiar idioma de ${song.title}`,
-                  }}
-                  sx={{
-                    "& .MuiSwitch-thumb": {
-                      backgroundColor: "#fff",
-                    },
-                    "& .MuiSwitch-track": {
-                      opacity: 0.4,
-                    },
-                  }}
-                />
+                <Typography variant="body2" color="text.secondary">
+                  {formatSongTags(song.tags)}
+                </Typography>
               </Stack>
               <Stack direction="row" spacing={1}>
                 <Button
@@ -2750,7 +2700,7 @@ export default function AdminDashboard({
                               <TableCell>Año</TableCell>
                               <TableCell align="center">Catálogo</TableCell>
                               <TableCell align="center">YouTube</TableCell>
-                              <TableCell align="center">Español</TableCell>
+                              <TableCell align="center">Etiquetas</TableCell>
                               <TableCell align="right">Acciones</TableCell>
                             </TableRow>
                           </TableHead>
@@ -3209,7 +3159,7 @@ export default function AdminDashboard({
                   <Typography variant="caption" color="text.secondary">
                     ID #{match.id}
                     {match.year ? ` · ${match.year}` : ""}
-                    {match.isspanish ? " · Español" : ""}
+                    {match.tags.length ? ` · ${formatSongTags(match.tags)}` : ""}
                   </Typography>
                 </Stack>
               </Paper>

@@ -43,6 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       title: songs.title,
       year: songs.year,
       youtube_url: songs.youtubeUrl,
+      tags: songs.songAttributes,
       isspanish: songs.isSpanish,
     })
     .from(playlistSongs)

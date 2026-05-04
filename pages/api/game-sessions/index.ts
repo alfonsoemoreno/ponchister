@@ -1,6 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { gameSessions } from "../../../src/db/schema";
 import { db } from "../_db";
+import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+} from "../../../src/lib/songTags";
 
 const parseBody = (req: NextApiRequest): Record<string, unknown> => {
   if (!req.body) return {};
@@ -45,7 +49,8 @@ export default async function handler(
   const mode = typeof body.mode === "string" ? body.mode.trim() : "auto";
   const yearMin = toFiniteInteger(body.yearMin);
   const yearMax = toFiniteInteger(body.yearMax);
-  const onlySpanish = body.onlySpanish === true;
+  const selectedTags = normalizeSongTags(body.selectedTags, body.onlySpanish);
+  const onlySpanish = isSpanishTagSelected(selectedTags);
   const timerEnabled = body.timerEnabled === true;
   const playlistId = toFiniteInteger(body.playlistId);
   const playlistName =
@@ -63,6 +68,7 @@ export default async function handler(
     yearMin,
     yearMax,
     onlySpanish,
+    selectedSongAttributes: selectedTags,
     timerEnabled,
     playlistId,
     playlistName,

@@ -1,3 +1,5 @@
+import type { SongTag } from "../lib/songTags";
+
 export interface AdminIdentity {
   id: number;
   email: string;
@@ -14,6 +16,7 @@ export interface Song {
   title: string;
   year: number | null;
   youtube_url: string;
+  tags: SongTag[];
   isspanish: boolean;
   youtube_status: YoutubeValidationStatus | null;
   youtube_validation_message: string | null;
@@ -33,6 +36,7 @@ export interface SongInput {
   title: string;
   year: number | null;
   youtube_url: string;
+  tags: SongTag[];
   isspanish: boolean;
 }
 

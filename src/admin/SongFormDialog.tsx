@@ -1,18 +1,26 @@
 import { useEffect, useState } from "react";
 import {
+  Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControlLabel,
-  Switch,
   Stack,
   TextField,
+  Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
 import type { SongInput, Song } from "./types";
+import {
+  SONG_TAG_OPTIONS,
+  getSongTagLabel,
+  isSpanishTagSelected,
+  normalizeSongTags,
+  type SongTag,
+} from "../lib/songTags";
 
 interface SongFormDialogProps {
   open: boolean;
@@ -28,7 +36,7 @@ type FormState = {
   title: string;
   year: string;
   youtube_url: string;
-  isspanish: boolean;
+  tags: SongTag[];
 };
 
 const EMPTY_STATE: FormState = {
@@ -36,7 +44,7 @@ const EMPTY_STATE: FormState = {
   title: "",
   year: "",
   youtube_url: "",
-  isspanish: false,
+  tags: [],
 };
 
 export default function SongFormDialog({
@@ -61,7 +69,7 @@ export default function SongFormDialog({
         title: initialValue.title,
         year: initialValue.year ? String(initialValue.year) : "",
         youtube_url: initialValue.youtube_url,
-        isspanish: initialValue.isspanish,
+        tags: normalizeSongTags(initialValue.tags, initialValue.isspanish),
       });
       setErrors({});
       return;
@@ -80,11 +88,13 @@ export default function SongFormDialog({
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     };
 
-  const handleToggleSpanish = (
-    _event: React.ChangeEvent<HTMLInputElement>,
-    checked: boolean
-  ) => {
-    setValues((prev) => ({ ...prev, isspanish: checked }));
+  const handleToggleTag = (tag: SongTag) => {
+    setValues((prev) => {
+      const nextTags = prev.tags.includes(tag)
+        ? prev.tags.filter((item) => item !== tag)
+        : normalizeSongTags([...prev.tags, tag]);
+      return { ...prev, tags: nextTags };
+    });
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -110,12 +120,14 @@ export default function SongFormDialog({
     const yearValue =
       parsedYear === "" ? null : Number.parseInt(parsedYear, 10);
 
+    const tags = normalizeSongTags(values.tags);
     const payload: SongInput = {
       artist: values.artist.trim(),
       title: values.title.trim(),
       youtube_url: values.youtube_url.trim(),
       year: Number.isNaN(yearValue) ? null : yearValue,
-      isspanish: values.isspanish,
+      tags,
+      isspanish: isSpanishTagSelected(tags),
     };
 
     const submitted = await onSubmit(payload);
@@ -195,17 +207,36 @@ export default function SongFormDialog({
               disabled={loading}
             />
           </Stack>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={values.isspanish}
-                onChange={handleToggleSpanish}
-                color="primary"
-                disabled={loading}
-              />
-            }
-            label="La canción es en español"
-          />
+          <Box>
+            <Typography
+              variant="subtitle2"
+              sx={{ mb: 1, fontWeight: 600 }}
+            >
+              Etiquetas de la canción
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ mb: 1.5, color: "text.secondary" }}
+            >
+              Puedes seleccionar una o más opciones.
+            </Typography>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+              {SONG_TAG_OPTIONS.map((option) => {
+                const selected = values.tags.includes(option.value);
+                return (
+                  <Chip
+                    key={option.value}
+                    label={getSongTagLabel(option.value)}
+                    clickable
+                    color={selected ? "primary" : "default"}
+                    variant={selected ? "filled" : "outlined"}
+                    onClick={() => handleToggleTag(option.value)}
+                    disabled={loading}
+                  />
+                );
+              })}
+            </Stack>
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions

@@ -4,6 +4,7 @@ import YouTube from "react-youtube";
 import type { YouTubeProps } from "react-youtube";
 import {
   Alert,
+  Chip,
   Box,
   Button,
   CircularProgress,
@@ -34,6 +35,13 @@ import { YearSpotlight } from "./auto-game/YearSpotlight";
 import { useViewTransition } from "./hooks/useViewTransition";
 import { createAdaptiveTheme } from "./auto-game/theme";
 import type { GameSource, PlaylistSummary, YearRange } from "./types";
+import {
+  SONG_TAG_OPTIONS,
+  getSongTagLabel,
+  normalizeSongTags,
+  songMatchesAllTags,
+  type SongTag,
+} from "./lib/songTags";
 
 interface InternalPlayer {
   playVideo?: () => void;
@@ -50,8 +58,8 @@ interface AutoGameProps {
   yearRange: YearRange;
   availableRange: YearRange;
   onYearRangeChange: (range: YearRange) => void;
-  onlySpanish: boolean;
-  onLanguageModeChange: (spanishOnly: boolean) => void;
+  selectedSongTags: SongTag[];
+  onSongTagsChange: (tags: SongTag[]) => void;
   timerEnabled: boolean;
   onTimerModeChange: (enabled: boolean) => void;
   gameSource: GameSource;
@@ -73,8 +81,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
   yearRange,
   availableRange,
   onYearRangeChange,
-  onlySpanish,
-  onLanguageModeChange,
+  selectedSongTags,
+  onSongTagsChange,
   timerEnabled,
   onTimerModeChange,
   gameSource,
@@ -100,8 +108,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const [timerStarted, setTimerStarted] = useState(false);
   const timerIntervalRef = useRef<number | null>(null);
   const [localRange, setLocalRange] = useState<YearRange>(yearRange);
-  const [localSpanishOnly, setLocalSpanishOnly] =
-    useState<boolean>(onlySpanish);
+  const [localSelectedTags, setLocalSelectedTags] =
+    useState<SongTag[]>(selectedSongTags);
   const [localTimerEnabled, setLocalTimerEnabled] =
     useState<boolean>(timerEnabled);
   const specialSongSeedRef = useRef(Math.random());
@@ -111,8 +119,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [yearRange]);
 
   useEffect(() => {
-    setLocalSpanishOnly(onlySpanish);
-  }, [onlySpanish]);
+    setLocalSelectedTags(selectedSongTags);
+  }, [selectedSongTags]);
 
   useEffect(() => {
     setLocalTimerEnabled(timerEnabled);
@@ -156,12 +164,12 @@ const AutoGame: React.FC<AutoGameProps> = ({
     onYearRangeChange(availableRange);
   };
 
-  const handleLanguageToggle = (
-    _event: ChangeEvent<HTMLInputElement>,
-    checked: boolean
-  ) => {
-    setLocalSpanishOnly(checked);
-    onLanguageModeChange(checked);
+  const handleTagToggle = (tag: SongTag) => {
+    const nextTags = localSelectedTags.includes(tag)
+      ? localSelectedTags.filter((entry) => entry !== tag)
+      : normalizeSongTags([...localSelectedTags, tag]);
+    setLocalSelectedTags(nextTags);
+    onSongTagsChange(nextTags);
   };
 
   const handleTimerToggle = (
@@ -175,19 +183,39 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const fetchSongsForRange = useCallback(
     () => {
       if (gameSource === "personal_catalog") {
-        return fetchMyCollectionSongs();
+        return fetchMyCollectionSongs().then((songs) => {
+          const filtered = songs.filter((song) =>
+            songMatchesAllTags(song.tags, localSelectedTags)
+          );
+          if (!filtered.length) {
+            throw new Error(
+              "Tu colección personal no tiene canciones para las etiquetas seleccionadas."
+            );
+          }
+          return filtered;
+        });
       }
       if (gameSource === "personal_playlist" && playlist) {
-        return fetchMyPlaylistSongs(playlist.id);
+        return fetchMyPlaylistSongs(playlist.id).then((songs) => {
+          const filtered = songs.filter((song) =>
+            songMatchesAllTags(song.tags, localSelectedTags)
+          );
+          if (!filtered.length) {
+            throw new Error(
+              "La playlist personal seleccionada no tiene canciones para las etiquetas seleccionadas."
+            );
+          }
+          return filtered;
+        });
       }
       return fetchAllSongs({
         minYear: playlist ? null : yearRange.min,
         maxYear: playlist ? null : yearRange.max,
-        onlySpanish: playlist ? false : onlySpanish,
+        selectedTags: localSelectedTags,
         playlistId: playlist?.scope === "public" ? playlist.id : null,
       });
     },
-    [gameSource, onlySpanish, playlist, yearRange.max, yearRange.min]
+    [gameSource, localSelectedTags, playlist, yearRange.max, yearRange.min]
   );
 
   const {
@@ -438,7 +466,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
             mode: "auto",
             yearMin: playlist ? null : yearRange.min,
             yearMax: playlist ? null : yearRange.max,
-            onlySpanish: playlist ? false : onlySpanish,
+            selectedTags: localSelectedTags,
             timerEnabled,
             playlistId: playlist?.id ?? null,
             playlistName: playlist?.name ?? null,
@@ -452,7 +480,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     });
   }, [
     clearYearSpotlightTimeout,
-    onlySpanish,
+    localSelectedTags,
     playlist,
     resetTimerState,
     runViewTransition,
@@ -1390,37 +1418,33 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     }}
                   >
                     {playlist
-                      ? "Las playlists usan exactamente las canciones seleccionadas."
-                      : "Solo español."}
+                      ? "Puedes filtrar la playlist por una o más etiquetas."
+                      : localSelectedTags.length
+                      ? "Se incluirán canciones que tengan todas las etiquetas seleccionadas."
+                      : "Sin filtro por etiquetas."}
                   </Typography>
                 </Box>
                 <Stack
                   direction="row"
                   spacing={1}
-                  alignItems="center"
+                  useFlexGap
+                  flexWrap="wrap"
                   sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
                 >
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(224,239,255,0.82)" }}
-                  >
-                    No
-                  </Typography>
-                  <Switch
-                    color="info"
-                    checked={localSpanishOnly}
-                    onChange={handleLanguageToggle}
-                    disabled={Boolean(playlist)}
-                    inputProps={{
-                      "aria-label": "Filtrar solo canciones en español",
-                    }}
-                  />
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "rgba(224,239,255,0.9)", fontWeight: 700 }}
-                  >
-                    Sí
-                  </Typography>
+                  {SONG_TAG_OPTIONS.map((option) => {
+                    const selected = localSelectedTags.includes(option.value);
+                    return (
+                      <Chip
+                        key={option.value}
+                        label={getSongTagLabel(option.value)}
+                        clickable
+                        onClick={() => handleTagToggle(option.value)}
+                        color={selected ? "info" : "default"}
+                        variant={selected ? "filled" : "outlined"}
+                        sx={{ color: selected ? "#04111d" : "#dfeeff" }}
+                      />
+                    );
+                  })}
                 </Stack>
               </Stack>
             </Box>

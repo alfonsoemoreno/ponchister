@@ -5,6 +5,10 @@ import type { Song, SongInput, YoutubeValidationStatus } from "../../../../src/a
 import { findSongDuplicateMatches } from "../../../../src/admin/songDuplicateUtils";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
+import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+} from "../../../../src/lib/songTags";
 
 const parseBody = (req: NextApiRequest): Record<string, unknown> => {
   if (!req.body) return {};
@@ -30,6 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const body = parseBody(req);
+  const tags = normalizeSongTags(body.tags, body.isspanish);
   const payload: SongInput = {
     artist: typeof body.artist === "string" ? body.artist.trim() : "",
     title: typeof body.title === "string" ? body.title.trim() : "",
@@ -39,7 +44,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       typeof body.year === "number" && Number.isFinite(body.year)
         ? body.year
         : null,
-    isspanish: Boolean(body.isspanish),
+    tags,
+    isspanish: isSpanishTagSelected(tags),
   };
   const excludeId =
     typeof body.excludeId === "number" && Number.isFinite(body.excludeId)
@@ -59,6 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       title: songs.title,
       year: songs.year,
       youtube_url: songs.youtubeUrl,
+      tags: songs.songAttributes,
       isspanish: songs.isSpanish,
       youtube_status: songs.youtubeStatus,
       youtube_validation_message: songs.youtubeValidationMessage,
@@ -81,6 +88,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return {
       ...song,
+      tags: normalizeSongTags(song.tags, song.isspanish),
       youtube_status: youtubeStatus,
       youtube_validated_at: song.youtube_validated_at
         ? song.youtube_validated_at.toISOString()

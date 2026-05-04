@@ -6,6 +6,11 @@ import "./App.css";
 import type { GameSource, PlaylistSummary, YearRange } from "./types";
 import { fetchSongYearBounds } from "./services/songService";
 import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+  type SongTag,
+} from "./lib/songTags";
+import {
   fetchAvailablePlaylists,
   fetchPersonalPlaylists,
 } from "./services/playlistService";
@@ -13,6 +18,7 @@ import { fetchAdminSession } from "./admin/services/adminAuth";
 import type { AdminUser } from "./admin/types";
 
 const YEAR_RANGE_STORAGE_KEY = "ponchister_year_range";
+const SONG_TAG_FILTER_STORAGE_KEY = "ponchister_song_tag_filter";
 const LANGUAGE_FILTER_STORAGE_KEY = "ponchister_language_filter";
 const TIMER_ENABLED_STORAGE_KEY = "ponchister_timer_enabled";
 const SELECTED_PLAYLIST_STORAGE_KEY = "ponchister_selected_playlist";
@@ -62,16 +68,19 @@ const readStoredYearRange = (): YearRange => {
   }
 };
 
-const readStoredLanguageMode = (): boolean => {
+const readStoredSongTags = (): SongTag[] => {
   if (typeof window === "undefined") {
-    return false;
+    return [];
   }
   try {
-    const stored = window.localStorage.getItem(LANGUAGE_FILTER_STORAGE_KEY);
-    if (stored === null) return false;
-    return stored === "true";
+    const stored = window.localStorage.getItem(SONG_TAG_FILTER_STORAGE_KEY);
+    if (stored) {
+      return normalizeSongTags(JSON.parse(stored) as unknown);
+    }
+    const legacyStored = window.localStorage.getItem(LANGUAGE_FILTER_STORAGE_KEY);
+    return legacyStored === "true" ? ["espanol"] : [];
   } catch {
-    return false;
+    return [];
   }
 };
 
@@ -118,8 +127,8 @@ function App() {
   const [yearRange, setYearRange] = useState<YearRange>(() =>
     readStoredYearRange(),
   );
-  const [onlySpanish, setOnlySpanish] = useState<boolean>(() =>
-    readStoredLanguageMode(),
+  const [selectedSongTags, setSelectedSongTags] = useState<SongTag[]>(() =>
+    readStoredSongTags(),
   );
   const [timerEnabled, setTimerEnabled] = useState<boolean>(() =>
     readStoredTimerEnabled(),
@@ -156,10 +165,14 @@ function App() {
       return;
     }
     window.localStorage.setItem(
-      LANGUAGE_FILTER_STORAGE_KEY,
-      onlySpanish ? "true" : "false",
+      SONG_TAG_FILTER_STORAGE_KEY,
+      JSON.stringify(selectedSongTags),
     );
-  }, [onlySpanish]);
+    window.localStorage.setItem(
+      LANGUAGE_FILTER_STORAGE_KEY,
+      isSpanishTagSelected(selectedSongTags) ? "true" : "false",
+    );
+  }, [selectedSongTags]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -330,8 +343,8 @@ function App() {
     setView("welcome");
   };
 
-  const handleLanguageModeChange = (spanishOnly: boolean) => {
-    setOnlySpanish(spanishOnly);
+  const handleSongTagsChange = (tags: SongTag[]) => {
+    setSelectedSongTags(normalizeSongTags(tags));
   };
 
   const handleTimerModeChange = (enabled: boolean) => {
@@ -370,8 +383,8 @@ function App() {
           yearRange={normalizedYearRange}
           availableRange={effectiveLimits}
           onYearRangeChange={handleYearRangeChange}
-          onlySpanish={onlySpanish}
-          onLanguageModeChange={handleLanguageModeChange}
+          selectedSongTags={selectedSongTags}
+          onSongTagsChange={handleSongTagsChange}
           timerEnabled={timerEnabled}
           onTimerModeChange={handleTimerModeChange}
           gameSource={gameSource}

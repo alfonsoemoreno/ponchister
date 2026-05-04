@@ -19,7 +19,6 @@ import {
   MenuItem,
   Paper,
   Stack,
-  Switch,
   Table,
   TableBody,
   TableCell,
@@ -58,6 +57,7 @@ import {
   interpretYoutubePlayerError,
   validateYoutubeUrlFormat,
 } from "./youtubeValidation";
+import { formatSongTags, getSongTagLabel } from "../lib/songTags";
 
 interface MyCollectionViewProps {
   onFeedback: (payload: {
@@ -110,8 +110,6 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
   const [activeYoutubeProbe, setActiveYoutubeProbe] =
     useState<YoutubeProbeView | null>(null);
   const [youtubeProbePlayerKey, setYoutubeProbePlayerKey] = useState(0);
-  const [languageToggleId, setLanguageToggleId] = useState<number | null>(null);
-
   const youtubeValidationQueueRef = useRef<YoutubeProbeRequest[]>([]);
   const activeYoutubeProbeRef = useRef<YoutubeProbeRequest | null>(null);
   const youtubeProbeTimeoutRef = useRef<number | null>(null);
@@ -570,40 +568,6 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
     }
   };
 
-  const handleToggleSpanish = useCallback(
-    async (song: Song) => {
-      setLanguageToggleId(song.id);
-      try {
-        await updateMySong(song.id, {
-          artist: song.artist,
-          title: song.title,
-          year: song.year,
-          youtube_url: song.youtube_url,
-          isspanish: !song.isspanish,
-        });
-        setSongs((prev) =>
-          prev.map((item) =>
-            item.id === song.id ? { ...item, isspanish: !song.isspanish } : item
-          )
-        );
-        setSongMenuSong((prev) =>
-          prev?.id === song.id ? { ...prev, isspanish: !song.isspanish } : prev
-        );
-      } catch (err) {
-        onFeedback({
-          severity: "error",
-          message:
-            err instanceof Error
-              ? err.message
-              : "No se pudo actualizar el idioma de la canción.",
-        });
-      } finally {
-        setLanguageToggleId(null);
-      }
-    },
-    [onFeedback]
-  );
-
   const renderDesktopTable = () => (
     <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
       <Table
@@ -628,7 +592,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
             <TableCell>Canción</TableCell>
             <TableCell>Año</TableCell>
             <TableCell align="center">YouTube</TableCell>
-            <TableCell align="center">Español</TableCell>
+            <TableCell align="center">Etiquetas</TableCell>
             <TableCell align="right">Acciones</TableCell>
           </TableRow>
         </TableHead>
@@ -672,17 +636,29 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                     />
                   </Tooltip>
                 </TableCell>
-                <TableCell width={140} align="center">
-                  <Switch
-                    checked={song.isspanish}
-                    onChange={() => handleToggleSpanish(song)}
-                    color="primary"
-                    size="small"
-                    disabled={languageToggleId === song.id || loading}
-                    inputProps={{
-                      "aria-label": `Cambiar estado de idioma para ${song.title}`,
-                    }}
-                  />
+                <TableCell width={220} align="center">
+                  <Stack
+                    direction="row"
+                    spacing={0.75}
+                    useFlexGap
+                    flexWrap="wrap"
+                    justifyContent="center"
+                  >
+                    {song.tags.length ? (
+                      song.tags.map((tag) => (
+                        <Chip
+                          key={`${song.id}-${tag}`}
+                          label={getSongTagLabel(tag)}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        Sin etiquetas
+                      </Typography>
+                    )}
+                  </Stack>
                 </TableCell>
                 <TableCell align="right" width={176}>
                   <Stack
@@ -863,20 +839,14 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
               />
 
               <Stack spacing={1.2}>
-                <Stack direction="row" alignItems="center" spacing={1.2}>
+                <Box>
                   <Typography variant="body2" sx={{ fontWeight: 700, letterSpacing: 0.4 }}>
-                    Español
+                    Etiquetas
                   </Typography>
-                  <Switch
-                    checked={song.isspanish}
-                    onChange={() => handleToggleSpanish(song)}
-                    color="default"
-                    disabled={languageToggleId === song.id || loading}
-                    inputProps={{
-                      "aria-label": `Cambiar idioma de ${song.title}`,
-                    }}
-                  />
-                </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {formatSongTags(song.tags)}
+                  </Typography>
+                </Box>
                 <Stack direction="row" spacing={1}>
                   <Button
                     variant="outlined"

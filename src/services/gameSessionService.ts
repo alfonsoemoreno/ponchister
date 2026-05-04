@@ -9,10 +9,13 @@ async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   return response.json() as Promise<T>;
 }
 
+import { isSpanishTagSelected, normalizeSongTags, type SongTag } from "../lib/songTags";
+
 export interface CreateGameSessionInput {
   mode?: string;
   yearMin?: number | null;
   yearMax?: number | null;
+  selectedTags?: SongTag[];
   onlySpanish?: boolean;
   timerEnabled?: boolean;
   playlistId?: number | null;
@@ -22,6 +25,11 @@ export interface CreateGameSessionInput {
 export async function createGameSession(
   payload: CreateGameSessionInput
 ): Promise<void> {
+  const selectedTags = normalizeSongTags(
+    payload.selectedTags ?? [],
+    payload.onlySpanish
+  );
+
   await fetchJson<{ ok: boolean }>("/api/game-sessions", {
     method: "POST",
     headers: {
@@ -37,7 +45,8 @@ export async function createGameSession(
         typeof payload.yearMax === "number" && Number.isFinite(payload.yearMax)
           ? Math.trunc(payload.yearMax)
           : null,
-      onlySpanish: payload.onlySpanish === true,
+      selectedTags,
+      onlySpanish: isSpanishTagSelected(selectedTags),
       timerEnabled: payload.timerEnabled === true,
       playlistId:
         typeof payload.playlistId === "number" &&

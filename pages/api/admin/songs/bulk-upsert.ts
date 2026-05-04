@@ -3,6 +3,10 @@ import { sql } from "drizzle-orm";
 import { songs } from "../../../../src/db/schema";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
+import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+} from "../../../../src/lib/songTags";
 
 const parseBody = (req: NextApiRequest): Record<string, unknown> => {
   if (!req.body) return {};
@@ -54,13 +58,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         typeof song.year === "number" && Number.isFinite(song.year)
           ? song.year
           : null;
-      const isSpanish = Boolean(song.isspanish);
+      const tags = normalizeSongTags(
+        (song as Record<string, unknown>).tags,
+        (song as Record<string, unknown>).isspanish
+      );
+      const isSpanish = isSpanishTagSelected(tags);
       if (!artist || !title || !youtubeUrl) return null;
       return {
         artist,
         title,
         youtubeUrl,
         year,
+        songAttributes: tags,
         isSpanish,
         youtubeStatus: null,
         youtubeValidationMessage: null,
@@ -78,6 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     title: string;
     youtubeUrl: string;
     year: number | null;
+    songAttributes: string[];
     isSpanish: boolean;
     youtubeStatus: null;
     youtubeValidationMessage: null;
@@ -105,6 +115,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         artist: sql`excluded.artist`,
         title: sql`excluded.title`,
         year: sql`excluded.year`,
+        songAttributes: sql`excluded.song_attributes`,
         isSpanish: sql`excluded.isspanish`,
         youtubeStatus: sql`null`,
         youtubeValidationMessage: sql`null`,

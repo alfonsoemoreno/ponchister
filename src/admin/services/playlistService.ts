@@ -1,4 +1,8 @@
 import type { AdminIdentity, Playlist, PlaylistInput, Song } from "../types";
+import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+} from "../../lib/songTags";
 
 const API_BASE = "/api/admin/playlists";
 
@@ -48,13 +52,16 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     };
   };
 
+  const tags = normalizeSongTags(raw.tags ?? raw.song_attributes, raw.isspanish);
+
   return {
     id: Number(raw.id),
     artist: String(raw.artist ?? ""),
     title: String(raw.title ?? ""),
     year,
     youtube_url: String(raw.youtube_url ?? ""),
-    isspanish: raw.isspanish === true,
+    tags,
+    isspanish: isSpanishTagSelected(tags),
     youtube_status:
       raw.youtube_status === "unchecked" ||
       raw.youtube_status === "checking" ||

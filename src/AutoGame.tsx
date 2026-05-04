@@ -36,10 +36,10 @@ import { useViewTransition } from "./hooks/useViewTransition";
 import { createAdaptiveTheme } from "./auto-game/theme";
 import type { GameSource, PlaylistSummary, YearRange } from "./types";
 import {
-  SONG_TAG_OPTIONS,
   getSongTagLabel,
   normalizeSongTags,
   songMatchesAllTags,
+  type SongTagDefinition,
   type SongTag,
 } from "./lib/songTags";
 
@@ -57,6 +57,7 @@ interface AutoGameProps {
   onExit: () => void;
   yearRange: YearRange;
   availableRange: YearRange;
+  availableSongTags: SongTagDefinition[];
   onYearRangeChange: (range: YearRange) => void;
   selectedSongTags: SongTag[];
   onSongTagsChange: (tags: SongTag[]) => void;
@@ -80,6 +81,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   onExit,
   yearRange,
   availableRange,
+  availableSongTags,
   onYearRangeChange,
   selectedSongTags,
   onSongTagsChange,
@@ -1431,14 +1433,14 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   flexWrap="wrap"
                   sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
                 >
-                  {SONG_TAG_OPTIONS.map((option) => {
-                    const selected = localSelectedTags.includes(option.value);
+                  {availableSongTags.map((option) => {
+                    const selected = localSelectedTags.includes(option.slug);
                     return (
                       <Chip
-                        key={option.value}
-                        label={getSongTagLabel(option.value)}
+                        key={option.slug}
+                        label={getSongTagLabel(option.slug, availableSongTags)}
                         clickable
-                        onClick={() => handleTagToggle(option.value)}
+                        onClick={() => handleTagToggle(option.slug)}
                         color={selected ? "info" : "default"}
                         variant={selected ? "filled" : "outlined"}
                         sx={{ color: selected ? "#04111d" : "#dfeeff" }}

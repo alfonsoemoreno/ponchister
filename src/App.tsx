@@ -6,10 +6,13 @@ import "./App.css";
 import type { GameSource, PlaylistSummary, YearRange } from "./types";
 import { fetchSongYearBounds } from "./services/songService";
 import {
+  DEFAULT_SONG_TAG_DEFINITIONS,
   isSpanishTagSelected,
   normalizeSongTags,
+  type SongTagDefinition,
   type SongTag,
 } from "./lib/songTags";
+import { fetchAvailableSongTags } from "./services/songTagService";
 import {
   fetchAvailablePlaylists,
   fetchPersonalPlaylists,
@@ -142,6 +145,9 @@ function App() {
   );
   const [gameSource, setGameSource] = useState<GameSource>("classic");
   const [currentAdminUser, setCurrentAdminUser] = useState<AdminUser | null>(null);
+  const [availableSongTags, setAvailableSongTags] = useState<SongTagDefinition[]>(
+    DEFAULT_SONG_TAG_DEFINITIONS
+  );
 
   const effectiveLimits = availableRange ?? fallbackRange;
 
@@ -232,6 +238,46 @@ function App() {
       cancelled = true;
     };
   }, [fallbackRange]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSongTags = async () => {
+      try {
+        const tags = await fetchAvailableSongTags();
+        if (!cancelled && tags.length) {
+          setAvailableSongTags(tags);
+        }
+      } catch (error) {
+        console.error("[ponchister] No se pudieron cargar las etiquetas.", error);
+        if (!cancelled) {
+          setAvailableSongTags(DEFAULT_SONG_TAG_DEFINITIONS);
+        }
+      }
+    };
+
+    void loadSongTags();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (view !== "welcome") {
+      return;
+    }
+
+    void fetchAvailableSongTags()
+      .then((tags) => {
+        if (tags.length) {
+          setAvailableSongTags(tags);
+        }
+      })
+      .catch(() => {
+        /* noop */
+      });
+  }, [view]);
 
   const loadPlaylists = useCallback(async () => {
     try {
@@ -381,7 +427,8 @@ function App() {
         <AutoGame
           onExit={handleExitAuto}
           yearRange={normalizedYearRange}
-          availableRange={effectiveLimits}
+        availableRange={effectiveLimits}
+          availableSongTags={availableSongTags}
           onYearRangeChange={handleYearRangeChange}
           selectedSongTags={selectedSongTags}
           onSongTagsChange={handleSongTagsChange}

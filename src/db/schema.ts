@@ -25,6 +25,22 @@ export const adminUsers = pgTable("admin_users", {
     .defaultNow(),
 });
 
+export const songTags = pgTable("song_tags", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  label: text("label").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdBy: integer("created_by").references(() => adminUsers.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const songs = pgTable(
   "songs",
   {

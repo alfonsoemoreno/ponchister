@@ -15,10 +15,10 @@ import {
 } from "@mui/material";
 import type { SongInput, Song } from "./types";
 import {
-  SONG_TAG_OPTIONS,
   getSongTagLabel,
   isSpanishTagSelected,
   normalizeSongTags,
+  type SongTagDefinition,
   type SongTag,
 } from "../lib/songTags";
 
@@ -26,6 +26,7 @@ interface SongFormDialogProps {
   open: boolean;
   mode: "create" | "edit";
   initialValue?: Song | null;
+  availableSongTags: SongTagDefinition[];
   loading?: boolean;
   onClose: () => void;
   onSubmit: (values: SongInput) => Promise<boolean | void> | boolean | void;
@@ -51,6 +52,7 @@ export default function SongFormDialog({
   open,
   mode,
   initialValue,
+  availableSongTags,
   loading = false,
   onClose,
   onSubmit,
@@ -221,16 +223,16 @@ export default function SongFormDialog({
               Puedes seleccionar una o más opciones.
             </Typography>
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              {SONG_TAG_OPTIONS.map((option) => {
-                const selected = values.tags.includes(option.value);
+              {availableSongTags.map((option) => {
+                const selected = values.tags.includes(option.slug);
                 return (
                   <Chip
-                    key={option.value}
-                    label={getSongTagLabel(option.value)}
+                    key={option.slug}
+                    label={getSongTagLabel(option.slug, availableSongTags)}
                     clickable
                     color={selected ? "primary" : "default"}
                     variant={selected ? "filled" : "outlined"}
-                    onClick={() => handleToggleTag(option.value)}
+                    onClick={() => handleToggleTag(option.slug)}
                     disabled={loading}
                   />
                 );

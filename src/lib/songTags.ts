@@ -1,23 +1,24 @@
-export const SONG_TAG_OPTIONS = [
-  { value: "espanol", label: "Español" },
-  { value: "ingles", label: "Inglés" },
-  { value: "instrumental", label: "Instrumental" },
-  { value: "musica_clasica", label: "Música clásica" },
-  { value: "tropical", label: "Tropical" },
-  { value: "dance", label: "Dance" },
-  { value: "rock", label: "Rock" },
-  { value: "pop", label: "Pop" },
+export type SongTag = string;
+
+export interface SongTagDefinition {
+  id: number;
+  slug: SongTag;
+  label: string;
+  active: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export const DEFAULT_SONG_TAG_DEFINITIONS: SongTagDefinition[] = [
+  { id: 1, slug: "espanol", label: "Español", active: true },
+  { id: 2, slug: "ingles", label: "Inglés", active: true },
+  { id: 3, slug: "instrumental", label: "Instrumental", active: true },
+  { id: 4, slug: "musica_clasica", label: "Música clásica", active: true },
+  { id: 5, slug: "tropical", label: "Tropical", active: true },
+  { id: 6, slug: "dance", label: "Dance", active: true },
+  { id: 7, slug: "rock", label: "Rock", active: true },
+  { id: 8, slug: "pop", label: "Pop", active: true },
 ] as const;
-
-export type SongTag = (typeof SONG_TAG_OPTIONS)[number]["value"];
-
-const SONG_TAG_VALUES = new Set<string>(
-  SONG_TAG_OPTIONS.map((option) => option.value)
-);
-
-const SONG_TAG_LABEL_MAP = new Map<string, string>(
-  SONG_TAG_OPTIONS.map((option) => [option.value, option.label])
-);
 
 function parseBooleanLike(value: unknown): boolean {
   if (typeof value === "boolean") return value;
@@ -53,38 +54,32 @@ function splitTagString(value: string): string[] {
     .filter(Boolean);
 }
 
-function normalizeTagValue(value: string): SongTag | null {
-  const normalized = value
+export function slugifySongTag(value: string): SongTag {
+  return value
     .trim()
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+}
 
+function normalizeTagValue(value: string): SongTag | null {
+  const normalized = slugifySongTag(value);
   if (!normalized) return null;
 
   const aliasMap: Record<string, SongTag> = {
-    espanol: "espanol",
     esp: "espanol",
     es: "espanol",
     spanish: "espanol",
-    ingles: "ingles",
     english: "ingles",
     en: "ingles",
-    instrumental: "instrumental",
     clasica: "musica_clasica",
-    musica_clasica: "musica_clasica",
     musicaclasica: "musica_clasica",
     classical: "musica_clasica",
-    tropical: "tropical",
-    dance: "dance",
-    rock: "rock",
-    pop: "pop",
   };
 
-  const candidate = aliasMap[normalized] ?? normalized;
-  return SONG_TAG_VALUES.has(candidate) ? (candidate as SongTag) : null;
+  return aliasMap[normalized] ?? normalized;
 }
 
 export function normalizeSongTags(
@@ -110,9 +105,7 @@ export function normalizeSongTags(
     unique.add("espanol");
   }
 
-  return SONG_TAG_OPTIONS.map((option) => option.value).filter((value) =>
-    unique.has(value)
-  );
+  return Array.from(unique).sort((a, b) => a.localeCompare(b));
 }
 
 export function isSpanishTagSelected(tags: readonly string[]): boolean {
@@ -127,11 +120,24 @@ export function songMatchesAllTags(
   return selectedTags.every((tag) => songTags.includes(tag));
 }
 
-export function getSongTagLabel(tag: string): string {
-  return SONG_TAG_LABEL_MAP.get(tag) ?? tag;
+export function getSongTagLabel(
+  tag: string,
+  definitions: readonly SongTagDefinition[] = DEFAULT_SONG_TAG_DEFINITIONS
+): string {
+  const match = definitions.find((entry) => entry.slug === tag);
+  if (match) return match.label;
+
+  return tag
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
-export function formatSongTags(tags: readonly string[]): string {
+export function formatSongTags(
+  tags: readonly string[],
+  definitions: readonly SongTagDefinition[] = DEFAULT_SONG_TAG_DEFINITIONS
+): string {
   if (!tags.length) return "Sin etiquetas";
-  return tags.map((tag) => getSongTagLabel(tag)).join(", ");
+  return tags.map((tag) => getSongTagLabel(tag, definitions)).join(", ");
 }

@@ -42,6 +42,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import StopIcon from "@mui/icons-material/Stop";
 import type { Song, SongInput, SongYoutubeValidationPayload, YoutubeValidationResult } from "./types";
 import SongFormDialog from "./SongFormDialog";
+import { listSongTags } from "./services/songTagService";
 import {
   createMySong,
   deleteMySong,
@@ -57,7 +58,12 @@ import {
   interpretYoutubePlayerError,
   validateYoutubeUrlFormat,
 } from "./youtubeValidation";
-import { formatSongTags, getSongTagLabel } from "../lib/songTags";
+import {
+  DEFAULT_SONG_TAG_DEFINITIONS,
+  formatSongTags,
+  getSongTagLabel,
+  type SongTagDefinition,
+} from "../lib/songTags";
 
 interface MyCollectionViewProps {
   onFeedback: (payload: {
@@ -96,6 +102,9 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingSong, setEditingSong] = useState<Song | null>(null);
   const [saving, setSaving] = useState(false);
+  const [availableSongTags, setAvailableSongTags] = useState<SongTagDefinition[]>(
+    DEFAULT_SONG_TAG_DEFINITIONS
+  );
   const [deleteTarget, setDeleteTarget] = useState<Song | null>(null);
   const [submittingSongId, setSubmittingSongId] = useState<number | null>(null);
   const [searchInput, setSearchInput] = useState("");
@@ -157,6 +166,29 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
   useEffect(() => {
     void loadSongs();
   }, [loadSongs]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSongTags = async () => {
+      try {
+        const tags = await listSongTags();
+        if (!cancelled && tags.length) {
+          setAvailableSongTags(tags);
+        }
+      } catch {
+        if (!cancelled) {
+          setAvailableSongTags(DEFAULT_SONG_TAG_DEFINITIONS);
+        }
+      }
+    };
+
+    void loadSongTags();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const handler = window.setTimeout(() => {
@@ -648,7 +680,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                       song.tags.map((tag) => (
                         <Chip
                           key={`${song.id}-${tag}`}
-                          label={getSongTagLabel(tag)}
+                          label={getSongTagLabel(tag, availableSongTags)}
                           size="small"
                           variant="outlined"
                         />
@@ -844,7 +876,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                     Etiquetas
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {formatSongTags(song.tags)}
+                    {formatSongTags(song.tags, availableSongTags)}
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={1}>
@@ -1327,6 +1359,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
         open={formOpen}
         mode={formMode}
         initialValue={editingSong}
+        availableSongTags={availableSongTags}
         onClose={() => {
           if (!saving) {
             setFormOpen(false);

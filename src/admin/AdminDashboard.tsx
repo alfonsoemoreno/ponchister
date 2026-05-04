@@ -58,8 +58,6 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import DownloadIcon from "@mui/icons-material/Download";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
 import LibraryMusicOutlinedIcon from "@mui/icons-material/LibraryMusicOutlined";
 import QueueMusicOutlinedIcon from "@mui/icons-material/QueueMusicOutlined";
 import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
@@ -70,7 +68,6 @@ import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ClearIcon from "@mui/icons-material/Clear";
-import * as XLSX from "xlsx";
 
 import AdminUsersPanel from "./AdminUsersPanel";
 import PlaylistManagementView from "./PlaylistManagementView";
@@ -86,12 +83,11 @@ import {
   approveSong,
   bulkApproveSongs,
   fetchSongStatistics,
-  fetchAllSongs,
-  bulkUpsertSongs,
   findSongDuplicates,
   updateSongYoutubeValidation,
   updateSong,
 } from "./services/songService";
+import { createSongTag, listSongTags } from "./services/songTagService";
 import { copyPublicSongToMyCollection } from "./services/mySongService";
 import { fetchGameSessionStatistics } from "./services/gameSessionService";
 import {
@@ -112,11 +108,12 @@ import type {
   YoutubeValidationResult,
 } from "./types";
 import {
+  DEFAULT_SONG_TAG_DEFINITIONS,
   formatSongTags,
   getSongTagLabel,
   isSpanishTagSelected,
   normalizeSongTags,
-  SONG_TAG_OPTIONS,
+  type SongTagDefinition,
   type SongTag,
 } from "../lib/songTags";
 
@@ -210,8 +207,12 @@ export default function AdminDashboard({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
-  const [exporting, setExporting] = useState(false);
-  const [importing, setImporting] = useState(false);
+  const [availableSongTags, setAvailableSongTags] = useState<SongTagDefinition[]>(
+    DEFAULT_SONG_TAG_DEFINITIONS
+  );
+  const [songTagsLoading, setSongTagsLoading] = useState(false);
+  const [newSongTagLabel, setNewSongTagLabel] = useState("");
+  const [newSongTagSaving, setNewSongTagSaving] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
@@ -249,9 +250,6 @@ export default function AdminDashboard({
   const [gameStatistics, setGameStatistics] =
     useState<GameSessionStatistics | null>(null);
   const [navOpen, setNavOpen] = useState(false);
-  const [actionsAnchorEl, setActionsAnchorEl] = useState<null | HTMLElement>(
-    null
-  );
   const [songMenuAnchorEl, setSongMenuAnchorEl] =
     useState<null | HTMLElement>(null);
   const [songMenuSong, setSongMenuSong] = useState<Song | null>(null);
@@ -270,7 +268,6 @@ export default function AdminDashboard({
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const isSuperAdmin = userRole === "superadmin";
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const youtubeValidationQueueRef = useRef<YoutubeProbeRequest[]>([]);
   const activeYoutubeProbeRef = useRef<YoutubeProbeRequest | null>(null);
   const youtubeProbeTimeoutRef = useRef<number | null>(null);
@@ -287,6 +284,23 @@ export default function AdminDashboard({
       prev.filter((songId) => songs.some((song) => song.id === songId))
     );
   }, [songs]);
+
+  const loadAvailableSongTags = useCallback(async () => {
+    setSongTagsLoading(true);
+    try {
+      const tags = await listSongTags();
+      setAvailableSongTags(tags.length ? tags : DEFAULT_SONG_TAG_DEFINITIONS);
+    } catch (error) {
+      console.error("[ponchister] No se pudieron cargar las etiquetas.", error);
+      setAvailableSongTags(DEFAULT_SONG_TAG_DEFINITIONS);
+    } finally {
+      setSongTagsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAvailableSongTags();
+  }, [loadAvailableSongTags]);
 
   const tabConfig = useMemo(
     () => [
@@ -807,83 +821,6 @@ export default function AdminDashboard({
     setReloadToken((prev) => prev + 1);
   };
 
-  const handleDownloadExcel = useCallback(async () => {
-    if (exporting) {
-      return;
-    }
-
-    setExporting(true);
-    try {
-      const allSongs = await fetchAllSongs();
-
-      if (allSongs.length === 0) {
-        setFeedback({
-          severity: "error",
-          message: "No hay canciones disponibles para exportar.",
-        });
-        setSnackbarOpen(true);
-        return;
-      }
-
-      const rows = allSongs.map((song) => [
-        song.artist,
-        song.title,
-        song.year ?? "",
-        song.youtube_url,
-        song.isspanish ? "SI" : "NO",
-      ]);
-
-      const worksheet = XLSX.utils.aoa_to_sheet([
-        ["ARTISTA", "CANCION", "LANZAMIENTO", "YOUTUBE", "ESPANOL"],
-        ...rows,
-      ]);
-
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Canciones");
-
-      const excelBuffer = XLSX.write(workbook, {
-        bookType: "xlsx",
-        type: "array",
-      });
-
-      const blob = new Blob([excelBuffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-
-      const timestamp = new Date().toISOString().split("T")[0];
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `ponchocards-canciones-${timestamp}.xlsx`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-
-      window.setTimeout(() => {
-        URL.revokeObjectURL(url);
-      }, 1000);
-
-      setFeedback({
-        severity: "success",
-        message: "Exportación generada correctamente.",
-      });
-      setSnackbarOpen(true);
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "No se pudo generar el archivo de canciones.";
-      setFeedback({ severity: "error", message });
-      setSnackbarOpen(true);
-    } finally {
-      setExporting(false);
-    }
-  }, [exporting]);
-
-  const handleImportButtonClick = () => {
-    fileInputRef.current?.click();
-  };
-
   const handleValidateSongLink = useCallback(
     async (song: Song, options?: { showFeedback?: boolean }) => {
       const result = await enqueueYoutubeValidation(song.youtube_url, {
@@ -941,152 +878,6 @@ export default function AdminDashboard({
       void handleValidateSongLink(song, { showFeedback: false });
     });
   }, [handleValidateSongLink, songs]);
-
-  const handleImportFromExcel = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-
-      if (!file) {
-        return;
-      }
-
-      setImporting(true);
-
-      try {
-        const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data, { type: "array" });
-        const [firstSheet] = workbook.SheetNames;
-
-        if (!firstSheet) {
-          throw new Error("El archivo no contiene hojas válidas.");
-        }
-
-        const sheet = workbook.Sheets[firstSheet];
-        const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-          header: 1,
-          defval: "",
-          blankrows: false,
-        });
-
-        if (matrix.length === 0) {
-          throw new Error("El archivo está vacío.");
-        }
-
-        const headerRow = (matrix[0] ?? []).map((cell) =>
-          String(cell ?? "")
-            .trim()
-            .toUpperCase()
-        );
-
-        const findIndex = (label: string) =>
-          headerRow.findIndex((value) => value === label);
-
-        const artistIndex = findIndex("ARTISTA");
-        const titleIndex = findIndex("CANCION");
-        const yearIndex = findIndex("LANZAMIENTO");
-        const youtubeIndex = findIndex("YOUTUBE");
-        const spanishIndex = findIndex("ESPANOL");
-        const spanishAltIndex = findIndex("ESPAÑOL");
-        const tagsIndex = findIndex("ETIQUETAS");
-        const tagsAltIndex = findIndex("TAGS");
-        const languageIndex =
-          tagsIndex !== -1
-            ? tagsIndex
-            : tagsAltIndex !== -1
-            ? tagsAltIndex
-            : spanishIndex !== -1
-            ? spanishIndex
-            : spanishAltIndex;
-
-        if (artistIndex === -1 || titleIndex === -1 || youtubeIndex === -1) {
-          throw new Error(
-            "La plantilla debe incluir las columnas ARTISTA, CANCION y YOUTUBE."
-          );
-        }
-
-        const rows = matrix.slice(1);
-        const payload: SongInput[] = [];
-        let skipped = 0;
-
-        rows.forEach((entry) => {
-          const cells = Array.isArray(entry) ? entry : [];
-          const artist = String(cells[artistIndex] ?? "").trim();
-          const title = String(cells[titleIndex] ?? "").trim();
-          const youtubeUrl = String(cells[youtubeIndex] ?? "").trim();
-
-          if (!artist || !title || !youtubeUrl) {
-            if (
-              !cells.every((value) => String(value ?? "").trim().length === 0)
-            ) {
-              skipped += 1;
-            }
-            return;
-          }
-
-          let year: number | null = null;
-          if (yearIndex !== -1) {
-            const rawYear = cells[yearIndex];
-            if (typeof rawYear === "number") {
-              year = Number.isFinite(rawYear) ? Math.trunc(rawYear) : null;
-            } else if (
-              typeof rawYear === "string" &&
-              rawYear.trim().length > 0
-            ) {
-              const parsed = Number.parseInt(rawYear.trim(), 10);
-              year = Number.isNaN(parsed) ? null : parsed;
-            }
-          }
-
-          let tags = normalizeSongTags([]);
-          let isspanish = false;
-          if (languageIndex !== -1) {
-            const rawLanguage = cells[languageIndex];
-            tags = normalizeSongTags(rawLanguage);
-            isspanish = isSpanishTagSelected(tags);
-          }
-
-          payload.push({
-            artist,
-            title,
-            youtube_url: youtubeUrl,
-            year,
-            tags,
-            isspanish,
-          });
-        });
-
-        if (payload.length === 0) {
-          throw new Error(
-            "No se encontraron registros válidos en el archivo proporcionado."
-          );
-        }
-
-        await bulkUpsertSongs(payload);
-
-        const skippedMessage = skipped
-          ? `, ${skipped} filas omitidas por datos incompletos`
-          : "";
-
-        setFeedback({
-          severity: "success",
-          message: `Importación completada: ${payload.length} canciones procesadas${skippedMessage}.`,
-        });
-        setSnackbarOpen(true);
-        setReloadToken((prev) => prev + 1);
-      } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : "No se pudo importar el catálogo desde Excel.";
-        setFeedback({ severity: "error", message });
-        setSnackbarOpen(true);
-      } finally {
-        setImporting(false);
-        event.target.value = "";
-      }
-    },
-    []
-  );
 
   const openCreateForm = () => {
     setFormMode("create");
@@ -1454,6 +1245,34 @@ export default function AdminDashboard({
     }
   }, [bulkTagSelection, selectedSongIds, songs]);
 
+  const handleCreateSongTag = useCallback(async () => {
+    const label = newSongTagLabel.trim();
+    if (!label) {
+      return;
+    }
+
+    setNewSongTagSaving(true);
+    try {
+      const created = await createSongTag({ label });
+      setAvailableSongTags((prev) =>
+        [...prev, created].sort((a, b) => a.label.localeCompare(b.label))
+      );
+      setNewSongTagLabel("");
+      setFeedback({
+        severity: "success",
+        message: `Etiqueta "${created.label}" creada.`,
+      });
+      setSnackbarOpen(true);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "No se pudo crear la etiqueta.";
+      setFeedback({ severity: "error", message });
+      setSnackbarOpen(true);
+    } finally {
+      setNewSongTagSaving(false);
+    }
+  }, [newSongTagLabel]);
+
   const handleTabChange = (
     _event: SyntheticEvent,
     value: "songs" | "playlists" | "stats" | "users" | "profile" | "my-collection"
@@ -1462,14 +1281,6 @@ export default function AdminDashboard({
     if (!isDesktop) {
       setNavOpen(false);
     }
-  };
-
-  const handleActionsOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setActionsAnchorEl(event.currentTarget);
-  };
-
-  const handleActionsClose = () => {
-    setActionsAnchorEl(null);
   };
 
   const handleSongMenuOpen = (
@@ -1654,7 +1465,7 @@ export default function AdminDashboard({
                   song.tags.map((tag) => (
                     <Chip
                       key={`${song.id}-${tag}`}
-                      label={getSongTagLabel(tag)}
+                      label={getSongTagLabel(tag, availableSongTags)}
                       size="small"
                       variant="outlined"
                     />
@@ -1889,7 +1700,7 @@ export default function AdminDashboard({
                   Etiquetas
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {formatSongTags(song.tags)}
+                  {formatSongTags(song.tags, availableSongTags)}
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={1}>
@@ -1926,13 +1737,6 @@ export default function AdminDashboard({
 
   return (
     <>
-      <input
-        hidden
-        ref={fileInputRef}
-        type="file"
-        accept=".xlsx,.xls"
-        onChange={handleImportFromExcel}
-      />
       <div className="admin-ocean-background" />
       <div className="admin-ocean-blur" />
       <Box
@@ -2531,6 +2335,68 @@ export default function AdminDashboard({
                       </Paper>
                     ) : null}
 
+                    {isSuperAdmin ? (
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2,
+                          borderRadius: 0,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          backgroundColor: "#fbfcfe",
+                        }}
+                      >
+                        <Stack spacing={2}>
+                          <Stack
+                            direction={{ xs: "column", md: "row" }}
+                            spacing={2}
+                            justifyContent="space-between"
+                            alignItems={{ xs: "stretch", md: "center" }}
+                          >
+                            <Box>
+                              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                                Etiquetas del catálogo
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Crea nuevas etiquetas para que queden disponibles en canciones y filtros del juego.
+                              </Typography>
+                            </Box>
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                              <TextField
+                                label="Nueva etiqueta"
+                                value={newSongTagLabel}
+                                onChange={(event) => setNewSongTagLabel(event.target.value)}
+                                size="small"
+                                disabled={newSongTagSaving}
+                              />
+                              <Button
+                                variant="contained"
+                                onClick={() => void handleCreateSongTag()}
+                                disabled={!newSongTagLabel.trim() || newSongTagSaving}
+                              >
+                                {newSongTagSaving ? "Guardando..." : "Agregar etiqueta"}
+                              </Button>
+                            </Stack>
+                          </Stack>
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                            {availableSongTags.map((tag) => (
+                              <Chip
+                                key={tag.slug}
+                                label={tag.label}
+                                variant="outlined"
+                                color="default"
+                              />
+                            ))}
+                            {songTagsLoading ? (
+                              <Typography variant="body2" color="text.secondary">
+                                Cargando etiquetas...
+                              </Typography>
+                            ) : null}
+                          </Stack>
+                        </Stack>
+                      </Paper>
+                    ) : null}
+
                     <Paper
                       elevation={0}
                       sx={{
@@ -2615,67 +2481,6 @@ export default function AdminDashboard({
                               </IconButton>
                             </Box>
                           </Tooltip>
-                          <Tooltip title="Opciones" disableInteractive>
-                            <Box
-                              component="span"
-                              sx={{ display: "inline-flex" }}
-                            >
-                              <IconButton
-                                aria-label="Opciones de catalogo"
-                                onClick={handleActionsOpen}
-                                disabled={!dataReady}
-                                sx={{
-                                  border: "1px solid",
-                                  borderColor: "divider",
-                                  color: "text.primary",
-                                  backgroundColor: "background.paper",
-                                  borderRadius: 0,
-                                }}
-                              >
-                                <MoreVertIcon fontSize="small" />
-                              </IconButton>
-                            </Box>
-                          </Tooltip>
-                          <Menu
-                            anchorEl={actionsAnchorEl}
-                            open={Boolean(actionsAnchorEl)}
-                            onClose={handleActionsClose}
-                          >
-                            {isSuperAdmin ? (
-                              <MenuItem
-                                onClick={() => {
-                                  handleActionsClose();
-                                  handleImportButtonClick();
-                                }}
-                                disabled={!dataReady || importing}
-                              >
-                                <ListItemIcon>
-                                  {importing ? (
-                                    <CircularProgress size={16} />
-                                  ) : (
-                                    <UploadFileIcon fontSize="small" />
-                                  )}
-                                </ListItemIcon>
-                                <ListItemText>Importar Excel</ListItemText>
-                              </MenuItem>
-                            ) : null}
-                            <MenuItem
-                              onClick={() => {
-                                handleActionsClose();
-                                void handleDownloadExcel();
-                              }}
-                              disabled={!dataReady || exporting}
-                            >
-                              <ListItemIcon>
-                                {exporting ? (
-                                  <CircularProgress size={16} />
-                                ) : (
-                                  <DownloadIcon fontSize="small" />
-                                )}
-                              </ListItemIcon>
-                              <ListItemText>Descargar Excel</ListItemText>
-                            </MenuItem>
-                          </Menu>
                           </Stack>
                         </Stack>
 
@@ -3204,6 +3009,7 @@ export default function AdminDashboard({
         open={formOpen}
         mode={formMode}
         initialValue={editingSong}
+        availableSongTags={availableSongTags}
         onClose={closeForm}
         onSubmit={handleFormSubmit}
         loading={formLoading}
@@ -3254,7 +3060,7 @@ export default function AdminDashboard({
                   <Typography variant="caption" color="text.secondary">
                     ID #{match.id}
                     {match.year ? ` · ${match.year}` : ""}
-                    {match.tags.length ? ` · ${formatSongTags(match.tags)}` : ""}
+                    {match.tags.length ? ` · ${formatSongTags(match.tags, availableSongTags)}` : ""}
                   </Typography>
                 </Stack>
               </Paper>
@@ -3323,16 +3129,16 @@ export default function AdminDashboard({
               Las etiquetas seleccionadas se agregarán a las {selectedSongIds.length} canción(es) elegidas, sin borrar las etiquetas actuales.
             </Typography>
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-              {SONG_TAG_OPTIONS.map((option) => {
-                const selected = bulkTagSelection.includes(option.value);
+              {availableSongTags.map((option) => {
+                const selected = bulkTagSelection.includes(option.slug);
                 return (
                   <Chip
-                    key={option.value}
-                    label={getSongTagLabel(option.value)}
+                    key={option.slug}
+                    label={getSongTagLabel(option.slug, availableSongTags)}
                     clickable
                     color={selected ? "primary" : "default"}
                     variant={selected ? "filled" : "outlined"}
-                    onClick={() => handleToggleBulkTag(option.value)}
+                    onClick={() => handleToggleBulkTag(option.slug)}
                     disabled={bulkTagSaving}
                   />
                 );

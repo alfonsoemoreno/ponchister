@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { sql } from "drizzle-orm";
 import { gameSessions } from "../../../src/db/schema";
 import { db } from "../_db";
 import {
@@ -36,6 +37,22 @@ function toFiniteInteger(value: unknown): number | null {
   return null;
 }
 
+function isMissingColumnError(error: unknown, columnName: string): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as { code?: unknown; message?: unknown };
+  const code = typeof candidate.code === "string" ? candidate.code : "";
+  const message =
+    typeof candidate.message === "string" ? candidate.message : "";
+
+  return (
+    code === "42703" &&
+    message.toLowerCase().includes(`column "${columnName.toLowerCase()}"`)
+  );
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -64,17 +81,50 @@ export default async function handler(
     return;
   }
 
-  await db.insert(gameSessions).values({
-    mode,
-    yearMin,
-    yearMax,
-    onlySpanish,
-    selectedSongAttributes: selectedTags,
-    tagMatchMode,
-    timerEnabled,
-    playlistId,
-    playlistName,
-  });
+  try {
+    await db.insert(gameSessions).values({
+      mode,
+      yearMin,
+      yearMax,
+      onlySpanish,
+      selectedSongAttributes: selectedTags,
+      tagMatchMode,
+      timerEnabled,
+      playlistId,
+      playlistName,
+    });
+  } catch (error) {
+    if (!isMissingColumnError(error, "tag_match_mode")) {
+      throw error;
+    }
+
+    console.warn(
+      "[game-session] Missing tag_match_mode column. Falling back to legacy insert."
+    );
+
+    await db.execute(sql`
+      insert into game_sessions (
+        mode,
+        year_min,
+        year_max,
+        only_spanish,
+        selected_song_attributes,
+        timer_enabled,
+        playlist_id,
+        playlist_name
+      )
+      values (
+        ${mode},
+        ${yearMin},
+        ${yearMax},
+        ${onlySpanish},
+        ${selectedTags},
+        ${timerEnabled},
+        ${playlistId},
+        ${playlistName}
+      )
+    `);
+  }
 
   res.status(201).json({ ok: true });
 }

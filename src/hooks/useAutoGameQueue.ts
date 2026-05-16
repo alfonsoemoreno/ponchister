@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { buildBalancedQueue, dedupePlayableSongs } from "../lib/autoGameQueue";
 import {
+  forgetRecentSongIds,
   loadRecentSongIds,
   rememberRecentSongIds,
 } from "../lib/recentSongsHistory";
@@ -49,6 +50,20 @@ export function useAutoGameQueue({
     return null;
   }, []);
 
+  const selectCycleSongs = useCallback((songs: Song[]): Song[] => {
+    const recentSongIds = loadRecentSongIds();
+    const recentSongIdSet = new Set(recentSongIds);
+    const availableSongIds = new Set(songs.map((song) => song.id));
+    const freshSongs = songs.filter((song) => !recentSongIdSet.has(song.id));
+
+    if (freshSongs.length > 0) {
+      return freshSongs;
+    }
+
+    forgetRecentSongIds(availableSongIds);
+    return songs;
+  }, []);
+
   const startQueue = useCallback(async () => {
     setStatus("loading");
     setError(null);
@@ -59,10 +74,9 @@ export function useAutoGameQueue({
 
     try {
       const songs = await fetchSongs();
-      const recentSongIds = loadRecentSongIds();
-      const playableSongs = buildBalancedQueue(dedupePlayableSongs(songs), {
-        recentSongIds,
-      });
+      const dedupedSongs = dedupePlayableSongs(songs);
+      const cycleSongs = selectCycleSongs(dedupedSongs);
+      const playableSongs = buildBalancedQueue(cycleSongs);
 
       if (!playableSongs.length) {
         throw new Error(
@@ -98,7 +112,7 @@ export function useAutoGameQueue({
       setStatus("error");
       return false;
     }
-  }, [fetchSongs, selectNextSong]);
+  }, [fetchSongs, selectCycleSongs, selectNextSong]);
 
   const advanceQueue = useCallback(() => {
     if (!queueRef.current.length) {

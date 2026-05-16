@@ -23,66 +23,64 @@ function songYearKey(song: Song): string {
   return typeof song.year === "number" ? String(song.year) : UNKNOWN_YEAR_KEY;
 }
 
-type YearBucket = {
-  fresh: Song[];
-  stale: Song[];
-};
+function normalizeArtistKey(artist: string): string {
+  return artist.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
 
-type BalancedQueueOptions = {
-  recentSongIds?: Iterable<number>;
-};
+type YearBucket = Song[];
 
-export function buildBalancedQueue(
-  songs: Song[],
-  options?: BalancedQueueOptions
-): Song[] {
+function takeNextSong(
+  bucket: Song[],
+  usedArtists: Set<string>
+): Song | undefined {
+  for (let index = bucket.length - 1; index >= 0; index -= 1) {
+    const artistKey = normalizeArtistKey(bucket[index]?.artist ?? "");
+    if (usedArtists.has(artistKey)) {
+      continue;
+    }
+
+    const [selectedSong] = bucket.splice(index, 1);
+    return selectedSong;
+  }
+
+  return undefined;
+}
+
+export function buildBalancedQueue(songs: Song[]): Song[] {
   if (!songs.length) {
     return [];
   }
 
-  const recentIds = new Set(options?.recentSongIds ?? []);
   const buckets = new Map<string, YearBucket>();
 
   songs.forEach((song) => {
     const key = songYearKey(song);
-    const existing = buckets.get(key) ?? { fresh: [], stale: [] };
-    if (recentIds.has(song.id)) {
-      existing.stale.push(song);
-    } else {
-      existing.fresh.push(song);
-    }
+    const existing = buckets.get(key) ?? [];
+    existing.push(song);
     buckets.set(key, existing);
   });
 
   buckets.forEach((bucket, key) => {
-    const shuffledFresh = shuffleSongs(bucket.fresh);
-    const shuffledStale = shuffleSongs(bucket.stale);
-    // pop() prioriza la pila "fresh" para agotar primero los temas que no
-    // aparecieron en partidas recientes, y sólo después recurre a los "stale".
-    buckets.set(key, { fresh: shuffledFresh, stale: shuffledStale });
+    buckets.set(key, shuffleSongs(bucket));
   });
 
   const usage = new Map<string, number>();
+  const usedArtists = new Set<string>();
   const queue: Song[] = [];
-  const total = songs.length;
 
-  while (queue.length < total) {
+  while (true) {
     const activeEntries = Array.from(buckets.entries()).filter(
-      ([, bucket]) => bucket.fresh.length + bucket.stale.length > 0
+      ([, bucket]) =>
+        bucket.some(
+          (song) => !usedArtists.has(normalizeArtistKey(song.artist))
+        )
     );
 
     if (!activeEntries.length) {
       break;
     }
 
-    const prioritizedEntries = activeEntries.filter(
-      ([, bucket]) => bucket.fresh.length > 0
-    );
-    const selectionEntries = prioritizedEntries.length
-      ? prioritizedEntries
-      : activeEntries;
-
-    const usageEntries = selectionEntries.map(([yearKey]) => ({
+    const usageEntries = activeEntries.map(([yearKey]) => ({
       yearKey,
       usage: usage.get(yearKey) ?? 0,
     }));
@@ -105,16 +103,14 @@ export function buildBalancedQueue(
       continue;
     }
 
-    const song =
-      selectedBucket.fresh.pop() ??
-      selectedBucket.stale.pop() ??
-      undefined;
+    const song = takeNextSong(selectedBucket, usedArtists);
     if (!song) {
       usage.set(selected.yearKey, selected.usage);
       continue;
     }
 
     queue.push(song);
+    usedArtists.add(normalizeArtistKey(song.artist));
     usage.set(selected.yearKey, selected.usage + 1);
   }
 

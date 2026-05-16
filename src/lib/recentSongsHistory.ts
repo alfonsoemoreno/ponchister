@@ -1,5 +1,4 @@
 const RECENT_SONG_HISTORY_KEY = "ponchister_recent_song_ids_v1";
-export const RECENT_SONG_HISTORY_LIMIT = 120;
 
 function isBrowserReady(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -26,45 +25,46 @@ function normalizeIds(candidates: unknown[]): number[] {
   return normalized;
 }
 
-export function loadRecentSongIds(
-  options?: Partial<{ limit: number }>
-): number[] {
+export function loadRecentSongIds(): number[] {
   if (!isBrowserReady()) return [];
-
-  const limit =
-    typeof options?.limit === "number" && options.limit > 0
-      ? Math.trunc(options.limit)
-      : RECENT_SONG_HISTORY_LIMIT;
 
   try {
     const raw = window.localStorage.getItem(RECENT_SONG_HISTORY_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    const normalized = normalizeIds(parsed);
-    return normalized.slice(0, limit);
+    return normalizeIds(parsed);
   } catch {
     return [];
   }
 }
 
-export function rememberRecentSongIds(
-  songIds: number[],
-  options?: Partial<{ limit: number }>
-): void {
+export function rememberRecentSongIds(songIds: number[]): void {
   if (!isBrowserReady() || !songIds.length) return;
 
-  const limit =
-    typeof options?.limit === "number" && options.limit > 0
-      ? Math.trunc(options.limit)
-      : RECENT_SONG_HISTORY_LIMIT;
-
   try {
-    const existing = loadRecentSongIds({ limit });
-    const merged = normalizeIds([...songIds, ...existing]).slice(0, limit);
+    const existing = loadRecentSongIds();
+    const merged = normalizeIds([...songIds, ...existing]);
     window.localStorage.setItem(
       RECENT_SONG_HISTORY_KEY,
       JSON.stringify(merged)
+    );
+  } catch {
+    // Fallback: if writing fails we silently ignore so the game can proceed.
+  }
+}
+
+export function forgetRecentSongIds(songIds: Iterable<number>): void {
+  if (!isBrowserReady()) return;
+
+  const idsToForget = new Set(normalizeIds(Array.from(songIds)));
+  if (!idsToForget.size) return;
+
+  try {
+    const remaining = loadRecentSongIds().filter((id) => !idsToForget.has(id));
+    window.localStorage.setItem(
+      RECENT_SONG_HISTORY_KEY,
+      JSON.stringify(remaining)
     );
   } catch {
     // Fallback: if writing fails we silently ignore so the game can proceed.

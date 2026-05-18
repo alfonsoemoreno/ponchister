@@ -22,9 +22,13 @@ import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import CampaignIcon from "@mui/icons-material/Campaign";
 
 import { fetchAllSongs } from "./services/songService";
-import { fetchMyCollectionSongs, fetchMyPlaylistSongs } from "./services/songService";
+import {
+  fetchMyCollectionSongs,
+  fetchMyPlaylistSongs,
+} from "./services/songService";
 import { createGameSession } from "./services/gameSessionService";
 import { extractYoutubeId } from "./lib/autoGameQueue";
 import { useAutoGameQueue } from "./hooks/useAutoGameQueue";
@@ -48,7 +52,10 @@ interface InternalPlayer {
   playVideo?: () => void;
   pauseVideo?: () => void;
   stopVideo?: () => void;
+  getVolume?: () => number;
+  seekTo?: (seconds: number, allowSeekAhead?: boolean) => void;
   unMute?: () => void;
+  mute?: () => void;
   setVolume?: (volume: number) => void;
   setPlaybackRate?: (rate: number) => void;
   setPlaybackQuality?: (suggestedQuality: string) => void;
@@ -76,6 +83,10 @@ type PlayerRef = YouTube | null;
 
 const TIMER_DURATION_SECONDS = 60;
 const SPECIAL_SONG_CHANCE = 0.12;
+const SAD_TROMBONE_VIDEO_ID = "CQeezCdF4mk";
+const MAIN_PLAYER_DEFAULT_VOLUME = 100;
+const SAD_TROMBONE_DUCKED_VOLUME = 5;
+const SAD_TROMBONE_VOLUME = 120;
 const GOLDEN_BACKDROP =
   "radial-gradient(circle at 20% 18%, rgba(255,212,108,0.85) 0%, rgba(196,137,34,0.72) 38%, rgba(98,58,8,0.75) 70%), radial-gradient(circle at 78% 26%, rgba(255,238,178,0.7) 0%, rgba(200,140,28,0.6) 40%, rgba(96,56,7,0.7) 68%), linear-gradient(180deg, #5a3504 0%, #241100 100%)";
 const GOLDEN_OVERLAY = "rgba(66, 38, 6, 0.58)";
@@ -87,12 +98,14 @@ const TAG_MATCH_MODE_OPTIONS: Array<{
   {
     value: "any",
     label: "Cualquiera",
-    description: "Incluye canciones que tengan una o más de las etiquetas elegidas.",
+    description:
+      "Incluye canciones que tengan una o más de las etiquetas elegidas.",
   },
   {
     value: "all",
     label: "Todas",
-    description: "Incluye solo canciones que tengan todas las etiquetas elegidas.",
+    description:
+      "Incluye solo canciones que tengan todas las etiquetas elegidas.",
   },
 ];
 
@@ -116,16 +129,17 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerKey, setPlayerKey] = useState(0);
   const playerRef = useRef<PlayerRef>(null);
+  const sadTrombonePlayerRef = useRef<PlayerRef>(null);
   const [spotlightVisible, setSpotlightVisible] = useState(false);
   const [spotlightValue, setSpotlightValue] = useState<string | number | null>(
-    null
+    null,
   );
   const [spotlightLabel, setSpotlightLabel] = useState<string>("Año");
   const yearSpotlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
+    null,
   );
   const [timerRemaining, setTimerRemaining] = useState<number>(
-    TIMER_DURATION_SECONDS
+    TIMER_DURATION_SECONDS,
   );
   const [timerLocked, setTimerLocked] = useState(false);
   const [timerStarted, setTimerStarted] = useState(false);
@@ -138,6 +152,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const [localTimerEnabled, setLocalTimerEnabled] =
     useState<boolean>(timerEnabled);
   const specialSongSeedRef = useRef(Math.random());
+  const preDuckVolumeRef = useRef<number | null>(null);
 
   useEffect(() => {
     setLocalRange(yearRange);
@@ -179,7 +194,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
   const handleRangeCommit = (
     _event: Event | SyntheticEvent,
-    value: number | number[]
+    value: number | number[],
   ) => {
     if (!Array.isArray(value) || value.length !== 2) return;
     const [min, max] = value;
@@ -208,65 +223,62 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
   const handleTimerToggle = (
     _event: ChangeEvent<HTMLInputElement>,
-    checked: boolean
+    checked: boolean,
   ) => {
     setLocalTimerEnabled(checked);
     onTimerModeChange(checked);
   };
 
-  const fetchSongsForRange = useCallback(
-    () => {
-      if (gameSource === "personal_catalog") {
-        return fetchMyCollectionSongs().then((songs) => {
-          const filtered = songs.filter((song) =>
-            songMatchesSelectedTags(
-              song.tags,
-              localSelectedTags,
-              localTagMatchMode
-            )
+  const fetchSongsForRange = useCallback(() => {
+    if (gameSource === "personal_catalog") {
+      return fetchMyCollectionSongs().then((songs) => {
+        const filtered = songs.filter((song) =>
+          songMatchesSelectedTags(
+            song.tags,
+            localSelectedTags,
+            localTagMatchMode,
+          ),
+        );
+        if (!filtered.length) {
+          throw new Error(
+            "Tu colección personal no tiene canciones para las etiquetas seleccionadas.",
           );
-          if (!filtered.length) {
-            throw new Error(
-              "Tu colección personal no tiene canciones para las etiquetas seleccionadas."
-            );
-          }
-          return filtered;
-        });
-      }
-      if (gameSource === "personal_playlist" && playlist) {
-        return fetchMyPlaylistSongs(playlist.id).then((songs) => {
-          const filtered = songs.filter((song) =>
-            songMatchesSelectedTags(
-              song.tags,
-              localSelectedTags,
-              localTagMatchMode
-            )
-          );
-          if (!filtered.length) {
-            throw new Error(
-              "La playlist personal seleccionada no tiene canciones para las etiquetas seleccionadas."
-            );
-          }
-          return filtered;
-        });
-      }
-      return fetchAllSongs({
-        minYear: playlist ? null : yearRange.min,
-        maxYear: playlist ? null : yearRange.max,
-        selectedTags: localSelectedTags,
-        tagMatchMode: localTagMatchMode,
-        playlistId: playlist?.scope === "public" ? playlist.id : null,
+        }
+        return filtered;
       });
-    },
-    [
-      gameSource,
-      localSelectedTags,
-      localTagMatchMode,
-      playlist,
-      yearRange.max,
-      yearRange.min,
-    ]
-  );
+    }
+    if (gameSource === "personal_playlist" && playlist) {
+      return fetchMyPlaylistSongs(playlist.id).then((songs) => {
+        const filtered = songs.filter((song) =>
+          songMatchesSelectedTags(
+            song.tags,
+            localSelectedTags,
+            localTagMatchMode,
+          ),
+        );
+        if (!filtered.length) {
+          throw new Error(
+            "La playlist personal seleccionada no tiene canciones para las etiquetas seleccionadas.",
+          );
+        }
+        return filtered;
+      });
+    }
+    return fetchAllSongs({
+      minYear: playlist ? null : yearRange.min,
+      maxYear: playlist ? null : yearRange.max,
+      selectedTags: localSelectedTags,
+      tagMatchMode: localTagMatchMode,
+      playlistId: playlist?.scope === "public" ? playlist.id : null,
+    });
+  }, [
+    gameSource,
+    localSelectedTags,
+    localTagMatchMode,
+    playlist,
+    yearRange.max,
+    yearRange.min,
+  ]);
 
   const {
     status: queueStatus,
@@ -322,7 +334,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
         yearSpotlightTimerRef.current = null;
       }, 4600);
     },
-    []
+    [],
   );
 
   const playerOptions = useMemo<YouTubeProps["opts"]>(() => {
@@ -348,6 +360,29 @@ const AutoGame: React.FC<AutoGameProps> = ({
     };
   }, []);
 
+  const sadTrombonePlayerOptions = useMemo<YouTubeProps["opts"]>(() => {
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : undefined;
+
+    return {
+      height: "1",
+      width: "1",
+      playerVars: {
+        autoplay: 0,
+        mute: 0,
+        controls: 0,
+        modestbranding: 1,
+        rel: 0,
+        fs: 0,
+        showinfo: 0,
+        iv_load_policy: 3,
+        disablekb: 1,
+        playsinline: 1,
+        origin,
+      },
+    };
+  }, []);
+
   const stopPlayback = useCallback(() => {
     const internalPlayer =
       playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
@@ -356,6 +391,40 @@ const AutoGame: React.FC<AutoGameProps> = ({
     }
     setIsPlaying(false);
   }, []);
+
+  const restoreMainPlayerVolume = useCallback(() => {
+    const internalPlayer =
+      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
+    if (!internalPlayer) return;
+
+    const restoredVolume =
+      preDuckVolumeRef.current ?? MAIN_PLAYER_DEFAULT_VOLUME;
+    internalPlayer.setVolume?.(restoredVolume);
+    preDuckVolumeRef.current = null;
+  }, []);
+
+  const duckMainPlayerVolume = useCallback(() => {
+    const internalPlayer =
+      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
+    if (!internalPlayer || !isPlaying) return;
+
+    if (preDuckVolumeRef.current === null) {
+      const currentVolume = internalPlayer.getVolume?.();
+      preDuckVolumeRef.current =
+        typeof currentVolume === "number" && Number.isFinite(currentVolume)
+          ? currentVolume
+          : MAIN_PLAYER_DEFAULT_VOLUME;
+    }
+
+    internalPlayer.setVolume?.(SAD_TROMBONE_DUCKED_VOLUME);
+  }, [isPlaying]);
+
+  const stopSadTrombone = useCallback(() => {
+    const internalPlayer =
+      sadTrombonePlayerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
+    internalPlayer?.stopVideo?.();
+    restoreMainPlayerVolume();
+  }, [restoreMainPlayerVolume]);
 
   const clearTimerInterval = useCallback(() => {
     if (timerIntervalRef.current !== null) {
@@ -426,7 +495,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
           setTimerLocked(true);
           stopPlayback();
           setErrorMessage(
-            "Se acabó el tiempo. Revela la canción para continuar con la partida."
+            "Se acabó el tiempo. Revela la canción para continuar con la partida.",
           );
           return 0;
         }
@@ -448,7 +517,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
   const videoId = useMemo(
     () => (currentSong ? extractYoutubeId(currentSong.youtube_url) : null),
-    [currentSong]
+    [currentSong],
   );
 
   const applyPlaybackOptimizations = useCallback(
@@ -457,28 +526,29 @@ const AutoGame: React.FC<AutoGameProps> = ({
       player.setPlaybackQuality?.("small");
       player.setPlaybackRate?.(1);
     },
-    []
+    [],
   );
 
   useEffect(
     () => () => {
       stopPlayback();
+      stopSadTrombone();
     },
-    [stopPlayback]
+    [stopPlayback, stopSadTrombone],
   );
 
   useEffect(
     () => () => {
       clearYearSpotlightTimeout();
     },
-    [clearYearSpotlightTimeout]
+    [clearYearSpotlightTimeout],
   );
 
   useEffect(
     () => () => {
       clearTimerInterval();
     },
-    [clearTimerInterval]
+    [clearTimerInterval],
   );
 
   const advanceToNextSong = useCallback(() => {
@@ -487,6 +557,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
       setGameState("loading");
       setIsPlaying(false);
       stopPlayback();
+      stopSadTrombone();
       clearYearSpotlightTimeout();
       resetTimerState();
       advanceQueue();
@@ -497,6 +568,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     resetTimerState,
     runViewTransition,
     stopPlayback,
+    stopSadTrombone,
   ]);
 
   const handleStart = useCallback(() => {
@@ -512,20 +584,20 @@ const AutoGame: React.FC<AutoGameProps> = ({
         return;
       }
       try {
-          await createGameSession({
-            mode: "auto",
-            yearMin: playlist ? null : yearRange.min,
-            yearMax: playlist ? null : yearRange.max,
-            selectedTags: localSelectedTags,
-            tagMatchMode: localTagMatchMode,
-            timerEnabled,
-            playlistId: playlist?.id ?? null,
-            playlistName: playlist?.name ?? null,
-          });
+        await createGameSession({
+          mode: "auto",
+          yearMin: playlist ? null : yearRange.min,
+          yearMax: playlist ? null : yearRange.max,
+          selectedTags: localSelectedTags,
+          tagMatchMode: localTagMatchMode,
+          timerEnabled,
+          playlistId: playlist?.id ?? null,
+          playlistName: playlist?.name ?? null,
+        });
       } catch (err) {
         console.info(
           "[game-session] No se pudo registrar la partida:",
-          err instanceof Error ? err.message : err
+          err instanceof Error ? err.message : err,
         );
       }
     });
@@ -584,7 +656,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   >(() => {
     setIsPlaying(false);
     setErrorMessage(
-      "No se pudo reproducir el video de esta canción. Pasamos a otra pista."
+      "No se pudo reproducir el video de esta canción. Pasamos a otra pista.",
     );
     advanceToNextSong();
   }, [advanceToNextSong]);
@@ -592,6 +664,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const handleExit = useCallback(() => {
     void runViewTransition(() => {
       stopPlayback();
+      stopSadTrombone();
       resetQueue();
       setGameState("idle");
       setErrorMessage(null);
@@ -607,6 +680,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     resetQueue,
     runViewTransition,
     stopPlayback,
+    stopSadTrombone,
   ]);
 
   const handlePlayPause = () => {
@@ -616,7 +690,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
     if (timerEnabled && timerLocked && gameState === "playing") {
       setErrorMessage(
-        "Se acabó el tiempo. Revela la canción para continuar con la partida."
+        "Se acabó el tiempo. Revela la canción para continuar con la partida.",
       );
       return;
     }
@@ -636,17 +710,29 @@ const AutoGame: React.FC<AutoGameProps> = ({
       ) {
         (maybePromise as Promise<unknown>).catch(() => {
           setErrorMessage(
-            "El reproductor bloqueó el inicio automático. Toca nuevamente para intentar reproducir."
+            "El reproductor bloqueó el inicio automático. Toca nuevamente para intentar reproducir.",
           );
         });
       }
     }
   };
 
+  const handleSadTrombone = useCallback(() => {
+    const internalPlayer =
+      sadTrombonePlayerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
+    if (!internalPlayer) return;
+
+    duckMainPlayerVolume();
+    internalPlayer.unMute?.();
+    internalPlayer.setVolume?.(SAD_TROMBONE_VOLUME);
+    internalPlayer.seekTo?.(0, true);
+    internalPlayer.playVideo?.();
+  }, [duckMainPlayerVolume]);
+
   const handlePlayerReady: YouTubeProps["onReady"] = (event) => {
     setIsPlaying(false);
     applyPlaybackOptimizations(
-      (event.target as unknown as InternalPlayer) ?? null
+      (event.target as unknown as InternalPlayer) ?? null,
     );
     event.target.setPlaybackRate?.(1);
     event.target.pauseVideo?.();
@@ -654,11 +740,34 @@ const AutoGame: React.FC<AutoGameProps> = ({
     iframe?.setAttribute("allow", "autoplay; clipboard-write");
   };
 
+  const handleSadTrombonePlayerReady: YouTubeProps["onReady"] = (event) => {
+    const internalPlayer = (event.target as unknown as InternalPlayer) ?? null;
+    internalPlayer?.pauseVideo?.();
+    internalPlayer?.unMute?.();
+    internalPlayer?.setVolume?.(SAD_TROMBONE_VOLUME);
+    const iframe = event.target.getIframe?.();
+    iframe?.setAttribute("allow", "autoplay; clipboard-write");
+  };
+
+  const handleSadTrombonePlayerStateChange: YouTubeProps["onStateChange"] = (
+    event,
+  ) => {
+    const playerState = event.data;
+    if (playerState === 1) {
+      duckMainPlayerVolume();
+      return;
+    }
+
+    if (playerState === 0 || playerState === 2) {
+      restoreMainPlayerVolume();
+    }
+  };
+
   const handlePlayerStateChange: YouTubeProps["onStateChange"] = (event) => {
     const playerState = event.data;
     if (playerState === 1) {
       applyPlaybackOptimizations(
-        (event.target as unknown as InternalPlayer) ?? null
+        (event.target as unknown as InternalPlayer) ?? null,
       );
       setIsPlaying(true);
     } else if (playerState === 2 || playerState === 0) {
@@ -668,7 +777,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
   const renderExperienceView = (
     mode: "guess" | "reveal",
-    shouldShowNeon: boolean
+    shouldShowNeon: boolean,
   ) => {
     if (!currentSong) {
       return null;
@@ -746,7 +855,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     const shouldDisplayArtwork = showDetails && Boolean(artworkUrl);
     const shouldShowGoldenBackdrop = isSpecialSong && !showDetails;
     const theme = createAdaptiveTheme(
-      shouldDisplayArtwork ? artworkPalette : null
+      shouldDisplayArtwork ? artworkPalette : null,
     );
     const spotlightDisplayValue = spotlightValue;
     const spotlightDisplayLabel = spotlightLabel;
@@ -774,18 +883,18 @@ const AutoGame: React.FC<AutoGameProps> = ({
             backgroundImage: shouldShowGoldenBackdrop
               ? GOLDEN_BACKDROP
               : shouldDisplayArtwork
-              ? `url(${artworkUrl})`
-              : fallbackBackdrop,
+                ? `url(${artworkUrl})`
+                : fallbackBackdrop,
             backgroundSize: shouldShowGoldenBackdrop
               ? "cover"
               : shouldDisplayArtwork
-              ? "cover"
-              : "140% 140%",
+                ? "cover"
+                : "140% 140%",
             backgroundPosition: shouldShowGoldenBackdrop
               ? "center"
               : shouldDisplayArtwork
-              ? "center"
-              : "45% 40%",
+                ? "center"
+                : "45% 40%",
             filter: shouldDisplayArtwork ? "blur(22px)" : "none",
             transform: "none",
             opacity: shouldDisplayArtwork ? 0.95 : 1,
@@ -907,6 +1016,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     sx={{
                       display: "inline-flex",
                       alignItems: "center",
+                      gap: 1,
                       px: { xs: 1.6, sm: 2.2 },
                       py: { xs: 0.5, sm: 0.7 },
                       borderRadius: 999,
@@ -931,6 +1041,22 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     >
                       {highlightedYear}
                     </Typography>
+                    <IconButton
+                      aria-label="Reproducir sad trombone"
+                      title="Reproducir sad trombone"
+                      onClick={handleSadTrombone}
+                      size="small"
+                      sx={{
+                        color: "inherit",
+                        border: "1px solid rgba(255,255,255,0.22)",
+                        backgroundColor: "rgba(255,255,255,0.08)",
+                        "&:hover": {
+                          backgroundColor: "rgba(255,255,255,0.18)",
+                        },
+                      }}
+                    >
+                      <CampaignIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
                   </Box>
                 ) : null}
               </Stack>
@@ -1472,13 +1598,16 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     {playlist
                       ? "Puedes filtrar la playlist por una o más etiquetas."
                       : localSelectedTags.length
-                      ? localTagMatchMode === "all"
-                        ? "Se mostrarán canciones que tengan todas las etiquetas elegidas."
-                        : "Se mostrarán canciones que tengan al menos una de las etiquetas elegidas."
-                      : "Sin filtro por etiquetas."}
+                        ? localTagMatchMode === "all"
+                          ? "Se mostrarán canciones que tengan todas las etiquetas elegidas."
+                          : "Se mostrarán canciones que tengan al menos una de las etiquetas elegidas."
+                        : "Sin filtro por etiquetas."}
                   </Typography>
                 </Box>
-                <Stack spacing={1.25} sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}>
+                <Stack
+                  spacing={1.25}
+                  sx={{ alignSelf: { xs: "flex-start", sm: "center" } }}
+                >
                   <Box
                     sx={{
                       borderRadius: 2,
@@ -1508,14 +1637,18 @@ const AutoGame: React.FC<AutoGameProps> = ({
                             size="small"
                             variant={selected ? "contained" : "text"}
                             color="info"
-                            onClick={() => handleTagMatchModeChange(option.value)}
+                            onClick={() =>
+                              handleTagMatchModeChange(option.value)
+                            }
                             sx={{
                               minWidth: 112,
                               borderRadius: 999,
                               px: 1.75,
                               textTransform: "none",
                               fontWeight: 700,
-                              color: selected ? "#04111d" : "rgba(224,239,255,0.88)",
+                              color: selected
+                                ? "#04111d"
+                                : "rgba(224,239,255,0.88)",
                               backgroundColor: selected
                                 ? "#63d8ff"
                                 : "rgba(7,33,57,0.3)",
@@ -1545,22 +1678,20 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   >
                     {
                       TAG_MATCH_MODE_OPTIONS.find(
-                        (option) => option.value === localTagMatchMode
+                        (option) => option.value === localTagMatchMode,
                       )?.description
                     }
                   </Typography>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    useFlexGap
-                    flexWrap="wrap"
-                  >
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                     {availableSongTags.map((option) => {
                       const selected = localSelectedTags.includes(option.slug);
                       return (
                         <Chip
                           key={option.slug}
-                          label={getSongTagLabel(option.slug, availableSongTags)}
+                          label={getSongTagLabel(
+                            option.slug,
+                            availableSongTags,
+                          )}
                           clickable
                           onClick={() => handleTagToggle(option.slug)}
                           color={selected ? "info" : "default"}
@@ -1918,6 +2049,25 @@ const AutoGame: React.FC<AutoGameProps> = ({
           />
         </Box>
       )}
+      <Box
+        sx={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          overflow: "hidden",
+          opacity: 0,
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      >
+        <YouTube
+          videoId={SAD_TROMBONE_VIDEO_ID}
+          opts={sadTrombonePlayerOptions}
+          ref={sadTrombonePlayerRef}
+          onReady={handleSadTrombonePlayerReady}
+          onStateChange={handleSadTrombonePlayerStateChange}
+        />
+      </Box>
 
       <Box
         sx={{

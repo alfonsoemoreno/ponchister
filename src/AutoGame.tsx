@@ -74,6 +74,10 @@ interface AutoGameProps {
   onSongTagMatchModeChange: (mode: SongTagMatchMode) => void;
   timerEnabled: boolean;
   onTimerModeChange: (enabled: boolean) => void;
+  mimicaEnabled: boolean;
+  onMimicaModeChange: (enabled: boolean) => void;
+  tararearEnabled: boolean;
+  onTararearModeChange: (enabled: boolean) => void;
   gameSource: GameSource;
   playlist: PlaylistSummary | null;
 }
@@ -118,17 +122,28 @@ function pickSpecialRoundMode(
     mimica: boolean;
     tararear: boolean;
   } | null,
+  options: {
+    mimicaEnabled: boolean;
+    tararearEnabled: boolean;
+  },
   seed: number,
 ): SpecialRoundMode {
-  if (!song || (!song.mimica && !song.tararear)) {
+  if (!song) {
     return "none";
   }
 
-  if (song.tararear && !song.mimica) {
+  const songHasMimica = song.mimica && options.mimicaEnabled;
+  const songHasTararear = song.tararear && options.tararearEnabled;
+
+  if (!songHasMimica && !songHasTararear) {
+    return "none";
+  }
+
+  if (songHasTararear && !songHasMimica) {
     return "tararear";
   }
 
-  if (song.mimica && song.tararear) {
+  if (songHasMimica && songHasTararear) {
     const modeBase = Math.sin(song.id * 47.129 + seed * 1717.73) * 1717.73;
     const modeNormalized = modeBase - Math.floor(modeBase);
     return modeNormalized < 0.5 ? "mimica" : "tararear";
@@ -197,6 +212,10 @@ const AutoGame: React.FC<AutoGameProps> = ({
   onSongTagMatchModeChange,
   timerEnabled,
   onTimerModeChange,
+  mimicaEnabled,
+  onMimicaModeChange,
+  tararearEnabled,
+  onTararearModeChange,
   gameSource,
   playlist,
 }) => {
@@ -227,6 +246,10 @@ const AutoGame: React.FC<AutoGameProps> = ({
     useState<SongTagMatchMode>(songTagMatchMode);
   const [localTimerEnabled, setLocalTimerEnabled] =
     useState<boolean>(timerEnabled);
+  const [localMimicaEnabled, setLocalMimicaEnabled] =
+    useState<boolean>(mimicaEnabled);
+  const [localTararearEnabled, setLocalTararearEnabled] =
+    useState<boolean>(tararearEnabled);
   const [specialTimerRunning, setSpecialTimerRunning] = useState(false);
   const specialSongSeedRef = useRef(Math.random());
   const mimicaSeedRef = useRef(Math.random());
@@ -247,6 +270,14 @@ const AutoGame: React.FC<AutoGameProps> = ({
   useEffect(() => {
     setLocalTimerEnabled(timerEnabled);
   }, [timerEnabled]);
+
+  useEffect(() => {
+    setLocalMimicaEnabled(mimicaEnabled);
+  }, [mimicaEnabled]);
+
+  useEffect(() => {
+    setLocalTararearEnabled(tararearEnabled);
+  }, [tararearEnabled]);
 
   const sliderMarks = useMemo(() => {
     const marks: { value: number; label: string }[] = [
@@ -305,6 +336,22 @@ const AutoGame: React.FC<AutoGameProps> = ({
   ) => {
     setLocalTimerEnabled(checked);
     onTimerModeChange(checked);
+  };
+
+  const handleMimicaToggle = (
+    _event: ChangeEvent<HTMLInputElement>,
+    checked: boolean,
+  ) => {
+    setLocalMimicaEnabled(checked);
+    onMimicaModeChange(checked);
+  };
+
+  const handleTararearToggle = (
+    _event: ChangeEvent<HTMLInputElement>,
+    checked: boolean,
+  ) => {
+    setLocalTararearEnabled(checked);
+    onTararearModeChange(checked);
   };
 
   const fetchSongsForRange = useCallback(() => {
@@ -385,8 +432,16 @@ const AutoGame: React.FC<AutoGameProps> = ({
     return normalized < SPECIAL_SONG_CHANCE;
   }, [currentSong]);
   const specialRoundMode = useMemo(
-    () => pickSpecialRoundMode(currentSong, mimicaSeedRef.current),
-    [currentSong],
+    () =>
+      pickSpecialRoundMode(
+        currentSong,
+        {
+          mimicaEnabled: localMimicaEnabled,
+          tararearEnabled: localTararearEnabled,
+        },
+        mimicaSeedRef.current,
+      ),
+    [currentSong, localMimicaEnabled, localTararearEnabled],
   );
   const hasSpecialRemoteRound = specialRoundMode !== "none";
   const videoId = useMemo(
@@ -1895,6 +1950,71 @@ const AutoGame: React.FC<AutoGameProps> = ({
                         />
                       );
                     })}
+                  </Stack>
+                </Stack>
+              </Stack>
+            </Box>
+            <Box
+              sx={{
+                borderRadius: 2,
+                border: "1px solid rgba(99,216,255,0.12)",
+                px: 2,
+                py: 1.5,
+                backgroundColor: "rgba(5,24,64,0.24)",
+              }}
+            >
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.5}
+                alignItems={{ xs: "flex-start", sm: "center" }}
+                justifyContent="space-between"
+              >
+                <Box>
+                  <Typography
+                    variant="overline"
+                    sx={{
+                      letterSpacing: 2,
+                      fontWeight: 700,
+                      color: "rgba(148,216,255,0.86)",
+                    }}
+                  >
+                    Modos especiales
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "rgba(204,231,255,0.78)",
+                    }}
+                  >
+                    Decide si esta partida puede incluir rondas de mímica o tarareo.
+                  </Typography>
+                </Box>
+                <Stack spacing={1.2} sx={{ minWidth: { sm: 280 } }}>
+                  <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                    <Typography variant="body2" sx={{ color: "rgba(224,239,255,0.9)" }}>
+                      Incluir mímica
+                    </Typography>
+                    <Switch
+                      color="info"
+                      checked={localMimicaEnabled}
+                      onChange={handleMimicaToggle}
+                      inputProps={{
+                        "aria-label": "Incluir rondas de mímica",
+                      }}
+                    />
+                  </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                    <Typography variant="body2" sx={{ color: "rgba(224,239,255,0.9)" }}>
+                      Incluir tarareo
+                    </Typography>
+                    <Switch
+                      color="info"
+                      checked={localTararearEnabled}
+                      onChange={handleTararearToggle}
+                      inputProps={{
+                        "aria-label": "Incluir rondas de tarareo",
+                      }}
+                    />
                   </Stack>
                 </Stack>
               </Stack>

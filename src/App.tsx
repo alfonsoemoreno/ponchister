@@ -27,6 +27,8 @@ const SONG_TAG_FILTER_STORAGE_KEY = "ponchister_song_tag_filter";
 const SONG_TAG_MATCH_MODE_STORAGE_KEY = "ponchister_song_tag_match_mode";
 const LANGUAGE_FILTER_STORAGE_KEY = "ponchister_language_filter";
 const TIMER_ENABLED_STORAGE_KEY = "ponchister_timer_enabled";
+const MIMICA_ENABLED_STORAGE_KEY = "ponchister_mimica_enabled";
+const TARAREAR_ENABLED_STORAGE_KEY = "ponchister_tararear_enabled";
 const SELECTED_PLAYLIST_STORAGE_KEY = "ponchister_selected_playlist";
 
 const getDefaultYearRange = (): YearRange => ({
@@ -115,6 +117,19 @@ const readStoredTimerEnabled = (): boolean => {
   }
 };
 
+const readStoredBoolean = (key: string, fallback: boolean): boolean => {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+  try {
+    const stored = window.localStorage.getItem(key);
+    if (stored === null) return fallback;
+    return stored === "true";
+  } catch {
+    return fallback;
+  }
+};
+
 const readStoredPlaylist = (): PlaylistSummary | null => {
   if (typeof window === "undefined") {
     return null;
@@ -159,6 +174,12 @@ function App() {
   );
   const [timerEnabled, setTimerEnabled] = useState<boolean>(() =>
     readStoredTimerEnabled(),
+  );
+  const [mimicaEnabled, setMimicaEnabled] = useState<boolean>(() =>
+    readStoredBoolean(MIMICA_ENABLED_STORAGE_KEY, true),
+  );
+  const [tararearEnabled, setTararearEnabled] = useState<boolean>(() =>
+    readStoredBoolean(TARAREAR_ENABLED_STORAGE_KEY, true),
   );
   const [availablePlaylists, setAvailablePlaylists] = useState<PlaylistSummary[]>(
     [],
@@ -223,6 +244,26 @@ function App() {
       timerEnabled ? "true" : "false",
     );
   }, [timerEnabled]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(
+      MIMICA_ENABLED_STORAGE_KEY,
+      mimicaEnabled ? "true" : "false",
+    );
+  }, [mimicaEnabled]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(
+      TARAREAR_ENABLED_STORAGE_KEY,
+      tararearEnabled ? "true" : "false",
+    );
+  }, [tararearEnabled]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -435,6 +476,14 @@ function App() {
     setTimerEnabled(enabled);
   };
 
+  const handleMimicaModeChange = (enabled: boolean) => {
+    setMimicaEnabled(enabled);
+  };
+
+  const handleTararearModeChange = (enabled: boolean) => {
+    setTararearEnabled(enabled);
+  };
+
   useEffect(() => {
     const syncView = () => {
       const params = new URLSearchParams(window.location.search);
@@ -506,6 +555,10 @@ function App() {
           onSongTagMatchModeChange={handleSongTagMatchModeChange}
           timerEnabled={timerEnabled}
           onTimerModeChange={handleTimerModeChange}
+          mimicaEnabled={mimicaEnabled}
+          onMimicaModeChange={handleMimicaModeChange}
+          tararearEnabled={tararearEnabled}
+          onTararearModeChange={handleTararearModeChange}
           gameSource={gameSource}
           playlist={selectedPlaylist}
         />

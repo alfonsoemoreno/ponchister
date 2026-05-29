@@ -59,6 +59,8 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     youtube_url: String(raw.youtube_url ?? ""),
     tags,
     isSpanish: isSpanishTagSelected(tags),
+    mimica: raw.mimica === true,
+    tararear: raw.tararear === true,
   };
 }
 

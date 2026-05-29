@@ -63,6 +63,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         (song as Record<string, unknown>).isspanish
       );
       const isSpanish = isSpanishTagSelected(tags);
+      const mimica = (song as Record<string, unknown>).mimica === true;
+      const tararear = (song as Record<string, unknown>).tararear === true;
       if (!artist || !title || !youtubeUrl) return null;
       return {
         artist,
@@ -71,6 +73,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         year,
         songAttributes: tags,
         isSpanish,
+        mimica,
+        tararear,
         youtubeStatus: null,
         youtubeValidationMessage: null,
         youtubeValidationCode: null,
@@ -89,6 +93,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     year: number | null;
     songAttributes: string[];
     isSpanish: boolean;
+    mimica: boolean;
+    tararear: boolean;
     youtubeStatus: null;
     youtubeValidationMessage: null;
     youtubeValidationCode: null;
@@ -117,6 +123,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         year: sql`excluded.year`,
         songAttributes: sql`excluded.song_attributes`,
         isSpanish: sql`excluded.isspanish`,
+        mimica: sql`excluded.mimica`,
+        tararear: sql`excluded.tararear`,
         youtubeStatus: sql`null`,
         youtubeValidationMessage: sql`null`,
         youtubeValidationCode: sql`null`,

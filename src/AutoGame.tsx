@@ -36,6 +36,7 @@ import { useArtworkLookup } from "./hooks/useArtworkLookup";
 import { useArtworkPalette } from "./hooks/useArtworkPalette";
 import { NeonLines } from "./auto-game/NeonLines";
 import { YearSpotlight } from "./auto-game/YearSpotlight";
+import LocalQrCode from "./components/LocalQrCode";
 import { useViewTransition } from "./hooks/useViewTransition";
 import { createAdaptiveTheme } from "./auto-game/theme";
 import type { GameSource, PlaylistSummary, YearRange } from "./types";
@@ -80,13 +81,27 @@ interface AutoGameProps {
 type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
 
 type PlayerRef = YouTube | null;
+type SpecialRoundMode = "none" | "mimica" | "tararear";
+type MimicaSessionPayload = {
+  sessionId: string;
+  active: boolean;
+  mode: "mimica" | "tararear" | null;
+  songId: number | null;
+  songTitle: string | null;
+  artist: string | null;
+  videoId: string | null;
+  revealPressed: boolean;
+  updatedAt: number;
+};
 
 const TIMER_DURATION_SECONDS = 60;
 const SPECIAL_SONG_CHANCE = 0.12;
+const SPECIAL_REMOTE_SONG_CHANCE = 0.5;
 const SAD_TROMBONE_VIDEO_ID = "CQeezCdF4mk";
 const MAIN_PLAYER_DEFAULT_VOLUME = 100;
 const SAD_TROMBONE_DUCKED_VOLUME = 5;
 const SAD_TROMBONE_VOLUME = 120;
+const MIMICA_POLL_INTERVAL_MS = 700;
 const GOLDEN_BACKDROP =
   "radial-gradient(circle at 20% 18%, rgba(255,212,108,0.85) 0%, rgba(196,137,34,0.72) 38%, rgba(98,58,8,0.75) 70%), radial-gradient(circle at 78% 26%, rgba(255,238,178,0.7) 0%, rgba(200,140,28,0.6) 40%, rgba(96,56,7,0.7) 68%), linear-gradient(180deg, #5a3504 0%, #241100 100%)";
 const GOLDEN_OVERLAY = "rgba(66, 38, 6, 0.58)";
@@ -108,6 +123,114 @@ const TAG_MATCH_MODE_OPTIONS: Array<{
       "Incluye solo canciones que tengan todas las etiquetas elegidas.",
   },
 ];
+
+function createSessionId(): string {
+  if (typeof window !== "undefined" && window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  return `mimica-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function pickSpecialRoundMode(
+  song: {
+    id: number;
+    mimica: boolean;
+    tararear: boolean;
+  } | null,
+  seed: number,
+): SpecialRoundMode {
+  if (!song || (!song.mimica && !song.tararear)) {
+    return "none";
+  }
+
+  if (song.tararear && !song.mimica) {
+    return "tararear";
+  }
+
+  if (song.mimica && song.tararear) {
+    const modeBase = Math.sin(song.id * 47.129 + seed * 1717.73) * 1717.73;
+    const modeNormalized = modeBase - Math.floor(modeBase);
+    return modeNormalized < 0.5 ? "mimica" : "tararear";
+  }
+
+  const activationBase =
+    Math.sin(song.id * 19.331 + seed * 9182.443) * 9182.443;
+  const activationNormalized = activationBase - Math.floor(activationBase);
+  if (activationNormalized >= SPECIAL_REMOTE_SONG_CHANCE) {
+    return "none";
+  }
+
+  return "mimica";
+}
+
+async function updateMimicaSession(
+  sessionId: string,
+  payload: Record<string, unknown>,
+): Promise<MimicaSessionPayload> {
+  const response = await fetch(`/api/mimica/${encodeURIComponent(sessionId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error("No se pudo actualizar la sesión de mímica.");
+  }
+  return response.json() as Promise<MimicaSessionPayload>;
+}
+
+async function fetchMimicaSession(
+  sessionId: string,
+): Promise<MimicaSessionPayload | null> {
+  const response = await fetch(`/api/mimica/${encodeURIComponent(sessionId)}`);
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error("No se pudo leer la sesión de mímica.");
+  }
+  return response.json() as Promise<MimicaSessionPayload>;
+}
+
+function playAlarm() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const AudioContextCtor =
+    window.AudioContext ||
+    (window as Window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!AudioContextCtor) {
+    return;
+  }
+
+  const audioContext = new AudioContextCtor();
+  const now = audioContext.currentTime;
+
+  for (let index = 0; index < 3; index += 1) {
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    const startAt = now + index * 0.42;
+    const stopAt = startAt + 0.28;
+
+    oscillator.type = index % 2 === 0 ? "square" : "sawtooth";
+    oscillator.frequency.setValueAtTime(880, startAt);
+    oscillator.frequency.exponentialRampToValueAtTime(660, stopAt);
+
+    gainNode.gain.setValueAtTime(0.0001, startAt);
+    gainNode.gain.exponentialRampToValueAtTime(0.18, startAt + 0.03);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.start(startAt);
+    oscillator.stop(stopAt);
+  }
+
+  window.setTimeout(() => {
+    void audioContext.close().catch(() => undefined);
+  }, 1800);
+}
 
 const AutoGame: React.FC<AutoGameProps> = ({
   onExit,
@@ -151,7 +274,11 @@ const AutoGame: React.FC<AutoGameProps> = ({
     useState<SongTagMatchMode>(songTagMatchMode);
   const [localTimerEnabled, setLocalTimerEnabled] =
     useState<boolean>(timerEnabled);
+  const [mimicaSessionId] = useState<string>(() => createSessionId());
+  const [remoteRevealPressed, setRemoteRevealPressed] = useState(false);
+  const [specialTimerRunning, setSpecialTimerRunning] = useState(false);
   const specialSongSeedRef = useRef(Math.random());
+  const mimicaSeedRef = useRef(Math.random());
   const preDuckVolumeRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -306,7 +433,19 @@ const AutoGame: React.FC<AutoGameProps> = ({
     const normalized = base - Math.floor(base);
     return normalized < SPECIAL_SONG_CHANCE;
   }, [currentSong]);
-
+  const specialRoundMode = useMemo(
+    () => pickSpecialRoundMode(currentSong, mimicaSeedRef.current),
+    [currentSong],
+  );
+  const hasSpecialRemoteRound = specialRoundMode !== "none";
+  const mimicaJoinUrl = useMemo(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+    const url = new URL(window.location.origin);
+    url.searchParams.set("mimicaSession", mimicaSessionId);
+    return url.toString();
+  }, [mimicaSessionId]);
   const displayedError = errorMessage ?? queueError;
 
   const clearYearSpotlightTimeout = useCallback(() => {
@@ -438,6 +577,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     setTimerRemaining(TIMER_DURATION_SECONDS);
     setTimerLocked(false);
     setTimerStarted(false);
+    setSpecialTimerRunning(false);
   }, [clearTimerInterval]);
 
   useEffect(() => {
@@ -470,14 +610,16 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [currentSong, resetTimerState]);
 
   useEffect(() => {
+    const shouldUseTimer = timerEnabled || hasSpecialRemoteRound;
     if (
-      !timerEnabled ||
+      !shouldUseTimer ||
       gameState !== "playing" ||
       timerLocked ||
-      !timerStarted
+      !timerStarted ||
+      (hasSpecialRemoteRound && !specialTimerRunning)
     ) {
       clearTimerInterval();
-      if (!timerEnabled) {
+      if (!shouldUseTimer) {
         setTimerRemaining(TIMER_DURATION_SECONDS);
         setTimerLocked(false);
       }
@@ -493,7 +635,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
         if (prev <= 1) {
           clearTimerInterval();
           setTimerLocked(true);
+          setSpecialTimerRunning(false);
           stopPlayback();
+          playAlarm();
           setErrorMessage(
             "Se acabó el tiempo. Revela la canción para continuar con la partida.",
           );
@@ -509,6 +653,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [
     clearTimerInterval,
     gameState,
+    hasSpecialRemoteRound,
+    specialTimerRunning,
     stopPlayback,
     timerEnabled,
     timerLocked,
@@ -533,9 +679,81 @@ const AutoGame: React.FC<AutoGameProps> = ({
     () => () => {
       stopPlayback();
       stopSadTrombone();
+      void updateMimicaSession(mimicaSessionId, {
+        active: false,
+        mode: null,
+        videoId: null,
+        revealPressed: false,
+      }).catch(() => undefined);
     },
-    [stopPlayback, stopSadTrombone],
+    [mimicaSessionId, stopPlayback, stopSadTrombone],
   );
+
+  useEffect(() => {
+    const syncSession = async () => {
+      if (!currentSong || !hasSpecialRemoteRound) {
+        setRemoteRevealPressed(false);
+        await updateMimicaSession(mimicaSessionId, {
+          active: false,
+          mode: null,
+          songId: currentSong?.id ?? null,
+          songTitle: null,
+          artist: null,
+          videoId: null,
+          revealPressed: false,
+        }).catch(() => undefined);
+        return;
+      }
+
+      await updateMimicaSession(mimicaSessionId, {
+        active: true,
+        mode: specialRoundMode,
+        songId: currentSong.id,
+        songTitle: currentSong.title,
+        artist: currentSong.artist,
+        videoId,
+        revealPressed: false,
+      }).catch(() => undefined);
+    };
+
+    void syncSession();
+  }, [currentSong, hasSpecialRemoteRound, mimicaSessionId, specialRoundMode, videoId]);
+
+  useEffect(() => {
+    if (!currentSong || !hasSpecialRemoteRound || gameState !== "playing") {
+      setRemoteRevealPressed(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const session = await fetchMimicaSession(mimicaSessionId);
+        if (cancelled || !session) {
+          return;
+        }
+        const pressed = session.active && session.songId === currentSong.id
+          ? session.revealPressed
+          : false;
+        setRemoteRevealPressed(pressed);
+      } catch {
+        if (!cancelled) {
+          setRemoteRevealPressed(false);
+        }
+      }
+    };
+
+    void poll();
+    const intervalId = window.setInterval(() => {
+      void poll();
+    }, MIMICA_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [currentSong, gameState, hasSpecialRemoteRound, mimicaSessionId]);
 
   useEffect(
     () => () => {
@@ -560,11 +778,19 @@ const AutoGame: React.FC<AutoGameProps> = ({
       stopSadTrombone();
       clearYearSpotlightTimeout();
       resetTimerState();
+      setRemoteRevealPressed(false);
+      void updateMimicaSession(mimicaSessionId, {
+        active: false,
+        mode: null,
+        videoId: null,
+        revealPressed: false,
+      }).catch(() => undefined);
       advanceQueue();
     });
   }, [
     advanceQueue,
     clearYearSpotlightTimeout,
+    mimicaSessionId,
     resetTimerState,
     runViewTransition,
     stopPlayback,
@@ -579,6 +805,13 @@ const AutoGame: React.FC<AutoGameProps> = ({
       stopPlayback();
       clearYearSpotlightTimeout();
       resetTimerState();
+      setRemoteRevealPressed(false);
+      await updateMimicaSession(mimicaSessionId, {
+        active: false,
+        mode: null,
+        videoId: null,
+        revealPressed: false,
+      }).catch(() => undefined);
       const started = await startQueue();
       if (!started) {
         return;
@@ -606,6 +839,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     localSelectedTags,
     localTagMatchMode,
     playlist,
+    mimicaSessionId,
     resetTimerState,
     runViewTransition,
     startQueue,
@@ -628,11 +862,25 @@ const AutoGame: React.FC<AutoGameProps> = ({
       clearTimerInterval();
       setTimerLocked(false);
       setTimerStarted(false);
+      setSpecialTimerRunning(false);
+      setRemoteRevealPressed(false);
+      void updateMimicaSession(mimicaSessionId, {
+        active: false,
+        mode: null,
+        videoId: null,
+        revealPressed: false,
+      }).catch(() => undefined);
       if (currentSong && typeof currentSong.year === "number") {
         triggerSpotlight("Año", currentSong.year);
       }
     });
-  }, [clearTimerInterval, currentSong, runViewTransition, triggerSpotlight]);
+  }, [
+    clearTimerInterval,
+    currentSong,
+    mimicaSessionId,
+    runViewTransition,
+    triggerSpotlight,
+  ]);
 
   const handleRandomYearReveal = useCallback(() => {
     if (yearSpotlightTimerRef.current) {
@@ -671,10 +919,18 @@ const AutoGame: React.FC<AutoGameProps> = ({
       setIsPlaying(false);
       clearYearSpotlightTimeout();
       resetTimerState();
+      setRemoteRevealPressed(false);
+      void updateMimicaSession(mimicaSessionId, {
+        active: false,
+        mode: null,
+        videoId: null,
+        revealPressed: false,
+      }).catch(() => undefined);
       onExit();
     });
   }, [
     clearYearSpotlightTimeout,
+    mimicaSessionId,
     onExit,
     resetTimerState,
     resetQueue,
@@ -684,16 +940,30 @@ const AutoGame: React.FC<AutoGameProps> = ({
   ]);
 
   const handlePlayPause = () => {
-    const internalPlayer =
-      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
-    if (!internalPlayer) return;
-
     if (timerEnabled && timerLocked && gameState === "playing") {
       setErrorMessage(
         "Se acabó el tiempo. Revela la canción para continuar con la partida.",
       );
       return;
     }
+
+    if (hasSpecialRemoteRound && gameState === "playing") {
+      if (timerStarted) {
+        return;
+      }
+      setTimerStarted(true);
+      setSpecialTimerRunning(true);
+      setErrorMessage(
+        specialRoundMode === "tararear"
+          ? "La ronda de tararear está corriendo. En el celular verán la canción y además sonará a medio volumen mientras mantengan el botón apretado."
+          : "La ronda de mímica está corriendo. El botón remoto solo mostrará la información de la canción.",
+      );
+      return;
+    }
+
+    const internalPlayer =
+      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
+    if (!internalPlayer) return;
 
     if (isPlaying) {
       internalPlayer.pauseVideo?.();
@@ -784,25 +1054,48 @@ const AutoGame: React.FC<AutoGameProps> = ({
     }
 
     const showDetails = mode === "reveal";
+    const showRemoteQr = !showDetails && hasSpecialRemoteRound && !timerStarted;
+    const remoteModeLabel =
+      specialRoundMode === "tararear" ? "tararear" : "mímica";
     const songYear =
       typeof currentSong.year === "number" ? currentSong.year : null;
     const heading = showDetails
       ? currentSong.title
-      : "¿Puedes adivinar la canción?";
+      : showRemoteQr
+        ? specialRoundMode === "tararear"
+          ? "Ronda de tararear"
+          : "Ronda de mímica"
+        : "¿Puedes adivinar la canción?";
     const subheading = showDetails
       ? currentSong.artist
-      : "Escucha, siente y deja que la intuición te guíe.";
+      : showRemoteQr
+        ? "Escanea el QR y controla la pista desde otro dispositivo."
+        : "Escucha, siente y deja que la intuición te guíe.";
     const description = showDetails
       ? "Disfruta visuales envolventes inspirados en tu canción. Sigue jugando para descubrir nuevas portadas y ambientes memorables."
-      : 'Mantén el suspenso: cuando creas tener la respuesta, presiona "Mostrar" para confirmar tu apuesta.';
+      : showRemoteQr
+        ? specialRoundMode === "tararear"
+          ? "Cuando alguien mantenga presionado el botón en el celular verá el título y el artista, y además la canción sonará ahí a medio volumen."
+          : "Cuando alguien mantenga presionado el botón en el celular verá el título y el artista."
+        : 'Mantén el suspenso: cuando creas tener la respuesta, presiona "Mostrar" para confirmar tu apuesta.';
     const highlightedYear = showDetails && songYear !== null ? songYear : null;
 
     const statusCaptionLabel = showDetails
       ? "Reproduciendo"
-      : "En modo sorpresa";
+      : showRemoteQr
+        ? specialRoundMode === "tararear"
+          ? "Tararear activo"
+          : "Mímica activa"
+        : "En modo sorpresa";
     const statusCaptionDescription = showDetails
       ? "Usa los controles para pasar o salir de la partida cuando quieras."
-      : "Puedes pausar, saltar o revelar en cualquier momento.";
+      : showRemoteQr
+        ? timerStarted
+          ? specialRoundMode === "tararear"
+            ? "El temporizador ya corre. El audio solo suena en el celular mientras mantienen el botón apretado."
+            : "El temporizador ya corre. La información depende del botón remoto."
+          : "Presiona play para iniciar los 60 segundos."
+        : "Puedes pausar, saltar o revelar en cualquier momento.";
 
     const primaryAction = showDetails
       ? {
@@ -860,7 +1153,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
     const spotlightDisplayValue = spotlightValue;
     const spotlightDisplayLabel = spotlightLabel;
     const shouldShowTimer =
-      timerEnabled && gameState === "playing" && timerStarted;
+      (timerEnabled || hasSpecialRemoteRound) &&
+      gameState === "playing" &&
+      timerStarted;
     const timerLabel = timerLocked
       ? "Tiempo agotado"
       : `00:${String(timerRemaining).padStart(2, "0")}`;
@@ -1114,7 +1409,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   },
                 }}
               >
-                {isPlaying ? (
+                {isPlaying && !showRemoteQr ? (
                   <PauseIcon sx={{ fontSize: 44 }} />
                 ) : (
                   <PlayArrowIcon sx={{ fontSize: 48 }} />
@@ -1271,12 +1566,58 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     viewTransitionName: "auto-game-artwork-fallback",
                   }}
                 >
-                  {fallbackTitle || fallbackDescription ? (
+                  {showRemoteQr ? (
+                    <>
+                      <Box
+                        sx={{
+                          width: "82%",
+                          maxWidth: 280,
+                          borderRadius: 3,
+                          backgroundColor: "#fff",
+                          p: 1.2,
+                          boxShadow: "0 18px 42px rgba(15,23,42,0.38)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          "& img": {
+                            width: "100%",
+                            height: "auto",
+                            display: "block",
+                          },
+                        }}
+                      >
+                        <LocalQrCode value={mimicaJoinUrl} />
+                      </Box>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{
+                          textAlign: "center",
+                          fontWeight: 700,
+                          color: theme.fallback.text,
+                        }}
+                      >
+                        Escanea para controlar {remoteModeLabel}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          textAlign: "center",
+                          color: theme.fallback.caption,
+                          px: 2,
+                        }}
+                      >
+                        {specialRoundMode === "tararear"
+                          ? "Abre el enlace, mantén apretado el botón y la canción se revelará y sonará a medio volumen en el celular."
+                          : "Abre el enlace, mantén apretado el botón y ahí se revelará la canción en el celular."}
+                      </Typography>
+                    </>
+                  ) : null}
+                  {!showRemoteQr && (fallbackTitle || fallbackDescription) ? (
                     <InfoOutlinedIcon
                       sx={{ fontSize: 40, color: theme.fallback.icon }}
                     />
                   ) : null}
-                  {fallbackTitle ? (
+                  {!showRemoteQr && fallbackTitle ? (
                     <Typography
                       variant="subtitle2"
                       sx={{
@@ -1326,7 +1667,21 @@ const AutoGame: React.FC<AutoGameProps> = ({
                       </Typography>
                     </Box>
                   ) : null}
-                  {fallbackDescription ? (
+                  {showRemoteQr && remoteRevealPressed ? (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        textAlign: "center",
+                        color: "#fef08a",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {specialRoundMode === "tararear"
+                        ? "El botón remoto está apretado: la información ya es visible y la canción suena en el celular."
+                        : "El botón remoto está apretado: la información ya es visible en el celular."}
+                    </Typography>
+                  ) : null}
+                  {!showRemoteQr && fallbackDescription ? (
                     <Typography
                       variant="caption"
                       sx={{

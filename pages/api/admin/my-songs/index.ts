@@ -60,6 +60,8 @@ function serializeSong(
     youtube_url: string;
     tags: string[];
     isspanish: boolean;
+    mimica: boolean;
+    tararear: boolean;
     youtube_status: string | null;
     youtube_validation_message: string | null;
     youtube_validation_code: number | null;
@@ -104,6 +106,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         youtube_url: songs.youtubeUrl,
         tags: songs.songAttributes,
         isspanish: songs.isSpanish,
+        mimica: songs.mimica,
+        tararear: songs.tararear,
         youtube_status: songs.youtubeStatus,
         youtube_validation_message: songs.youtubeValidationMessage,
         youtube_validation_code: songs.youtubeValidationCode,
@@ -134,6 +138,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : null;
     const tags = normalizeSongTags(body.tags, body.isspanish);
     const isSpanish = isSpanishTagSelected(tags);
+    const mimica = body.mimica === true;
+    const tararear = body.tararear === true;
     const youtubeValidation = parseYoutubeValidation(body);
 
     if (!artist || !title || !youtubeUrl) {
@@ -150,6 +156,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         year,
         songAttributes: tags,
         isSpanish,
+        mimica,
+        tararear,
         scope: "personal",
         ownerUserId: user.id,
         catalogStatus: "approved",
@@ -169,6 +177,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         youtube_url: songs.youtubeUrl,
         tags: songs.songAttributes,
         isspanish: songs.isSpanish,
+        mimica: songs.mimica,
+        tararear: songs.tararear,
         youtube_status: songs.youtubeStatus,
         youtube_validation_message: songs.youtubeValidationMessage,
         youtube_validation_code: songs.youtubeValidationCode,

@@ -69,6 +69,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       youtube_url: songs.youtubeUrl,
       tags: songs.songAttributes,
       isspanish: songs.isSpanish,
+      mimica: songs.mimica,
+      tararear: songs.tararear,
     })
     .from(songs)
     .where(filters.length ? and(...filters) : undefined)

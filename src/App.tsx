@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react
 import Welcome from "./Welcome";
 const AutoGame = lazy(() => import("./AutoGame"));
 const AdminApp = lazy(() => import("./admin/AdminApp"));
+const MimicaRemoteView = lazy(() => import("./components/MimicaRemoteView"));
 import "./App.css";
 import type { GameSource, PlaylistSummary, YearRange } from "./types";
 import { fetchSongYearBounds } from "./services/songService";
@@ -139,6 +140,7 @@ const readStoredPlaylist = (): PlaylistSummary | null => {
 
 function App() {
   const [view, setView] = useState<"welcome" | "auto" | "admin">("welcome");
+  const [mimicaSessionId, setMimicaSessionId] = useState<string | null>(null);
   const fallbackRange = useMemo(() => getDefaultYearRange(), []);
   const [availableRange, setAvailableRange] = useState<YearRange | null>(null);
   const [yearRange, setYearRange] = useState<YearRange>(() =>
@@ -430,6 +432,15 @@ function App() {
 
   useEffect(() => {
     const syncView = () => {
+      const params = new URLSearchParams(window.location.search);
+      const mimicaSession = params.get("mimicaSession");
+      setMimicaSessionId(mimicaSession && mimicaSession.trim() ? mimicaSession : null);
+
+      if (mimicaSession && mimicaSession.trim()) {
+        setView("welcome");
+        return;
+      }
+
       const isAdmin = window.location.pathname.startsWith("/admin");
       setView(isAdmin ? "admin" : "welcome");
     };
@@ -438,6 +449,14 @@ function App() {
     window.addEventListener("popstate", syncView);
     return () => window.removeEventListener("popstate", syncView);
   }, []);
+
+  if (mimicaSessionId) {
+    return (
+      <Suspense fallback={<div>Cargando control de mímica...</div>}>
+        <MimicaRemoteView sessionId={mimicaSessionId} />
+      </Suspense>
+    );
+  }
 
   if (view === "welcome")
     return (

@@ -18,6 +18,8 @@ export interface Song {
   youtube_url: string;
   tags: SongTag[];
   isspanish: boolean;
+  mimica: boolean;
+  tararear: boolean;
   youtube_status: YoutubeValidationStatus | null;
   youtube_validation_message: string | null;
   youtube_validation_code: number | null;
@@ -38,6 +40,8 @@ export interface SongInput {
   youtube_url: string;
   tags: SongTag[];
   isspanish: boolean;
+  mimica: boolean;
+  tararear: boolean;
 }
 
 export interface SongDuplicateMatch extends Song {

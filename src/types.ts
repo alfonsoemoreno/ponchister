@@ -8,6 +8,8 @@ export interface Song {
   youtube_url: string;
   tags: SongTag[];
   isSpanish: boolean;
+  mimica: boolean;
+  tararear: boolean;
 }
 
 export type PlaylistScope = "public" | "personal";

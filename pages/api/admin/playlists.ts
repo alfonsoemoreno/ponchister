@@ -125,6 +125,8 @@ async function hydratePlaylist(id: number) {
       youtube_url: songs.youtubeUrl,
       tags: songs.songAttributes,
       isspanish: songs.isSpanish,
+      mimica: songs.mimica,
+      tararear: songs.tararear,
       position: playlistSongs.position,
     })
     .from(playlistSongs)

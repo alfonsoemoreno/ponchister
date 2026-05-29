@@ -1,0 +1,2 @@
+ALTER TABLE "songs"
+ADD COLUMN IF NOT EXISTS "mimica" boolean NOT NULL DEFAULT false;

@@ -45,6 +45,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       youtube_url: songs.youtubeUrl,
       tags: songs.songAttributes,
       isspanish: songs.isSpanish,
+      mimica: songs.mimica,
+      tararear: songs.tararear,
     })
     .from(playlistSongs)
     .innerJoin(songs, eq(playlistSongs.songId, songs.id))

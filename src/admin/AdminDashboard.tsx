@@ -1248,6 +1248,8 @@ export default function AdminDashboard({
             year: song.year,
             tags: nextTags,
             isspanish: isSpanishTagSelected(nextTags),
+            mimica: song.mimica,
+            tararear: song.tararear,
           });
         })
       );

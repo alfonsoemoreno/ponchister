@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Button,
+  Checkbox,
   Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   Stack,
   TextField,
   Typography,
@@ -38,6 +40,8 @@ type FormState = {
   year: string;
   youtube_url: string;
   tags: SongTag[];
+  mimica: boolean;
+  tararear: boolean;
 };
 
 const EMPTY_STATE: FormState = {
@@ -46,6 +50,8 @@ const EMPTY_STATE: FormState = {
   year: "",
   youtube_url: "",
   tags: [],
+  mimica: false,
+  tararear: false,
 };
 
 export default function SongFormDialog({
@@ -72,6 +78,8 @@ export default function SongFormDialog({
         year: initialValue.year ? String(initialValue.year) : "",
         youtube_url: initialValue.youtube_url,
         tags: normalizeSongTags(initialValue.tags, initialValue.isspanish),
+        mimica: initialValue.mimica === true,
+        tararear: initialValue.tararear === true,
       });
       setErrors({});
       return;
@@ -97,6 +105,14 @@ export default function SongFormDialog({
         : normalizeSongTags([...prev.tags, tag]);
       return { ...prev, tags: nextTags };
     });
+  };
+
+  const handleMimicaChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setValues((prev) => ({ ...prev, mimica: event.target.checked }));
+  };
+
+  const handleTararearChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setValues((prev) => ({ ...prev, tararear: event.target.checked }));
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -130,6 +146,8 @@ export default function SongFormDialog({
       year: Number.isNaN(yearValue) ? null : yearValue,
       tags,
       isspanish: isSpanishTagSelected(tags),
+      mimica: values.mimica,
+      tararear: values.tararear,
     };
 
     const submitted = await onSubmit(payload);
@@ -209,6 +227,36 @@ export default function SongFormDialog({
               disabled={loading}
             />
           </Stack>
+          <Box>
+            <Stack spacing={1.2} sx={{ mb: 1.5 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={values.mimica}
+                    onChange={handleMimicaChange}
+                    disabled={loading}
+                  />
+                }
+                label="Modo mímica"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={values.tararear}
+                    onChange={handleTararearChange}
+                    disabled={loading}
+                  />
+                }
+                label="Modo tararear"
+              />
+            </Stack>
+            <Typography variant="body2" sx={{ mb: 0.75, color: "text.secondary" }}>
+              Mímica: QR y control remoto para revelar la canción en otro dispositivo.
+            </Typography>
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
+              Tararear: igual que mímica, pero además la canción suena a medio volumen en el celular mientras se mantiene el botón apretado.
+            </Typography>
+          </Box>
           <Box>
             <Typography
               variant="subtitle2"

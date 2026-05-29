@@ -78,6 +78,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : null;
     const tags = normalizeSongTags(body.tags, body.isspanish);
     const isSpanish = isSpanishTagSelected(tags);
+    const mimica = body.mimica === true;
+    const tararear = body.tararear === true;
     const youtubeValidation = parseYoutubeValidation(body);
 
     if (!artist || !title || !youtubeUrl) {
@@ -94,6 +96,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         year,
         songAttributes: tags,
         isSpanish,
+        mimica,
+        tararear,
         youtubeStatus: youtubeValidation?.youtubeStatus ?? undefined,
         youtubeValidationMessage:
           youtubeValidation?.youtubeValidationMessage ?? undefined,

@@ -66,6 +66,8 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     youtube_url: String(raw.youtube_url ?? ""),
     tags,
     isspanish: isSpanish,
+    mimica: raw.mimica === true,
+    tararear: raw.tararear === true,
     youtube_status: youtubeStatus,
     youtube_validation_message:
       typeof raw.youtube_validation_message === "string"
@@ -107,6 +109,8 @@ function sanitizeInput(payload: SongInput): SongInput {
     year: numericYear,
     tags,
     isspanish: isSpanishTagSelected(tags),
+    mimica: payload.mimica === true,
+    tararear: payload.tararear === true,
   };
 }
 

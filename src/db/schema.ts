@@ -50,6 +50,8 @@ export const songs = pgTable(
     year: integer("year"),
     youtubeUrl: text("youtube_url").notNull(),
     isSpanish: boolean("isspanish").notNull().default(false),
+    mimica: boolean("mimica").notNull().default(false),
+    tararear: boolean("tararear").notNull().default(false),
     songAttributes: text("song_attributes")
       .array()
       .notNull()

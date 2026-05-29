@@ -62,6 +62,8 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     youtube_url: String(raw.youtube_url ?? ""),
     tags,
     isspanish: isSpanishTagSelected(tags),
+    mimica: raw.mimica === true,
+    tararear: raw.tararear === true,
     youtube_status:
       raw.youtube_status === "unchecked" ||
       raw.youtube_status === "checking" ||

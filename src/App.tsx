@@ -140,7 +140,12 @@ const readStoredPlaylist = (): PlaylistSummary | null => {
 
 function App() {
   const [view, setView] = useState<"welcome" | "auto" | "admin">("welcome");
-  const [mimicaSessionId, setMimicaSessionId] = useState<string | null>(null);
+  const [remoteMode, setRemoteMode] = useState<"mimica" | "tararear" | null>(
+    null,
+  );
+  const [remoteSongTitle, setRemoteSongTitle] = useState<string>("");
+  const [remoteArtist, setRemoteArtist] = useState<string>("");
+  const [remoteVideoId, setRemoteVideoId] = useState<string>("");
   const fallbackRange = useMemo(() => getDefaultYearRange(), []);
   const [availableRange, setAvailableRange] = useState<YearRange | null>(null);
   const [yearRange, setYearRange] = useState<YearRange>(() =>
@@ -433,10 +438,20 @@ function App() {
   useEffect(() => {
     const syncView = () => {
       const params = new URLSearchParams(window.location.search);
-      const mimicaSession = params.get("mimicaSession");
-      setMimicaSessionId(mimicaSession && mimicaSession.trim() ? mimicaSession : null);
+      const mode =
+        params.get("remoteMode") === "mimica" || params.get("remoteMode") === "tararear"
+          ? (params.get("remoteMode") as "mimica" | "tararear")
+          : null;
+      const songTitle = params.get("songTitle") ?? "";
+      const artist = params.get("artist") ?? "";
+      const videoId = params.get("videoId") ?? "";
 
-      if (mimicaSession && mimicaSession.trim()) {
+      setRemoteMode(mode);
+      setRemoteSongTitle(songTitle);
+      setRemoteArtist(artist);
+      setRemoteVideoId(videoId);
+
+      if (mode) {
         setView("welcome");
         return;
       }
@@ -450,10 +465,15 @@ function App() {
     return () => window.removeEventListener("popstate", syncView);
   }, []);
 
-  if (mimicaSessionId) {
+  if (remoteMode) {
     return (
       <Suspense fallback={<div>Cargando control de mímica...</div>}>
-        <MimicaRemoteView sessionId={mimicaSessionId} />
+        <MimicaRemoteView
+          mode={remoteMode}
+          songTitle={remoteSongTitle}
+          artist={remoteArtist}
+          videoId={remoteVideoId}
+        />
       </Suspense>
     );
   }

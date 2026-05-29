@@ -82,17 +82,6 @@ type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
 
 type PlayerRef = YouTube | null;
 type SpecialRoundMode = "none" | "mimica" | "tararear";
-type MimicaSessionPayload = {
-  sessionId: string;
-  active: boolean;
-  mode: "mimica" | "tararear" | null;
-  songId: number | null;
-  songTitle: string | null;
-  artist: string | null;
-  videoId: string | null;
-  revealPressed: boolean;
-  updatedAt: number;
-};
 
 const TIMER_DURATION_SECONDS = 60;
 const SPECIAL_SONG_CHANCE = 0.12;
@@ -101,7 +90,6 @@ const SAD_TROMBONE_VIDEO_ID = "CQeezCdF4mk";
 const MAIN_PLAYER_DEFAULT_VOLUME = 100;
 const SAD_TROMBONE_DUCKED_VOLUME = 5;
 const SAD_TROMBONE_VOLUME = 120;
-const MIMICA_POLL_INTERVAL_MS = 700;
 const GOLDEN_BACKDROP =
   "radial-gradient(circle at 20% 18%, rgba(255,212,108,0.85) 0%, rgba(196,137,34,0.72) 38%, rgba(98,58,8,0.75) 70%), radial-gradient(circle at 78% 26%, rgba(255,238,178,0.7) 0%, rgba(200,140,28,0.6) 40%, rgba(96,56,7,0.7) 68%), linear-gradient(180deg, #5a3504 0%, #241100 100%)";
 const GOLDEN_OVERLAY = "rgba(66, 38, 6, 0.58)";
@@ -123,13 +111,6 @@ const TAG_MATCH_MODE_OPTIONS: Array<{
       "Incluye solo canciones que tengan todas las etiquetas elegidas.",
   },
 ];
-
-function createSessionId(): string {
-  if (typeof window !== "undefined" && window.crypto?.randomUUID) {
-    return window.crypto.randomUUID();
-  }
-  return `mimica-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 function pickSpecialRoundMode(
   song: {
@@ -161,34 +142,6 @@ function pickSpecialRoundMode(
   }
 
   return "mimica";
-}
-
-async function updateMimicaSession(
-  sessionId: string,
-  payload: Record<string, unknown>,
-): Promise<MimicaSessionPayload> {
-  const response = await fetch(`/api/mimica/${encodeURIComponent(sessionId)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    throw new Error("No se pudo actualizar la sesión de mímica.");
-  }
-  return response.json() as Promise<MimicaSessionPayload>;
-}
-
-async function fetchMimicaSession(
-  sessionId: string,
-): Promise<MimicaSessionPayload | null> {
-  const response = await fetch(`/api/mimica/${encodeURIComponent(sessionId)}`);
-  if (response.status === 404) {
-    return null;
-  }
-  if (!response.ok) {
-    throw new Error("No se pudo leer la sesión de mímica.");
-  }
-  return response.json() as Promise<MimicaSessionPayload>;
 }
 
 function playAlarm() {
@@ -274,8 +227,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
     useState<SongTagMatchMode>(songTagMatchMode);
   const [localTimerEnabled, setLocalTimerEnabled] =
     useState<boolean>(timerEnabled);
-  const [mimicaSessionId] = useState<string>(() => createSessionId());
-  const [remoteRevealPressed, setRemoteRevealPressed] = useState(false);
   const [specialTimerRunning, setSpecialTimerRunning] = useState(false);
   const specialSongSeedRef = useRef(Math.random());
   const mimicaSeedRef = useRef(Math.random());
@@ -438,14 +389,26 @@ const AutoGame: React.FC<AutoGameProps> = ({
     [currentSong],
   );
   const hasSpecialRemoteRound = specialRoundMode !== "none";
+  const videoId = useMemo(
+    () => (currentSong ? extractYoutubeId(currentSong.youtube_url) : null),
+    [currentSong],
+  );
   const mimicaJoinUrl = useMemo(() => {
     if (typeof window === "undefined") {
       return "";
     }
     const url = new URL(window.location.origin);
-    url.searchParams.set("mimicaSession", mimicaSessionId);
+    if (!currentSong) {
+      return "";
+    }
+    url.searchParams.set("remoteMode", specialRoundMode);
+    url.searchParams.set("songTitle", currentSong.title);
+    url.searchParams.set("artist", currentSong.artist);
+    if (videoId) {
+      url.searchParams.set("videoId", videoId);
+    }
     return url.toString();
-  }, [mimicaSessionId]);
+  }, [currentSong, specialRoundMode, videoId]);
   const displayedError = errorMessage ?? queueError;
 
   const clearYearSpotlightTimeout = useCallback(() => {
@@ -661,11 +624,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
     timerStarted,
   ]);
 
-  const videoId = useMemo(
-    () => (currentSong ? extractYoutubeId(currentSong.youtube_url) : null),
-    [currentSong],
-  );
-
   const applyPlaybackOptimizations = useCallback(
     (player: InternalPlayer | null) => {
       if (!player) return;
@@ -679,81 +637,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
     () => () => {
       stopPlayback();
       stopSadTrombone();
-      void updateMimicaSession(mimicaSessionId, {
-        active: false,
-        mode: null,
-        videoId: null,
-        revealPressed: false,
-      }).catch(() => undefined);
     },
-    [mimicaSessionId, stopPlayback, stopSadTrombone],
+    [stopPlayback, stopSadTrombone],
   );
-
-  useEffect(() => {
-    const syncSession = async () => {
-      if (!currentSong || !hasSpecialRemoteRound) {
-        setRemoteRevealPressed(false);
-        await updateMimicaSession(mimicaSessionId, {
-          active: false,
-          mode: null,
-          songId: currentSong?.id ?? null,
-          songTitle: null,
-          artist: null,
-          videoId: null,
-          revealPressed: false,
-        }).catch(() => undefined);
-        return;
-      }
-
-      await updateMimicaSession(mimicaSessionId, {
-        active: true,
-        mode: specialRoundMode,
-        songId: currentSong.id,
-        songTitle: currentSong.title,
-        artist: currentSong.artist,
-        videoId,
-        revealPressed: false,
-      }).catch(() => undefined);
-    };
-
-    void syncSession();
-  }, [currentSong, hasSpecialRemoteRound, mimicaSessionId, specialRoundMode, videoId]);
-
-  useEffect(() => {
-    if (!currentSong || !hasSpecialRemoteRound || gameState !== "playing") {
-      setRemoteRevealPressed(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const poll = async () => {
-      try {
-        const session = await fetchMimicaSession(mimicaSessionId);
-        if (cancelled || !session) {
-          return;
-        }
-        const pressed = session.active && session.songId === currentSong.id
-          ? session.revealPressed
-          : false;
-        setRemoteRevealPressed(pressed);
-      } catch {
-        if (!cancelled) {
-          setRemoteRevealPressed(false);
-        }
-      }
-    };
-
-    void poll();
-    const intervalId = window.setInterval(() => {
-      void poll();
-    }, MIMICA_POLL_INTERVAL_MS);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [currentSong, gameState, hasSpecialRemoteRound, mimicaSessionId]);
 
   useEffect(
     () => () => {
@@ -778,19 +664,11 @@ const AutoGame: React.FC<AutoGameProps> = ({
       stopSadTrombone();
       clearYearSpotlightTimeout();
       resetTimerState();
-      setRemoteRevealPressed(false);
-      void updateMimicaSession(mimicaSessionId, {
-        active: false,
-        mode: null,
-        videoId: null,
-        revealPressed: false,
-      }).catch(() => undefined);
       advanceQueue();
     });
   }, [
     advanceQueue,
     clearYearSpotlightTimeout,
-    mimicaSessionId,
     resetTimerState,
     runViewTransition,
     stopPlayback,
@@ -805,13 +683,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
       stopPlayback();
       clearYearSpotlightTimeout();
       resetTimerState();
-      setRemoteRevealPressed(false);
-      await updateMimicaSession(mimicaSessionId, {
-        active: false,
-        mode: null,
-        videoId: null,
-        revealPressed: false,
-      }).catch(() => undefined);
       const started = await startQueue();
       if (!started) {
         return;
@@ -839,7 +710,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
     localSelectedTags,
     localTagMatchMode,
     playlist,
-    mimicaSessionId,
     resetTimerState,
     runViewTransition,
     startQueue,
@@ -863,13 +733,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
       setTimerLocked(false);
       setTimerStarted(false);
       setSpecialTimerRunning(false);
-      setRemoteRevealPressed(false);
-      void updateMimicaSession(mimicaSessionId, {
-        active: false,
-        mode: null,
-        videoId: null,
-        revealPressed: false,
-      }).catch(() => undefined);
       if (currentSong && typeof currentSong.year === "number") {
         triggerSpotlight("Año", currentSong.year);
       }
@@ -877,7 +740,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [
     clearTimerInterval,
     currentSong,
-    mimicaSessionId,
     runViewTransition,
     triggerSpotlight,
   ]);
@@ -919,18 +781,10 @@ const AutoGame: React.FC<AutoGameProps> = ({
       setIsPlaying(false);
       clearYearSpotlightTimeout();
       resetTimerState();
-      setRemoteRevealPressed(false);
-      void updateMimicaSession(mimicaSessionId, {
-        active: false,
-        mode: null,
-        videoId: null,
-        revealPressed: false,
-      }).catch(() => undefined);
       onExit();
     });
   }, [
     clearYearSpotlightTimeout,
-    mimicaSessionId,
     onExit,
     resetTimerState,
     resetQueue,
@@ -1666,20 +1520,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
                         {timerLabel}
                       </Typography>
                     </Box>
-                  ) : null}
-                  {showRemoteQr && remoteRevealPressed ? (
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        textAlign: "center",
-                        color: "#fef08a",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {specialRoundMode === "tararear"
-                        ? "El botón remoto está apretado: la información ya es visible y la canción suena en el celular."
-                        : "El botón remoto está apretado: la información ya es visible en el celular."}
-                    </Typography>
                   ) : null}
                   {!showRemoteQr && fallbackDescription ? (
                     <Typography

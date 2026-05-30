@@ -98,8 +98,8 @@ export default function MimicaRemoteView({
     <Box
       sx={{
         minHeight: "100dvh",
-        px: 2.5,
-        py: 3,
+        px: { xs: 2, sm: 2.5 },
+        py: { xs: 1.5, sm: 3 },
         background:
           isTararearMode
             ? "radial-gradient(circle at 20% 15%, rgba(255, 196, 87, 0.30), transparent 28%), radial-gradient(circle at 82% 18%, rgba(56, 189, 248, 0.20), transparent 26%), linear-gradient(180deg, #160f2e 0%, #07111f 48%, #030814 100%)"
@@ -118,27 +118,37 @@ export default function MimicaRemoteView({
       }}
     >
       <Stack
-        spacing={2.5}
-        sx={{ position: "relative", maxWidth: 520, mx: "auto", textAlign: "center", zIndex: 1 }}
+        spacing={{ xs: 1.25, sm: 2.5 }}
+        sx={{
+          position: "relative",
+          maxWidth: 520,
+          mx: "auto",
+          textAlign: "center",
+          zIndex: 1,
+          minHeight: { xs: "70dvh", sm: "auto" },
+          justifyContent: "center",
+        }}
       >
         <Box
           sx={{
-            px: 2,
-            py: 2.5,
-            borderRadius: 5,
+            px: { xs: 1.4, sm: 2 },
+            py: { xs: 1.2, sm: 2.5 },
+            borderRadius: { xs: 3.5, sm: 5 },
             border: "1px solid rgba(255,255,255,0.12)",
             background:
               "linear-gradient(180deg, rgba(8,15,33,0.72), rgba(8,15,33,0.36))",
             backdropFilter: "blur(18px)",
-            boxShadow: "0 24px 70px rgba(2,8,23,0.35)",
+            boxShadow: { xs: "0 14px 36px rgba(2,8,23,0.28)", sm: "0 24px 70px rgba(2,8,23,0.35)" },
           }}
         >
           <Typography
             variant="overline"
             sx={{
-              letterSpacing: 4,
+              letterSpacing: { xs: 2.2, sm: 4 },
               color: isTararearMode ? "#fcd34d" : "#67e8f9",
               fontWeight: 800,
+              fontSize: { xs: "0.62rem", sm: "0.72rem" },
+              lineHeight: 1.1,
             }}
           >
             {isTararearMode ? "Modo Tarareo" : "Modo Mímica"}
@@ -147,8 +157,8 @@ export default function MimicaRemoteView({
             variant="h3"
             sx={{
               fontWeight: 900,
-              lineHeight: 0.98,
-              fontSize: { xs: "2.2rem", sm: "2.8rem" },
+              lineHeight: { xs: 1.02, sm: 0.98 },
+              fontSize: { xs: "clamp(1.25rem, 5.4vw, 1.65rem)", sm: "2.8rem" },
               textWrap: "balance",
             }}
           >
@@ -157,8 +167,10 @@ export default function MimicaRemoteView({
           <Typography
             variant="body1"
             sx={{
-              mt: 1.25,
+              mt: { xs: 0.7, sm: 1.25 },
               color: "rgba(226,232,240,0.82)",
+              fontSize: { xs: "0.82rem", sm: "1rem" },
+              lineHeight: 1.3,
             }}
           >
             {isTararearMode
@@ -181,12 +193,12 @@ export default function MimicaRemoteView({
               onContextMenu={(event) => event.preventDefault()}
               sx={{
                 position: "relative",
-                minHeight: 290,
-                borderRadius: 6,
+                minHeight: { xs: "clamp(180px, 30dvh, 235px)", sm: 290 },
+                borderRadius: { xs: 4.5, sm: 6 },
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                px: 3,
+                px: { xs: 2, sm: 3 },
                 cursor: "pointer",
                 touchAction: "none",
                 userSelect: "none",
@@ -200,10 +212,10 @@ export default function MimicaRemoteView({
                     : "linear-gradient(145deg, rgba(59,130,246,0.92), rgba(34,211,238,0.92))",
                 color: "#08111f",
                 boxShadow: isPressed
-                  ? "0 28px 80px rgba(251,191,36,0.34)"
+                  ? "0 18px 48px rgba(251,191,36,0.28)"
                   : isTararearMode
-                    ? "0 28px 80px rgba(249,115,22,0.28)"
-                    : "0 28px 80px rgba(34,211,238,0.24)",
+                    ? "0 18px 48px rgba(249,115,22,0.22)"
+                    : "0 18px 48px rgba(34,211,238,0.2)",
                 outline: "none",
                 border: isPressed
                   ? "3px solid rgba(255,255,255,0.72)"
@@ -214,17 +226,23 @@ export default function MimicaRemoteView({
                 "&::before": {
                   content: '""',
                   position: "absolute",
-                  inset: 14,
-                  borderRadius: 5,
+                  inset: { xs: 10, sm: 14 },
+                  borderRadius: { xs: 4, sm: 5 },
                   border: "1px solid rgba(255,255,255,0.28)",
                   opacity: 0.9,
                 },
               }}
             >
-              <Stack spacing={1.5} sx={{ position: "relative", zIndex: 1 }}>
+              <Stack spacing={{ xs: 0.8, sm: 1.5 }} sx={{ position: "relative", zIndex: 1 }}>
                 <Typography
                   variant="overline"
-                  sx={{ letterSpacing: 3, fontWeight: 800, color: "rgba(8,17,31,0.72)" }}
+                  sx={{
+                    letterSpacing: { xs: 1.8, sm: 3 },
+                    fontWeight: 800,
+                    color: "rgba(8,17,31,0.72)",
+                    fontSize: { xs: "0.62rem", sm: "0.72rem" },
+                    lineHeight: 1.1,
+                  }}
                 >
                   {showInfo ? "Revelando" : "Acción remota"}
                 </Typography>
@@ -234,14 +252,20 @@ export default function MimicaRemoteView({
                     fontWeight: 900,
                     textAlign: "center",
                     color: "inherit",
-                    fontSize: { xs: "2rem", sm: "2.4rem" },
+                    fontSize: { xs: "clamp(1.5rem, 7vw, 1.95rem)", sm: "2.4rem" },
+                    lineHeight: 1,
                   }}
                 >
                   {showInfo ? "Sigue presionando" : "Mantén apretado"}
                 </Typography>
                 <Typography
                   variant="body1"
-                  sx={{ fontWeight: 700, color: "rgba(8,17,31,0.72)" }}
+                  sx={{
+                    fontWeight: 700,
+                    color: "rgba(8,17,31,0.72)",
+                    fontSize: { xs: "0.82rem", sm: "1rem" },
+                    lineHeight: 1.25,
+                  }}
                 >
                   {isTararearMode
                     ? "Verás el título y sonará al 30%"
@@ -251,54 +275,76 @@ export default function MimicaRemoteView({
             </Box>
             <Box
               sx={{
-                minHeight: 176,
-                borderRadius: 5,
+                minHeight: { xs: 132, sm: 176 },
+                borderRadius: { xs: 4, sm: 5 },
                 border: "1px solid rgba(255,255,255,0.14)",
                 background:
                   "linear-gradient(180deg, rgba(15,23,42,0.82), rgba(15,23,42,0.56))",
                 backdropFilter: "blur(16px)",
-                p: 3,
-                boxShadow: "0 18px 40px rgba(2,8,23,0.26)",
+                p: { xs: 2, sm: 3 },
+                boxShadow: { xs: "0 10px 26px rgba(2,8,23,0.22)", sm: "0 18px 40px rgba(2,8,23,0.26)" },
               }}
             >
               {showInfo ? (
-                <Stack spacing={1.2}>
+                <Stack spacing={{ xs: 0.65, sm: 1.2 }}>
                   <Typography
                     variant="overline"
                     sx={{
-                      letterSpacing: 3,
+                      letterSpacing: { xs: 1.8, sm: 3 },
                       color: isTararearMode ? "#fcd34d" : "#67e8f9",
                       fontWeight: 800,
+                      fontSize: { xs: "0.62rem", sm: "0.72rem" },
+                      lineHeight: 1.1,
                     }}
                   >
                     Ahora sí
                   </Typography>
                   <Typography
                     variant="h4"
-                    sx={{ fontWeight: 900, lineHeight: 1.05, textWrap: "balance" }}
+                    sx={{
+                      fontWeight: 900,
+                      lineHeight: 1.04,
+                      textWrap: "balance",
+                      fontSize: { xs: "clamp(1.25rem, 5.8vw, 1.7rem)", sm: "2.125rem" },
+                    }}
                   >
                     {songTitle || "Sin título"}
                   </Typography>
                   <Typography
                     variant="h5"
-                    sx={{ color: "rgba(226,232,240,0.84)", fontWeight: 600 }}
+                    sx={{
+                      color: "rgba(226,232,240,0.84)",
+                      fontWeight: 600,
+                      fontSize: { xs: "clamp(1rem, 4.8vw, 1.2rem)", sm: "1.5rem" },
+                      lineHeight: 1.08,
+                    }}
                   >
                     {artist || "Artista desconocido"}
                   </Typography>
                   {isTararearMode ? (
                     <Typography
                       variant="body2"
-                      sx={{ color: "rgba(253,224,71,0.95)", fontWeight: 800 }}
+                      sx={{
+                        color: "rgba(253,224,71,0.95)",
+                        fontWeight: 800,
+                        fontSize: { xs: "0.76rem", sm: "0.875rem" },
+                        lineHeight: 1.2,
+                      }}
                     >
                       La canción está sonando al 30% en este celular.
                     </Typography>
                   ) : null}
                 </Stack>
               ) : (
-                <Stack spacing={1.2}>
+                <Stack spacing={{ xs: 0.75, sm: 1.2 }}>
                   <Typography
                     variant="body1"
-                    sx={{ color: "rgba(226,232,240,0.86)", fontWeight: 700 }}
+                    sx={{
+                      color: "rgba(226,232,240,0.86)",
+                      fontWeight: 700,
+                      fontSize: { xs: "0.84rem", sm: "1rem" },
+                      lineHeight: 1.3,
+                    }}
                   >
                     {isTararearMode
                       ? "Cuando mantengas el botón presionado, aparecerá el título y sonará una guía suave."
@@ -306,7 +352,11 @@ export default function MimicaRemoteView({
                   </Typography>
                   <Typography
                     variant="body2"
-                    sx={{ color: "rgba(226,232,240,0.62)" }}
+                    sx={{
+                      color: "rgba(226,232,240,0.62)",
+                      fontSize: { xs: "0.76rem", sm: "0.875rem" },
+                      lineHeight: 1.2,
+                    }}
                   >
                     Suelta el botón y la información desaparecerá al instante.
                   </Typography>

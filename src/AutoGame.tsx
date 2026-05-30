@@ -1433,11 +1433,18 @@ const AutoGame: React.FC<AutoGameProps> = ({
               sx={{
                 position: "relative",
                 width: {
-                  xs: "72%",
+                  xs: showRemoteQr ? "min(88vw, 340px)" : "72%",
                   sm: 300,
                   md: "min(44vw, 77vh)",
                 },
-                aspectRatio: "1 / 1",
+                aspectRatio: {
+                  xs: showRemoteQr ? "auto" : "1 / 1",
+                  sm: "1 / 1",
+                },
+                minHeight: {
+                  xs: showRemoteQr ? 360 : undefined,
+                  sm: undefined,
+                },
                 borderRadius: { xs: 4, md: 5 },
                 overflow: "hidden",
                 boxShadow: "0 38px 78px -32px rgba(5,18,52,0.82)",
@@ -1471,7 +1478,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   spacing={1}
                   alignItems="center"
                   sx={{
-                    p: 3,
+                    width: "100%",
+                    p: { xs: showRemoteQr ? 2 : 3, sm: 3 },
                     color: theme.fallback.text,
                     viewTransitionName: "auto-game-artwork-fallback",
                   }}
@@ -1480,11 +1488,11 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     <>
                       <Box
                         sx={{
-                          width: "82%",
-                          maxWidth: 280,
+                          width: { xs: "100%", sm: "82%" },
+                          maxWidth: { xs: 240, sm: 280 },
                           borderRadius: 3,
                           backgroundColor: "#fff",
-                          p: 1.2,
+                          p: { xs: 1, sm: 1.2 },
                           boxShadow: "0 18px 42px rgba(15,23,42,0.38)",
                           display: "flex",
                           alignItems: "center",
@@ -1504,6 +1512,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                           textAlign: "center",
                           fontWeight: 700,
                           color: theme.fallback.text,
+                          px: 1,
                         }}
                       >
                         Escanea para controlar {remoteModeLabel}
@@ -1513,7 +1522,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
                         sx={{
                           textAlign: "center",
                           color: theme.fallback.caption,
-                          px: 2,
+                          px: { xs: 1, sm: 2 },
+                          maxWidth: 280,
                         }}
                       >
                         {specialRoundMode === "tararear"

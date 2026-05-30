@@ -1,6 +1,9 @@
 export type SongTag = string;
 export type SongTagMatchMode = "any" | "all";
 
+export const MIMICA_SONG_TAG: SongTag = "mimica";
+export const TARAREO_SONG_TAG: SongTag = "tarareo";
+
 export interface SongTagDefinition {
   id: number;
   slug: SongTag;
@@ -19,6 +22,8 @@ export const DEFAULT_SONG_TAG_DEFINITIONS: SongTagDefinition[] = [
   { id: 6, slug: "dance", label: "Dance", active: true },
   { id: 7, slug: "rock", label: "Rock", active: true },
   { id: 8, slug: "pop", label: "Pop", active: true },
+  { id: 9, slug: MIMICA_SONG_TAG, label: "Mímica", active: true },
+  { id: 10, slug: TARAREO_SONG_TAG, label: "Tarareo", active: true },
 ] as const;
 
 function parseBooleanLike(value: unknown): boolean {
@@ -107,6 +112,48 @@ export function normalizeSongTags(
   }
 
   return Array.from(unique).sort((a, b) => a.localeCompare(b));
+}
+
+export function syncSongModeTags(
+  rawTags: readonly string[],
+  options: {
+    mimica?: boolean;
+    tararear?: boolean;
+  }
+): SongTag[] {
+  const unique = new Set(normalizeSongTags(rawTags));
+
+  if (options.mimica) {
+    unique.add(MIMICA_SONG_TAG);
+  } else {
+    unique.delete(MIMICA_SONG_TAG);
+  }
+
+  if (options.tararear) {
+    unique.add(TARAREO_SONG_TAG);
+  } else {
+    unique.delete(TARAREO_SONG_TAG);
+  }
+
+  return Array.from(unique).sort((a, b) => a.localeCompare(b));
+}
+
+export function mergeSongTagDefinitions(
+  definitions: readonly SongTagDefinition[]
+): SongTagDefinition[] {
+  const merged = new Map<SongTag, SongTagDefinition>();
+
+  DEFAULT_SONG_TAG_DEFINITIONS.forEach((definition) => {
+    merged.set(definition.slug, definition);
+  });
+
+  definitions.forEach((definition) => {
+    merged.set(definition.slug, definition);
+  });
+
+  return Array.from(merged.values()).sort((a, b) =>
+    a.label.localeCompare(b.label, "es")
+  );
 }
 
 export function isSpanishTagSelected(tags: readonly string[]): boolean {

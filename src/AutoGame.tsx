@@ -864,7 +864,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
       setSpecialTimerRunning(true);
       setErrorMessage(
         specialRoundMode === "tararear"
-          ? "La ronda de tararear está corriendo. En el celular verán la canción y además sonará a medio volumen mientras mantengan el botón apretado."
+          ? "La ronda de tararear está corriendo. En el celular verán la canción y además sonará al 30% mientras mantengan el botón apretado."
           : "La ronda de mímica está corriendo. El botón remoto solo mostrará la información de la canción.",
       );
       return;
@@ -984,7 +984,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
       ? "Disfruta visuales envolventes inspirados en tu canción. Sigue jugando para descubrir nuevas portadas y ambientes memorables."
       : showRemoteQr
         ? specialRoundMode === "tararear"
-          ? "Cuando alguien mantenga presionado el botón en el celular verá el título y el artista, y además la canción sonará ahí a medio volumen."
+          ? "Cuando alguien mantenga presionado el botón en el celular verá el título y el artista, y además la canción sonará ahí al 30%."
           : "Cuando alguien mantenga presionado el botón en el celular verá el título y el artista."
         : 'Mantén el suspenso: cuando creas tener la respuesta, presiona "Mostrar" para confirmar tu apuesta.';
     const highlightedYear = showDetails && songYear !== null ? songYear : null;
@@ -1055,7 +1055,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
     const fallbackBackdrop =
       "linear-gradient(190deg, rgba(12,44,110,0.75) 0%, rgba(6,26,68,0.88) 55%, rgba(2,12,34,0.92) 100%)";
     const shouldDisplayArtwork = showDetails && Boolean(artworkUrl);
-    const shouldShowGoldenBackdrop = isSpecialSong && !showDetails;
+    const shouldShowGoldenBackdrop =
+      isSpecialSong && !hasSpecialRemoteRound && !showDetails;
     const theme = createAdaptiveTheme(
       shouldDisplayArtwork ? artworkPalette : null,
     );
@@ -1516,7 +1517,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                         }}
                       >
                         {specialRoundMode === "tararear"
-                          ? "Abre el enlace, mantén apretado el botón y la canción se revelará y sonará a medio volumen en el celular."
+                          ? "Abre el enlace, mantén apretado el botón y la canción se revelará y sonará al 30% en el celular."
                           : "Abre el enlace, mantén apretado el botón y ahí se revelará la canción en el celular."}
                       </Typography>
                     </>

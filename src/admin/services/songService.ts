@@ -9,7 +9,11 @@ import type {
   SongStatisticsGroup,
   YoutubeValidationStatus,
 } from "../types";
-import { isSpanishTagSelected, normalizeSongTags } from "../../lib/songTags";
+import {
+  isSpanishTagSelected,
+  normalizeSongTags,
+  syncSongModeTags,
+} from "../../lib/songTags";
 
 const API_BASE = "/api/admin";
 
@@ -95,7 +99,13 @@ function sanitizeInput(payload: SongInput): SongInput {
   const trimmedArtist = payload.artist.trim();
   const trimmedTitle = payload.title.trim();
   const trimmedYoutube = payload.youtube_url.trim();
-  const tags = normalizeSongTags(payload.tags, payload.isspanish);
+  const tags = syncSongModeTags(
+    normalizeSongTags(payload.tags, payload.isspanish),
+    {
+      mimica: payload.mimica === true,
+      tararear: payload.tararear === true,
+    }
+  );
 
   const numericYear =
     typeof payload.year === "number" && Number.isFinite(payload.year)

@@ -6,6 +6,7 @@ import { requireAdmin } from "../../_admin";
 import {
   isSpanishTagSelected,
   normalizeSongTags,
+  syncSongModeTags,
 } from "../../../../src/lib/songTags";
 
 const parseBody = (req: NextApiRequest): Record<string, unknown> => {
@@ -58,13 +59,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         typeof song.year === "number" && Number.isFinite(song.year)
           ? song.year
           : null;
-      const tags = normalizeSongTags(
-        (song as Record<string, unknown>).tags,
-        (song as Record<string, unknown>).isspanish
-      );
-      const isSpanish = isSpanishTagSelected(tags);
       const mimica = (song as Record<string, unknown>).mimica === true;
       const tararear = (song as Record<string, unknown>).tararear === true;
+      const tags = syncSongModeTags(
+        normalizeSongTags(
+          (song as Record<string, unknown>).tags,
+          (song as Record<string, unknown>).isspanish
+        ),
+        {
+          mimica,
+          tararear,
+        }
+      );
+      const isSpanish = isSpanishTagSelected(tags);
       if (!artist || !title || !youtubeUrl) return null;
       return {
         artist,

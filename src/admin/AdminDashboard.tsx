@@ -246,6 +246,9 @@ export default function AdminDashboard({
   const [bulkTagDialogOpen, setBulkTagDialogOpen] = useState(false);
   const [bulkTagSelection, setBulkTagSelection] = useState<SongTag[]>([]);
   const [bulkTagSaving, setBulkTagSaving] = useState(false);
+  const [bulkModeSaving, setBulkModeSaving] = useState<
+    "mimica" | "tararear" | null
+  >(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [songStatistics, setSongStatistics] = useState<SongStatisticsGroup | null>(
@@ -1273,6 +1276,56 @@ export default function AdminDashboard({
       setBulkTagSaving(false);
     }
   }, [bulkTagSelection, selectedSongIds, songs]);
+
+  const handleBulkAssignMode = useCallback(
+    async (mode: "mimica" | "tararear") => {
+      if (!selectedSongIds.length) {
+        return;
+      }
+
+      const selectedSongs = songs.filter((song) => selectedSongIds.includes(song.id));
+      if (!selectedSongs.length) {
+        return;
+      }
+
+      setBulkModeSaving(mode);
+      try {
+        await Promise.all(
+          selectedSongs.map((song) =>
+            updateSong(song.id, {
+              artist: song.artist,
+              title: song.title,
+              youtube_url: song.youtube_url,
+              year: song.year,
+              tags: song.tags,
+              isspanish: song.isspanish,
+              mimica: mode === "mimica",
+              tararear: mode === "tararear",
+            })
+          )
+        );
+
+        setFeedback({
+          severity: "success",
+          message: `${selectedSongs.length} canción(es) asignadas a ${
+            mode === "mimica" ? "Mímica" : "Tarareo"
+          }.`,
+        });
+        setSnackbarOpen(true);
+        setReloadToken((prev) => prev + 1);
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "No se pudieron asignar las canciones seleccionadas.";
+        setFeedback({ severity: "error", message });
+        setSnackbarOpen(true);
+      } finally {
+        setBulkModeSaving(null);
+      }
+    },
+    [selectedSongIds, songs]
+  );
 
   const handleCreateSongTag = useCallback(async () => {
     const label = newSongTagLabel.trim();
@@ -2331,7 +2384,8 @@ export default function AdminDashboard({
                               disabled={
                                 selectedSongIds.length === 0 ||
                                 bulkApproving ||
-                                bulkTagSaving
+                                bulkTagSaving ||
+                                bulkModeSaving !== null
                               }
                             >
                               Limpiar selección
@@ -2342,10 +2396,39 @@ export default function AdminDashboard({
                               disabled={
                                 selectedSongIds.length === 0 ||
                                 bulkApproving ||
-                                bulkTagSaving
+                                bulkTagSaving ||
+                                bulkModeSaving !== null
                               }
                             >
                               Agregar etiquetas
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              onClick={() => void handleBulkAssignMode("mimica")}
+                              disabled={
+                                selectedSongIds.length === 0 ||
+                                bulkApproving ||
+                                bulkTagSaving ||
+                                bulkModeSaving !== null
+                              }
+                            >
+                              {bulkModeSaving === "mimica"
+                                ? "Asignando Mímica..."
+                                : "Asignar Mímica"}
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              onClick={() => void handleBulkAssignMode("tararear")}
+                              disabled={
+                                selectedSongIds.length === 0 ||
+                                bulkApproving ||
+                                bulkTagSaving ||
+                                bulkModeSaving !== null
+                              }
+                            >
+                              {bulkModeSaving === "tararear"
+                                ? "Asignando Tarareo..."
+                                : "Asignar Tarareo"}
                             </Button>
                             <Button
                               variant="contained"
@@ -2354,7 +2437,8 @@ export default function AdminDashboard({
                               disabled={
                                 approvableSelectedSongIds.length === 0 ||
                                 bulkApproving ||
-                                bulkTagSaving
+                                bulkTagSaving ||
+                                bulkModeSaving !== null
                               }
                             >
                               {bulkApproving ? "Aprobando..." : "Aprobar seleccionadas"}

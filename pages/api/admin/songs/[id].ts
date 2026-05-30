@@ -7,6 +7,7 @@ import { serializeAdminIdentity } from "../../../../src/admin/serializers";
 import {
   isSpanishTagSelected,
   normalizeSongTags,
+  syncSongModeTags,
 } from "../../../../src/lib/songTags";
 
 const parseBody = (req: NextApiRequest): Record<string, unknown> => {
@@ -153,10 +154,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       typeof body.year === "number" && Number.isFinite(body.year)
         ? body.year
         : null;
-    const tags = normalizeSongTags(body.tags, body.isspanish);
-    const isSpanish = isSpanishTagSelected(tags);
     const mimica = body.mimica === true;
     const tararear = body.tararear === true;
+    const tags = syncSongModeTags(normalizeSongTags(body.tags, body.isspanish), {
+      mimica,
+      tararear,
+    });
+    const isSpanish = isSpanishTagSelected(tags);
     const youtubeValidation = parseYoutubeValidation(body);
 
     const [currentSong] = await db

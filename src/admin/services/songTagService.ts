@@ -1,4 +1,7 @@
-import type { SongTagDefinition } from "../../lib/songTags";
+import {
+  mergeSongTagDefinitions,
+  type SongTagDefinition,
+} from "../../lib/songTags";
 
 const API_BASE = "/api/admin/song-tags";
 
@@ -33,7 +36,7 @@ function normalizeSongTagDefinition(raw: Record<string, unknown>): SongTagDefini
 
 export async function listSongTags(): Promise<SongTagDefinition[]> {
   const data = await fetchJson<Record<string, unknown>[]>(API_BASE);
-  return data.map(normalizeSongTagDefinition);
+  return mergeSongTagDefinitions(data.map(normalizeSongTagDefinition));
 }
 
 export async function createSongTag(payload: {

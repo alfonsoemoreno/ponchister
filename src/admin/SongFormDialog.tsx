@@ -254,7 +254,7 @@ export default function SongFormDialog({
               Mímica: QR y control remoto para revelar la canción en otro dispositivo.
             </Typography>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              Tararear: igual que mímica, pero además la canción suena a medio volumen en el celular mientras se mantiene el botón apretado.
+              Tararear: igual que mímica, pero además la canción suena al 30% en el celular mientras se mantiene el botón apretado.
             </Typography>
           </Box>
           <Box>

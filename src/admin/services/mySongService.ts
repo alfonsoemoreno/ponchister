@@ -2,6 +2,7 @@ import type { Song, SongInput, SongYoutubeValidationPayload } from "../types";
 import {
   isSpanishTagSelected,
   normalizeSongTags,
+  syncSongModeTags,
 } from "../../lib/songTags";
 
 const API_BASE = "/api/admin/my-songs";
@@ -79,7 +80,13 @@ function normalizeSong(raw: Record<string, unknown>): Song {
 }
 
 function sanitizeInput(payload: SongInput): SongInput {
-  const tags = normalizeSongTags(payload.tags, payload.isspanish);
+  const tags = syncSongModeTags(
+    normalizeSongTags(payload.tags, payload.isspanish),
+    {
+      mimica: payload.mimica === true,
+      tararear: payload.tararear === true,
+    }
+  );
   return {
     artist: payload.artist.trim(),
     title: payload.title.trim(),

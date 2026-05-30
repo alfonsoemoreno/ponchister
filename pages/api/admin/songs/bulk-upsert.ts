@@ -59,6 +59,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         typeof song.year === "number" && Number.isFinite(song.year)
           ? song.year
           : null;
+      const playStartSeconds =
+        typeof (song as Record<string, unknown>).play_start_seconds === "number" &&
+        Number.isFinite((song as Record<string, unknown>).play_start_seconds)
+          ? Math.max(
+              0,
+              Math.trunc((song as Record<string, unknown>).play_start_seconds as number)
+            )
+          : 0;
       const mimica = (song as Record<string, unknown>).mimica === true;
       const tararear = (song as Record<string, unknown>).tararear === true;
       const tags = syncSongModeTags(
@@ -78,6 +86,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         title,
         youtubeUrl,
         year,
+        playStartSeconds,
         songAttributes: tags,
         isSpanish,
         mimica,
@@ -98,6 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     title: string;
     youtubeUrl: string;
     year: number | null;
+    playStartSeconds: number;
     songAttributes: string[];
     isSpanish: boolean;
     mimica: boolean;
@@ -128,6 +138,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         artist: sql`excluded.artist`,
         title: sql`excluded.title`,
         year: sql`excluded.year`,
+        playStartSeconds: sql`excluded.play_start_seconds`,
         songAttributes: sql`excluded.song_attributes`,
         isSpanish: sql`excluded.isspanish`,
         mimica: sql`excluded.mimica`,

@@ -59,6 +59,11 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     artist: String(raw.artist ?? ""),
     title: String(raw.title ?? ""),
     year,
+    play_start_seconds:
+      typeof raw.play_start_seconds === "number" &&
+      Number.isFinite(raw.play_start_seconds)
+        ? Math.max(0, Math.trunc(raw.play_start_seconds))
+        : 0,
     youtube_url: String(raw.youtube_url ?? ""),
     tags,
     isspanish: isSpanishTagSelected(tags),

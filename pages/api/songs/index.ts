@@ -66,6 +66,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       artist: songs.artist,
       title: songs.title,
       year: songs.year,
+      play_start_seconds: songs.playStartSeconds,
       youtube_url: songs.youtubeUrl,
       tags: songs.songAttributes,
       isspanish: songs.isSpanish,

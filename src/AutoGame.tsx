@@ -459,6 +459,10 @@ const AutoGame: React.FC<AutoGameProps> = ({
     url.searchParams.set("remoteMode", specialRoundMode);
     url.searchParams.set("songTitle", currentSong.title);
     url.searchParams.set("artist", currentSong.artist);
+    url.searchParams.set(
+      "playStartSeconds",
+      String(Math.max(0, Math.trunc(currentSong.play_start_seconds ?? 0)))
+    );
     if (videoId) {
       url.searchParams.set("videoId", videoId);
     }
@@ -909,11 +913,16 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [duckMainPlayerVolume]);
 
   const handlePlayerReady: YouTubeProps["onReady"] = (event) => {
+    const startSeconds = Math.max(
+      0,
+      Math.trunc(currentSong?.play_start_seconds ?? 0)
+    );
     setIsPlaying(false);
     applyPlaybackOptimizations(
       (event.target as unknown as InternalPlayer) ?? null,
     );
     event.target.setPlaybackRate?.(1);
+    event.target.seekTo?.(startSeconds, true);
     event.target.pauseVideo?.();
     const iframe = event.target.getIframe?.();
     iframe?.setAttribute("allow", "autoplay; clipboard-write");

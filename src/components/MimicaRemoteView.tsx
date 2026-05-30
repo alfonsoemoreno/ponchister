@@ -21,6 +21,7 @@ interface MimicaRemoteViewProps {
   songTitle: string;
   artist: string;
   videoId?: string;
+  playStartSeconds?: number;
 }
 
 export default function MimicaRemoteView({
@@ -28,6 +29,7 @@ export default function MimicaRemoteView({
   songTitle,
   artist,
   videoId = "",
+  playStartSeconds = 0,
 }: MimicaRemoteViewProps) {
   const [isPressed, setIsPressed] = useState(false);
   const pressedRef = useRef(false);
@@ -71,13 +73,13 @@ export default function MimicaRemoteView({
     if (showInfo) {
       internalPlayer.unMute?.();
       internalPlayer.setVolume?.(30);
-      internalPlayer.seekTo?.(0, true);
+      internalPlayer.seekTo?.(Math.max(0, Math.trunc(playStartSeconds)), true);
       internalPlayer.playVideo?.();
       return;
     }
 
     internalPlayer.pauseVideo?.();
-  }, [isTararearMode, videoId, showInfo]);
+  }, [isTararearMode, playStartSeconds, videoId, showInfo]);
 
   const handlePressStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();

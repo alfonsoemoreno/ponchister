@@ -48,6 +48,7 @@ export const songs = pgTable(
     artist: text("artist").notNull(),
     title: text("title").notNull(),
     year: integer("year"),
+    playStartSeconds: integer("play_start_seconds").notNull().default(0),
     youtubeUrl: text("youtube_url").notNull(),
     isSpanish: boolean("isspanish").notNull().default(false),
     mimica: boolean("mimica").notNull().default(false),

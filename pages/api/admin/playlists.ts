@@ -122,6 +122,7 @@ async function hydratePlaylist(id: number) {
       artist: songs.artist,
       title: songs.title,
       year: songs.year,
+      play_start_seconds: songs.playStartSeconds,
       youtube_url: songs.youtubeUrl,
       tags: songs.songAttributes,
       isspanish: songs.isSpanish,

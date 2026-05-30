@@ -38,6 +38,7 @@ type FormState = {
   artist: string;
   title: string;
   year: string;
+  play_start_seconds: string;
   youtube_url: string;
   tags: SongTag[];
   mimica: boolean;
@@ -48,6 +49,7 @@ const EMPTY_STATE: FormState = {
   artist: "",
   title: "",
   year: "",
+  play_start_seconds: "0",
   youtube_url: "",
   tags: [],
   mimica: false,
@@ -76,6 +78,7 @@ export default function SongFormDialog({
         artist: initialValue.artist,
         title: initialValue.title,
         year: initialValue.year ? String(initialValue.year) : "",
+        play_start_seconds: String(initialValue.play_start_seconds ?? 0),
         youtube_url: initialValue.youtube_url,
         tags: normalizeSongTags(initialValue.tags, initialValue.isspanish),
         mimica: initialValue.mimica === true,
@@ -137,6 +140,11 @@ export default function SongFormDialog({
     const parsedYear = values.year.trim();
     const yearValue =
       parsedYear === "" ? null : Number.parseInt(parsedYear, 10);
+    const parsedPlayStartSeconds = values.play_start_seconds.trim();
+    const playStartSecondsValue =
+      parsedPlayStartSeconds === ""
+        ? 0
+        : Number.parseInt(parsedPlayStartSeconds, 10);
 
     const tags = normalizeSongTags(values.tags);
     const payload: SongInput = {
@@ -144,6 +152,9 @@ export default function SongFormDialog({
       title: values.title.trim(),
       youtube_url: values.youtube_url.trim(),
       year: Number.isNaN(yearValue) ? null : yearValue,
+      play_start_seconds: Number.isNaN(playStartSecondsValue)
+        ? 0
+        : Math.max(0, playStartSecondsValue),
       tags,
       isspanish: isSpanishTagSelected(tags),
       mimica: values.mimica,
@@ -217,6 +228,18 @@ export default function SongFormDialog({
               fullWidth
               disabled={loading}
             />
+            <TextField
+              label="Inicio (segundos)"
+              value={values.play_start_seconds}
+              onChange={handleChange("play_start_seconds")}
+              type="number"
+              inputProps={{ inputMode: "numeric", min: 0, step: 1 }}
+              helperText="Desde qué segundo debe arrancar en el juego."
+              fullWidth
+              disabled={loading}
+            />
+          </Stack>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <TextField
               label="Enlace de YouTube"
               value={values.youtube_url}

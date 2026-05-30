@@ -77,6 +77,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       typeof body.year === "number" && Number.isFinite(body.year)
         ? body.year
         : null;
+    const playStartSeconds =
+      typeof body.play_start_seconds === "number" &&
+      Number.isFinite(body.play_start_seconds)
+        ? Math.max(0, Math.trunc(body.play_start_seconds))
+        : 0;
     const mimica = body.mimica === true;
     const tararear = body.tararear === true;
     const tags = syncSongModeTags(normalizeSongTags(body.tags, body.isspanish), {
@@ -98,6 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         title,
         youtubeUrl,
         year,
+        playStartSeconds,
         songAttributes: tags,
         isSpanish,
         mimica,

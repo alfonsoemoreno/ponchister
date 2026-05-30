@@ -161,6 +161,7 @@ function App() {
   const [remoteSongTitle, setRemoteSongTitle] = useState<string>("");
   const [remoteArtist, setRemoteArtist] = useState<string>("");
   const [remoteVideoId, setRemoteVideoId] = useState<string>("");
+  const [remotePlayStartSeconds, setRemotePlayStartSeconds] = useState<number>(0);
   const fallbackRange = useMemo(() => getDefaultYearRange(), []);
   const [availableRange, setAvailableRange] = useState<YearRange | null>(null);
   const [yearRange, setYearRange] = useState<YearRange>(() =>
@@ -494,11 +495,17 @@ function App() {
       const songTitle = params.get("songTitle") ?? "";
       const artist = params.get("artist") ?? "";
       const videoId = params.get("videoId") ?? "";
+      const playStartSecondsParam = Number(params.get("playStartSeconds") ?? "0");
 
       setRemoteMode(mode);
       setRemoteSongTitle(songTitle);
       setRemoteArtist(artist);
       setRemoteVideoId(videoId);
+      setRemotePlayStartSeconds(
+        Number.isFinite(playStartSecondsParam)
+          ? Math.max(0, Math.trunc(playStartSecondsParam))
+          : 0
+      );
 
       if (mode) {
         setView("welcome");
@@ -522,6 +529,7 @@ function App() {
           songTitle={remoteSongTitle}
           artist={remoteArtist}
           videoId={remoteVideoId}
+          playStartSeconds={remotePlayStartSeconds}
         />
       </Suspense>
     );

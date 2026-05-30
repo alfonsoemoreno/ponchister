@@ -44,6 +44,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       typeof body.year === "number" && Number.isFinite(body.year)
         ? body.year
         : null,
+    play_start_seconds:
+      typeof body.play_start_seconds === "number" &&
+      Number.isFinite(body.play_start_seconds)
+        ? Math.max(0, Math.trunc(body.play_start_seconds))
+        : 0,
     tags,
     isspanish: isSpanishTagSelected(tags),
     mimica: body.mimica === true,
@@ -66,6 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       artist: songs.artist,
       title: songs.title,
       year: songs.year,
+      play_start_seconds: songs.playStartSeconds,
       youtube_url: songs.youtubeUrl,
       tags: songs.songAttributes,
       isspanish: songs.isSpanish,

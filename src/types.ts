@@ -5,6 +5,7 @@ export interface Song {
   artist: string;
   title: string;
   year: number | null;
+  play_start_seconds: number;
   youtube_url: string;
   tags: SongTag[];
   isSpanish: boolean;

@@ -15,6 +15,7 @@ export interface Song {
   artist: string;
   title: string;
   year: number | null;
+  play_start_seconds: number;
   youtube_url: string;
   tags: SongTag[];
   isspanish: boolean;
@@ -37,6 +38,7 @@ export interface SongInput {
   artist: string;
   title: string;
   year: number | null;
+  play_start_seconds: number;
   youtube_url: string;
   tags: SongTag[];
   isspanish: boolean;

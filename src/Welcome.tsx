@@ -64,14 +64,15 @@ const Welcome: React.FC<WelcomeProps> = ({
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [playlistDraftId, setPlaylistDraftId] = useState<string>(
-    selectedPlaylist ? String(selectedPlaylist.id) : ""
+    selectedPlaylist ? String(selectedPlaylist.id) : "",
   );
 
-  const [personalPlaylistDraftId, setPersonalPlaylistDraftId] = useState<string>("");
+  const [personalPlaylistDraftId, setPersonalPlaylistDraftId] =
+    useState<string>("");
 
   const handleStartAutoMode = (
     source: GameSource,
-    playlist: PlaylistSummary | null
+    playlist: PlaylistSummary | null,
   ) => {
     setModeDialogOpen(false);
     requestFullscreen();
@@ -130,10 +131,10 @@ const Welcome: React.FC<WelcomeProps> = ({
   };
 
   const playlistSelection = playlists.find(
-    (playlist) => String(playlist.id) === playlistDraftId
+    (playlist) => String(playlist.id) === playlistDraftId,
   );
   const personalPlaylistSelection = personalPlaylists.find(
-    (playlist) => String(playlist.id) === personalPlaylistDraftId
+    (playlist) => String(playlist.id) === personalPlaylistDraftId,
   );
 
   return (
@@ -230,8 +231,13 @@ const Welcome: React.FC<WelcomeProps> = ({
               >
                 {currentAdminUser.display_name || currentAdminUser.email}
               </Typography>
-              <Typography variant="caption" sx={{ color: "rgba(224,239,255,0.72)" }}>
-                {currentAdminUser.role === "superadmin" ? "Superadmin" : "Editor"}
+              <Typography
+                variant="caption"
+                sx={{ color: "rgba(224,239,255,0.72)" }}
+              >
+                {currentAdminUser.role === "superadmin"
+                  ? "Superadmin"
+                  : "Editor"}
               </Typography>
             </Box>
           </Stack>
@@ -252,29 +258,29 @@ const Welcome: React.FC<WelcomeProps> = ({
               spacing={{ xs: 0.5, sm: 1 }}
               alignItems="center"
             >
-            <Button
-              variant="text"
-              color="inherit"
-              startIcon={<AdminPanelSettingsIcon />}
-              onClick={handleOpenAdmin}
-              sx={{
-                borderRadius: 0,
-                textTransform: "none",
-                minWidth: 0,
-                px: 1,
-              }}
-            >
-              Panel
-            </Button>
-            <Button
-              variant="text"
-              color="inherit"
-              startIcon={<LogoutIcon />}
-              onClick={() => void handleLogout()}
-              sx={{ textTransform: "none", borderRadius: 0 }}
-            >
-              Salir
-            </Button>
+              <Button
+                variant="text"
+                color="inherit"
+                startIcon={<AdminPanelSettingsIcon />}
+                onClick={handleOpenAdmin}
+                sx={{
+                  borderRadius: 0,
+                  textTransform: "none",
+                  minWidth: 0,
+                  px: 1,
+                }}
+              >
+                Panel
+              </Button>
+              <Button
+                variant="text"
+                color="inherit"
+                startIcon={<LogoutIcon />}
+                onClick={() => void handleLogout()}
+                sx={{ textTransform: "none", borderRadius: 0 }}
+              >
+                Salir
+              </Button>
             </Stack>
           ) : (
             <Button
@@ -656,19 +662,34 @@ const Welcome: React.FC<WelcomeProps> = ({
                   }}
                 >
                   <Stack spacing={1.25}>
-                    <Typography variant="overline" sx={{ letterSpacing: 1.8, fontWeight: 700, color: "rgba(255,221,161,0.88)" }}>
+                    <Typography
+                      variant="overline"
+                      sx={{
+                        letterSpacing: 1.8,
+                        fontWeight: 700,
+                        color: "rgba(255,221,161,0.88)",
+                      }}
+                    >
                       Opción 3
                     </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}
+                    >
                       Mi catálogo
                     </Typography>
-                    <Typography variant="body2" sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.65 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.65 }}
+                    >
                       Juega usando solo las canciones de tu colección personal.
                     </Typography>
                     <Button
                       variant="outlined"
                       color="inherit"
-                      onClick={() => handleStartAutoMode("personal_catalog", null)}
+                      onClick={() =>
+                        handleStartAutoMode("personal_catalog", null)
+                      }
                       sx={{
                         alignSelf: "flex-start",
                         textTransform: "none",
@@ -693,20 +714,36 @@ const Welcome: React.FC<WelcomeProps> = ({
                   }}
                 >
                   <Stack spacing={1.25}>
-                    <Typography variant="overline" sx={{ letterSpacing: 1.8, fontWeight: 700, color: "rgba(255,196,196,0.88)" }}>
+                    <Typography
+                      variant="overline"
+                      sx={{
+                        letterSpacing: 1.8,
+                        fontWeight: 700,
+                        color: "rgba(255,196,196,0.88)",
+                      }}
+                    >
                       Opción 4
                     </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}
+                    >
                       Mi playlist personal
                     </Typography>
-                    <Typography variant="body2" sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.65 }}>
-                      Elige una playlist armada con canciones de tu colección personal.
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.65 }}
+                    >
+                      Elige una playlist armada con canciones de tu colección
+                      personal.
                     </Typography>
                     <TextField
                       select
                       label="Playlist personal"
                       value={personalPlaylistDraftId}
-                      onChange={(event) => setPersonalPlaylistDraftId(event.target.value)}
+                      onChange={(event) =>
+                        setPersonalPlaylistDraftId(event.target.value)
+                      }
                       fullWidth
                       disabled={personalPlaylists.length === 0}
                     >
@@ -722,7 +759,10 @@ const Welcome: React.FC<WelcomeProps> = ({
                       disabled={!personalPlaylistSelection}
                       onClick={() =>
                         personalPlaylistSelection
-                          ? handleStartAutoMode("personal_playlist", personalPlaylistSelection)
+                          ? handleStartAutoMode(
+                              "personal_playlist",
+                              personalPlaylistSelection,
+                            )
                           : undefined
                       }
                       sx={{
@@ -877,6 +917,43 @@ const Welcome: React.FC<WelcomeProps> = ({
               >
                 En canciones doradas, si aciertas canción, artista y año exacto,
                 robas una tarjeta.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
+              >
+                Canciones con mímica
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(204,231,255,0.82)", mt: 0.6 }}
+              >
+                En las canciones con mímica, el usuario debe escanear un código
+                QR para ver la canción y el artista, y luego hacer mímica para
+                que los demás adivinen. El primero que adivina correctamente,
+                gana una ficha. El jugador que hizo la mímica también gana su
+                tarjeta si al menos un jugador adivina correctamente.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
+              >
+                Canciones con tarareo
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(204,231,255,0.82)", mt: 0.6 }}
+              >
+                En las canciones con tarareo, el usuario debe escanear un código
+                QR para ver la canción y el artista además de escuchar la
+                canción desde su dispositivo, y luego tararear para que los
+                demás adivinen. El primero que adivina correctamente, gana una
+                ficha. El jugador que hizo el tarareo también gana su tarjeta si
+                al menos un jugador adivina correctamente.
               </Typography>
             </Box>
             <Box>

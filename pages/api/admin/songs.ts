@@ -161,6 +161,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : url.searchParams.get("catalogStatus") === "pending"
         ? "pending"
         : null;
+    const specialMode =
+      url.searchParams.get("specialMode") === "mimica" ||
+      url.searchParams.get("specialMode") === "tararear" ||
+      url.searchParams.get("specialMode") === "karaoke" ||
+      url.searchParams.get("specialMode") === "trivia"
+        ? url.searchParams.get("specialMode")
+        : null;
     const sortBy =
       (url.searchParams.get("sortBy") as "id" | "artist" | "title" | "year") ??
       "id";
@@ -174,6 +181,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     filters.push(eq(songs.scope, "public"));
     if (catalogStatus) {
       filters.push(eq(songs.catalogStatus, catalogStatus));
+    }
+    if (specialMode === "mimica") {
+      filters.push(eq(songs.mimica, true));
+    } else if (specialMode === "tararear") {
+      filters.push(eq(songs.tararear, true));
+    } else if (specialMode === "karaoke") {
+      filters.push(eq(songs.karaoke, true));
+    } else if (specialMode === "trivia") {
+      filters.push(eq(songs.trivia, true));
     }
     if (tags.length) {
       filters.push(

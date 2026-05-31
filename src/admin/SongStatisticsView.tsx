@@ -92,6 +92,10 @@ function StatisticsList({
   );
 }
 
+function formatModeTitle(title: string, count: number) {
+  return `${title} (${count})`;
+}
+
 function MetricCard({
   label,
   value,
@@ -258,6 +262,25 @@ export default function SongStatisticsView({
         helper: "Registros incompletos",
       });
     }
+
+    cards.push(
+      {
+        label: "Con mímica",
+        value: selectedStats.mimicaCount,
+      },
+      {
+        label: "Con tarareo",
+        value: selectedStats.tararearCount,
+      },
+      {
+        label: "Con karaoke",
+        value: selectedStats.karaokeCount,
+      },
+      {
+        label: "Con trivia",
+        value: selectedStats.triviaCount,
+      }
+    );
 
     if (scope === "overall" && stats.overall.totalSongs > 0) {
       cards.push({
@@ -438,6 +461,48 @@ export default function SongStatisticsView({
           label: getSongTagLabel(item.label, availableSongTags),
         })),
         highlight: "top",
+      });
+    }
+
+    if (selectedStats.mimicaSongs.length > 0) {
+      blocks.push({
+        key: "mimica-songs",
+        title: formatModeTitle("Canciones con mímica", selectedStats.mimicaCount),
+        items: selectedStats.mimicaSongs,
+        spanTwo: true,
+      });
+    }
+
+    if (selectedStats.tararearSongs.length > 0) {
+      blocks.push({
+        key: "tararear-songs",
+        title: formatModeTitle(
+          "Canciones con tarareo",
+          selectedStats.tararearCount
+        ),
+        items: selectedStats.tararearSongs,
+        spanTwo: true,
+      });
+    }
+
+    if (selectedStats.karaokeSongs.length > 0) {
+      blocks.push({
+        key: "karaoke-songs",
+        title: formatModeTitle(
+          "Canciones con karaoke",
+          selectedStats.karaokeCount
+        ),
+        items: selectedStats.karaokeSongs,
+        spanTwo: true,
+      });
+    }
+
+    if (selectedStats.triviaSongs.length > 0) {
+      blocks.push({
+        key: "trivia-songs",
+        title: formatModeTitle("Canciones con trivia", selectedStats.triviaCount),
+        items: selectedStats.triviaSongs,
+        spanTwo: true,
       });
     }
 

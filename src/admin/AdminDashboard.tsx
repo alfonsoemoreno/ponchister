@@ -166,6 +166,7 @@ type SortOption =
 
 const DEFAULT_SORT_OPTION: SortOption = "id_asc";
 type CatalogStatusFilter = "all" | "pending" | "approved";
+type SpecialModeFilter = "all" | "mimica" | "tararear" | "karaoke" | "trivia";
 
 const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
   { value: "id_asc", label: "ID ascendente" },
@@ -207,6 +208,8 @@ export default function AdminDashboard({
   const [selectedFilterTags, setSelectedFilterTags] = useState<SongTag[]>([]);
   const [catalogStatusFilter, setCatalogStatusFilter] =
     useState<CatalogStatusFilter>("all");
+  const [specialModeFilter, setSpecialModeFilter] =
+    useState<SpecialModeFilter>("all");
   const [sortOption, setSortOption] = useState<SortOption>(DEFAULT_SORT_OPTION);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -631,9 +634,17 @@ export default function AdminDashboard({
       yearFilter !== null ||
       selectedFilterTags.length > 0 ||
       catalogStatusFilter !== "all" ||
+      specialModeFilter !== "all" ||
       sortOption !== DEFAULT_SORT_OPTION ||
       yearInput.trim() !== "",
-    [catalogStatusFilter, selectedFilterTags.length, sortOption, yearFilter, yearInput]
+    [
+      catalogStatusFilter,
+      selectedFilterTags.length,
+      sortOption,
+      specialModeFilter,
+      yearFilter,
+      yearInput,
+    ]
   );
 
   useEffect(() => {
@@ -690,6 +701,7 @@ export default function AdminDashboard({
           year: yearFilter,
           tags: selectedFilterTags,
           catalogStatus: catalogStatusFilter,
+          specialMode: specialModeFilter,
           sortBy: sortConfig.sortBy,
           sortDirection: sortConfig.direction,
         });
@@ -729,6 +741,7 @@ export default function AdminDashboard({
     sortConfig,
     selectedFilterTags,
     catalogStatusFilter,
+    specialModeFilter,
     yearFilter,
     reloadToken,
     dataReady,
@@ -817,6 +830,7 @@ export default function AdminDashboard({
     const hadSort = sortOption !== DEFAULT_SORT_OPTION;
     const hadTags = selectedFilterTags.length > 0;
     const hadStatus = catalogStatusFilter !== "all";
+    const hadSpecialMode = specialModeFilter !== "all";
 
     if (hadYear) {
       setYearFilter(null);
@@ -828,12 +842,15 @@ export default function AdminDashboard({
     if (hadStatus) {
       setCatalogStatusFilter("all");
     }
+    if (hadSpecialMode) {
+      setSpecialModeFilter("all");
+    }
 
     if (hadSort) {
       setSortOption(DEFAULT_SORT_OPTION);
     }
 
-    if (hadYear || hadSort || hadTags || hadStatus) {
+    if (hadYear || hadSort || hadTags || hadStatus || hadSpecialMode) {
       setPage(0);
     }
   };
@@ -2651,6 +2668,29 @@ export default function AdminDashboard({
                             <MenuItem value="all">Todas</MenuItem>
                             <MenuItem value="pending">Solo pendientes</MenuItem>
                             <MenuItem value="approved">Solo aprobadas</MenuItem>
+                          </TextField>
+                          <TextField
+                            select
+                            label="Modalidad"
+                            value={specialModeFilter}
+                            onChange={(event) => {
+                              setSpecialModeFilter(
+                                event.target.value as SpecialModeFilter
+                              );
+                              setPage(0);
+                            }}
+                            sx={{
+                              width: { xs: "100%", md: "auto" },
+                              minWidth: { md: 180 },
+                            }}
+                            disabled={!dataReady}
+                            size="small"
+                          >
+                            <MenuItem value="all">Todas</MenuItem>
+                            <MenuItem value="mimica">Con mímica</MenuItem>
+                            <MenuItem value="tararear">Con tarareo</MenuItem>
+                            <MenuItem value="karaoke">Con karaoke</MenuItem>
+                            <MenuItem value="trivia">Con trivia</MenuItem>
                           </TextField>
                           <TextField
                             select

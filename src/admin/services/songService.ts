@@ -199,6 +199,7 @@ export async function listSongs({
   year,
   tags,
   catalogStatus,
+  specialMode,
   sortBy = "id",
   sortDirection = "asc",
 }: {
@@ -208,6 +209,7 @@ export async function listSongs({
   year?: number | null;
   tags?: string[];
   catalogStatus?: "all" | "pending" | "approved";
+  specialMode?: "all" | "mimica" | "tararear" | "karaoke" | "trivia";
   sortBy?: "id" | "artist" | "title" | "year";
   sortDirection?: "asc" | "desc";
 }): Promise<{ songs: Song[]; total: number }> {
@@ -230,6 +232,14 @@ export async function listSongs({
   }
   if (catalogStatus === "pending" || catalogStatus === "approved") {
     params.set("catalogStatus", catalogStatus);
+  }
+  if (
+    specialMode === "mimica" ||
+    specialMode === "tararear" ||
+    specialMode === "karaoke" ||
+    specialMode === "trivia"
+  ) {
+    params.set("specialMode", specialMode);
   }
 
   const data = await fetchJson<{
@@ -364,6 +374,16 @@ export async function fetchSongStatistics(): Promise<SongStatisticsGroup> {
     const decadeMap = new Map<number, number>();
     const artistMap = new Map<string, number>();
     const tagMap = new Map<string, number>();
+    const toSongEntries = (filteredSongs: Song[]) =>
+      filteredSongs
+        .map((song) => ({
+          label: `${song.artist.trim() || "Sin artista"} - ${
+            song.title.trim() || "Sin canción"
+          }`,
+          count: 1,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label))
+        .slice(0, STAT_LIMIT);
 
     collection.forEach((song) => {
       const artistKey = song.artist.trim() || "Sin artista";
@@ -451,11 +471,19 @@ export async function fetchSongStatistics(): Promise<SongStatisticsGroup> {
     return {
       totalSongs,
       missingYearCount,
+      mimicaCount: collection.filter((song) => song.mimica).length,
+      tararearCount: collection.filter((song) => song.tararear).length,
+      karaokeCount: collection.filter((song) => song.karaoke).length,
+      triviaCount: collection.filter((song) => song.trivia).length,
       yearsMostCommon,
       yearsLeastCommon,
       decadesLeastCommon,
       artistsMostCommon,
       tagsMostCommon,
+      mimicaSongs: toSongEntries(collection.filter((song) => song.mimica)),
+      tararearSongs: toSongEntries(collection.filter((song) => song.tararear)),
+      karaokeSongs: toSongEntries(collection.filter((song) => song.karaoke)),
+      triviaSongs: toSongEntries(collection.filter((song) => song.trivia)),
     };
   };
 

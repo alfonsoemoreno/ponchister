@@ -114,11 +114,19 @@ export interface StatEntry {
 export interface SongStatistics {
   totalSongs: number;
   missingYearCount: number;
+  mimicaCount: number;
+  tararearCount: number;
+  karaokeCount: number;
+  triviaCount: number;
   yearsMostCommon: StatEntry[];
   yearsLeastCommon: StatEntry[];
   decadesLeastCommon: StatEntry[];
   artistsMostCommon: StatEntry[];
   tagsMostCommon: StatEntry[];
+  mimicaSongs: StatEntry[];
+  tararearSongs: StatEntry[];
+  karaokeSongs: StatEntry[];
+  triviaSongs: StatEntry[];
 }
 
 export interface SongStatisticsGroup {

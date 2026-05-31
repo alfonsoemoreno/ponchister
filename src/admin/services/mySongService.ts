@@ -76,6 +76,19 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     created_at: typeof raw.created_at === "string" ? raw.created_at : null,
     updated_at: typeof raw.updated_at === "string" ? raw.updated_at : null,
     approved_at: typeof raw.approved_at === "string" ? raw.approved_at : null,
+    karaoke: raw.karaoke === true,
+    karaoke_pause_seconds:
+      typeof raw.karaoke_pause_seconds === "number" &&
+      Number.isFinite(raw.karaoke_pause_seconds)
+        ? Math.max(0, Math.trunc(raw.karaoke_pause_seconds))
+        : 0,
+    karaoke_lyric:
+      typeof raw.karaoke_lyric === "string" ? raw.karaoke_lyric : null,
+    trivia: raw.trivia === true,
+    trivia_question:
+      typeof raw.trivia_question === "string" ? raw.trivia_question : null,
+    trivia_answer:
+      typeof raw.trivia_answer === "string" ? raw.trivia_answer : null,
     created_by_user:
       raw.created_by_user && typeof raw.created_by_user === "object"
         ? (raw.created_by_user as Song["created_by_user"])
@@ -109,6 +122,26 @@ function sanitizeInput(payload: SongInput): SongInput {
     isspanish: isSpanishTagSelected(tags),
     mimica: payload.mimica === true,
     tararear: payload.tararear === true,
+    karaoke: payload.karaoke === true,
+    karaoke_pause_seconds:
+      payload.karaoke === true &&
+      typeof payload.karaoke_pause_seconds === "number" &&
+      Number.isFinite(payload.karaoke_pause_seconds)
+        ? Math.max(0, Math.trunc(payload.karaoke_pause_seconds))
+        : 0,
+    karaoke_lyric:
+      payload.karaoke === true && typeof payload.karaoke_lyric === "string"
+        ? payload.karaoke_lyric.trim() || null
+        : null,
+    trivia: payload.trivia === true,
+    trivia_question:
+      payload.trivia === true && typeof payload.trivia_question === "string"
+        ? payload.trivia_question.trim() || null
+        : null,
+    trivia_answer:
+      payload.trivia === true && typeof payload.trivia_answer === "string"
+        ? payload.trivia_answer.trim() || null
+        : null,
   };
 }
 

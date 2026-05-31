@@ -48,6 +48,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       isspanish: songs.isSpanish,
       mimica: songs.mimica,
       tararear: songs.tararear,
+      karaoke: songs.karaoke,
+      karaoke_pause_seconds: songs.karaokePauseSeconds,
+      karaoke_lyric: songs.karaokeLyric,
+      trivia: songs.trivia,
+      trivia_question: songs.triviaQuestion,
+      trivia_answer: songs.triviaAnswer,
     })
     .from(playlistSongs)
     .innerJoin(songs, eq(playlistSongs.songId, songs.id))

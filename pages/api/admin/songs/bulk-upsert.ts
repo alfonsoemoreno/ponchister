@@ -69,6 +69,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : 0;
       const mimica = (song as Record<string, unknown>).mimica === true;
       const tararear = (song as Record<string, unknown>).tararear === true;
+      const karaoke = (song as Record<string, unknown>).karaoke === true;
+      const karaokePauseSeconds =
+        karaoke &&
+        typeof (song as Record<string, unknown>).karaoke_pause_seconds ===
+          "number" &&
+        Number.isFinite((song as Record<string, unknown>).karaoke_pause_seconds)
+          ? Math.max(
+              0,
+              Math.trunc(
+                (song as Record<string, unknown>).karaoke_pause_seconds as number
+              )
+            )
+          : 0;
+      const karaokeLyric =
+        karaoke &&
+        typeof (song as Record<string, unknown>).karaoke_lyric === "string"
+          ? ((song as Record<string, unknown>).karaoke_lyric as string).trim() ||
+            null
+          : null;
+      const trivia = (song as Record<string, unknown>).trivia === true;
+      const triviaQuestion =
+        trivia &&
+        typeof (song as Record<string, unknown>).trivia_question === "string"
+          ? ((song as Record<string, unknown>).trivia_question as string).trim() ||
+            null
+          : null;
+      const triviaAnswer =
+        trivia &&
+        typeof (song as Record<string, unknown>).trivia_answer === "string"
+          ? ((song as Record<string, unknown>).trivia_answer as string).trim() ||
+            null
+          : null;
       const tags = syncSongModeTags(
         normalizeSongTags(
           (song as Record<string, unknown>).tags,
@@ -91,6 +123,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         isSpanish,
         mimica,
         tararear,
+        karaoke,
+        karaokePauseSeconds,
+        karaokeLyric,
+        trivia,
+        triviaQuestion,
+        triviaAnswer,
         youtubeStatus: null,
         youtubeValidationMessage: null,
         youtubeValidationCode: null,
@@ -112,6 +150,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     isSpanish: boolean;
     mimica: boolean;
     tararear: boolean;
+    karaoke: boolean;
+    karaokePauseSeconds: number;
+    karaokeLyric: string | null;
+    trivia: boolean;
+    triviaQuestion: string | null;
+    triviaAnswer: string | null;
     youtubeStatus: null;
     youtubeValidationMessage: null;
     youtubeValidationCode: null;
@@ -143,6 +187,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         isSpanish: sql`excluded.isspanish`,
         mimica: sql`excluded.mimica`,
         tararear: sql`excluded.tararear`,
+        karaoke: sql`excluded.karaoke`,
+        karaokePauseSeconds: sql`excluded.karaoke_pause_seconds`,
+        karaokeLyric: sql`excluded.karaoke_lyric`,
+        trivia: sql`excluded.trivia`,
+        triviaQuestion: sql`excluded.trivia_question`,
+        triviaAnswer: sql`excluded.trivia_answer`,
         youtubeStatus: sql`null`,
         youtubeValidationMessage: sql`null`,
         youtubeValidationCode: sql`null`,

@@ -11,6 +11,12 @@ export interface Song {
   isSpanish: boolean;
   mimica: boolean;
   tararear: boolean;
+  karaoke: boolean;
+  karaoke_pause_seconds: number;
+  karaoke_lyric: string | null;
+  trivia: boolean;
+  trivia_question: string | null;
+  trivia_answer: string | null;
 }
 
 export type PlaylistScope = "public" | "personal";

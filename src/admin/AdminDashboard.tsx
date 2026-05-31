@@ -1254,6 +1254,12 @@ export default function AdminDashboard({
             isspanish: isSpanishTagSelected(nextTags),
             mimica: song.mimica,
             tararear: song.tararear,
+            karaoke: song.karaoke,
+            karaoke_pause_seconds: song.karaoke_pause_seconds,
+            karaoke_lyric: song.karaoke_lyric,
+            trivia: song.trivia,
+            trivia_question: song.trivia_question,
+            trivia_answer: song.trivia_answer,
           });
         })
       );
@@ -1303,6 +1309,12 @@ export default function AdminDashboard({
               isspanish: song.isspanish,
               mimica: mode === "mimica",
               tararear: mode === "tararear",
+              karaoke: song.karaoke,
+              karaoke_pause_seconds: song.karaoke_pause_seconds,
+              karaoke_lyric: song.karaoke_lyric,
+              trivia: song.trivia,
+              trivia_question: song.trivia_question,
+              trivia_answer: song.trivia_answer,
             })
           )
         );

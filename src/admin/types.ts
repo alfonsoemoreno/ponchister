@@ -21,6 +21,12 @@ export interface Song {
   isspanish: boolean;
   mimica: boolean;
   tararear: boolean;
+  karaoke: boolean;
+  karaoke_pause_seconds: number;
+  karaoke_lyric: string | null;
+  trivia: boolean;
+  trivia_question: string | null;
+  trivia_answer: string | null;
   youtube_status: YoutubeValidationStatus | null;
   youtube_validation_message: string | null;
   youtube_validation_code: number | null;
@@ -44,6 +50,12 @@ export interface SongInput {
   isspanish: boolean;
   mimica: boolean;
   tararear: boolean;
+  karaoke: boolean;
+  karaoke_pause_seconds: number;
+  karaoke_lyric: string | null;
+  trivia: boolean;
+  trivia_question: string | null;
+  trivia_answer: string | null;
 }
 
 export interface SongDuplicateMatch extends Song {

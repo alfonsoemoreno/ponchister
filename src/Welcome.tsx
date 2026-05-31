@@ -961,6 +961,43 @@ const Welcome: React.FC<WelcomeProps> = ({
                 variant="h6"
                 sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
               >
+                Canciones con karaoke
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(204,231,255,0.82)", mt: 0.6 }}
+              >
+                Si una canción tiene karaoke, aparecerá un botón para activarlo.
+                La canción volverá a comenzar y se pausará en el punto
+                configurado para que los jugadores continúen la letra. Cuando
+                presiones “Mostrar”, se revelará la información de la canción,
+                aparecerá la letra cargada y la reproducción continuará desde
+                esa pausa.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
+              >
+                Canciones con trivia
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "rgba(204,231,255,0.82)", mt: 0.6 }}
+              >
+                Si una canción tiene trivia, verás un botón para abrir la
+                pregunta en grande en cualquier momento, incluso mientras la
+                canción suena. Al presionar “Mostrar”, además de revelarse la
+                canción y el artista, también se mostrará la pregunta con su
+                respuesta para comprobar quién acertó.
+              </Typography>
+            </Box>
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: "rgba(224,239,255,0.95)" }}
+              >
                 Cómo ganar fichas
               </Typography>
               <Typography

@@ -53,6 +53,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     isspanish: isSpanishTagSelected(tags),
     mimica: body.mimica === true,
     tararear: body.tararear === true,
+    karaoke: body.karaoke === true,
+    karaoke_pause_seconds:
+      body.karaoke === true &&
+      typeof body.karaoke_pause_seconds === "number" &&
+      Number.isFinite(body.karaoke_pause_seconds)
+        ? Math.max(0, Math.trunc(body.karaoke_pause_seconds))
+        : 0,
+    karaoke_lyric:
+      body.karaoke === true && typeof body.karaoke_lyric === "string"
+        ? body.karaoke_lyric.trim() || null
+        : null,
+    trivia: body.trivia === true,
+    trivia_question:
+      body.trivia === true && typeof body.trivia_question === "string"
+        ? body.trivia_question.trim() || null
+        : null,
+    trivia_answer:
+      body.trivia === true && typeof body.trivia_answer === "string"
+        ? body.trivia_answer.trim() || null
+        : null,
   };
   const excludeId =
     typeof body.excludeId === "number" && Number.isFinite(body.excludeId)
@@ -77,6 +97,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       isspanish: songs.isSpanish,
       mimica: songs.mimica,
       tararear: songs.tararear,
+      karaoke: songs.karaoke,
+      karaoke_pause_seconds: songs.karaokePauseSeconds,
+      karaoke_lyric: songs.karaokeLyric,
+      trivia: songs.trivia,
+      trivia_question: songs.triviaQuestion,
+      trivia_answer: songs.triviaAnswer,
       youtube_status: songs.youtubeStatus,
       youtube_validation_message: songs.youtubeValidationMessage,
       youtube_validation_code: songs.youtubeValidationCode,

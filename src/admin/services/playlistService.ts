@@ -69,6 +69,19 @@ function normalizeSong(raw: Record<string, unknown>): Song {
     isspanish: isSpanishTagSelected(tags),
     mimica: raw.mimica === true,
     tararear: raw.tararear === true,
+    karaoke: raw.karaoke === true,
+    karaoke_pause_seconds:
+      typeof raw.karaoke_pause_seconds === "number" &&
+      Number.isFinite(raw.karaoke_pause_seconds)
+        ? Math.max(0, Math.trunc(raw.karaoke_pause_seconds))
+        : 0,
+    karaoke_lyric:
+      typeof raw.karaoke_lyric === "string" ? raw.karaoke_lyric : null,
+    trivia: raw.trivia === true,
+    trivia_question:
+      typeof raw.trivia_question === "string" ? raw.trivia_question : null,
+    trivia_answer:
+      typeof raw.trivia_answer === "string" ? raw.trivia_answer : null,
     youtube_status:
       raw.youtube_status === "unchecked" ||
       raw.youtube_status === "checking" ||

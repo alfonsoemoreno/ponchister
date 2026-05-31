@@ -128,6 +128,12 @@ async function hydratePlaylist(id: number) {
       isspanish: songs.isSpanish,
       mimica: songs.mimica,
       tararear: songs.tararear,
+      karaoke: songs.karaoke,
+      karaoke_pause_seconds: songs.karaokePauseSeconds,
+      karaoke_lyric: songs.karaokeLyric,
+      trivia: songs.trivia,
+      trivia_question: songs.triviaQuestion,
+      trivia_answer: songs.triviaAnswer,
       position: playlistSongs.position,
     })
     .from(playlistSongs)

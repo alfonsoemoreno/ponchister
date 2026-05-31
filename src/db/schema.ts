@@ -53,6 +53,14 @@ export const songs = pgTable(
     isSpanish: boolean("isspanish").notNull().default(false),
     mimica: boolean("mimica").notNull().default(false),
     tararear: boolean("tararear").notNull().default(false),
+    karaoke: boolean("karaoke").notNull().default(false),
+    karaokePauseSeconds: integer("karaoke_pause_seconds")
+      .notNull()
+      .default(0),
+    karaokeLyric: text("karaoke_lyric"),
+    trivia: boolean("trivia").notNull().default(false),
+    triviaQuestion: text("trivia_question"),
+    triviaAnswer: text("trivia_answer"),
     songAttributes: text("song_attributes")
       .array()
       .notNull()

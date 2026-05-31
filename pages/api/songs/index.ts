@@ -72,6 +72,12 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       isspanish: songs.isSpanish,
       mimica: songs.mimica,
       tararear: songs.tararear,
+      karaoke: songs.karaoke,
+      karaoke_pause_seconds: songs.karaokePauseSeconds,
+      karaoke_lyric: songs.karaokeLyric,
+      trivia: songs.trivia,
+      trivia_question: songs.triviaQuestion,
+      trivia_answer: songs.triviaAnswer,
     })
     .from(songs)
     .where(filters.length ? and(...filters) : undefined)

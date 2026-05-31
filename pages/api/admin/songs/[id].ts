@@ -108,6 +108,12 @@ function serializeSong(
     isspanish: boolean;
     mimica: boolean;
     tararear: boolean;
+    karaoke: boolean;
+    karaoke_pause_seconds: number;
+    karaoke_lyric: string | null;
+    trivia: boolean;
+    trivia_question: string | null;
+    trivia_answer: string | null;
     youtube_status: string | null;
     youtube_validation_message: string | null;
     youtube_validation_code: number | null;
@@ -162,6 +168,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : 0;
     const mimica = body.mimica === true;
     const tararear = body.tararear === true;
+    const karaoke = body.karaoke === true;
+    const karaokePauseSeconds =
+      karaoke &&
+      typeof body.karaoke_pause_seconds === "number" &&
+      Number.isFinite(body.karaoke_pause_seconds)
+        ? Math.max(0, Math.trunc(body.karaoke_pause_seconds))
+        : 0;
+    const karaokeLyric =
+      karaoke && typeof body.karaoke_lyric === "string"
+        ? body.karaoke_lyric.trim() || null
+        : null;
+    const trivia = body.trivia === true;
+    const triviaQuestion =
+      trivia && typeof body.trivia_question === "string"
+        ? body.trivia_question.trim() || null
+        : null;
+    const triviaAnswer =
+      trivia && typeof body.trivia_answer === "string"
+        ? body.trivia_answer.trim() || null
+        : null;
     const tags = syncSongModeTags(normalizeSongTags(body.tags, body.isspanish), {
       mimica,
       tararear,
@@ -210,6 +236,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         isSpanish,
         mimica,
         tararear,
+        karaoke,
+        karaokePauseSeconds,
+        karaokeLyric,
+        trivia,
+        triviaQuestion,
+        triviaAnswer,
         youtubeStatus: youtubeChanged
           ? youtubeValidation?.youtubeStatus ?? null
           : youtubeValidation?.youtubeStatus ?? undefined,
@@ -240,6 +272,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         isspanish: songs.isSpanish,
         mimica: songs.mimica,
         tararear: songs.tararear,
+        karaoke: songs.karaoke,
+        karaoke_pause_seconds: songs.karaokePauseSeconds,
+        karaoke_lyric: songs.karaokeLyric,
+        trivia: songs.trivia,
+        trivia_question: songs.triviaQuestion,
+        trivia_answer: songs.triviaAnswer,
         youtube_status: songs.youtubeStatus,
         youtube_validation_message: songs.youtubeValidationMessage,
         youtube_validation_code: songs.youtubeValidationCode,

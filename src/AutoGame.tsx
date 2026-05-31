@@ -8,6 +8,8 @@ import {
   Box,
   Button,
   CircularProgress,
+  Dialog,
+  DialogContent,
   IconButton,
   Stack,
   Slider,
@@ -23,6 +25,8 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CampaignIcon from "@mui/icons-material/Campaign";
+import MicIcon from "@mui/icons-material/Mic";
+import QuizIcon from "@mui/icons-material/Quiz";
 
 import { fetchAllSongs } from "./services/songService";
 import {
@@ -54,6 +58,7 @@ interface InternalPlayer {
   pauseVideo?: () => void;
   stopVideo?: () => void;
   getVolume?: () => number;
+  getCurrentTime?: () => number;
   seekTo?: (seconds: number, allowSeekAhead?: boolean) => void;
   unMute?: () => void;
   mute?: () => void;
@@ -224,6 +229,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [playerKey, setPlayerKey] = useState(0);
   const playerRef = useRef<PlayerRef>(null);
+  const mainPlayerApiRef = useRef<InternalPlayer | null>(null);
   const sadTrombonePlayerRef = useRef<PlayerRef>(null);
   const [spotlightVisible, setSpotlightVisible] = useState(false);
   const [spotlightValue, setSpotlightValue] = useState<string | number | null>(
@@ -251,9 +257,19 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const [localTararearEnabled, setLocalTararearEnabled] =
     useState<boolean>(tararearEnabled);
   const [specialTimerRunning, setSpecialTimerRunning] = useState(false);
+  const [karaokeEnabledForSong, setKaraokeEnabledForSong] = useState(false);
+  const [karaokePaused, setKaraokePaused] = useState(false);
+  const [karaokeCompleted, setKaraokeCompleted] = useState(false);
+  const [karaokePauseHandled, setKaraokePauseHandled] = useState(false);
+  const [karaokeLyricModalOpen, setKaraokeLyricModalOpen] = useState(false);
+  const [triviaQuestionModalOpen, setTriviaQuestionModalOpen] = useState(false);
+  const [triviaDetailModalOpen, setTriviaDetailModalOpen] = useState<
+    "question" | "answer" | null
+  >(null);
   const specialSongSeedRef = useRef(Math.random());
   const mimicaSeedRef = useRef(Math.random());
   const preDuckVolumeRef = useRef<number | null>(null);
+  const karaokePauseWatchRef = useRef<number | null>(null);
 
   useEffect(() => {
     setLocalRange(yearRange);
@@ -448,6 +464,31 @@ const AutoGame: React.FC<AutoGameProps> = ({
     () => (currentSong ? extractYoutubeId(currentSong.youtube_url) : null),
     [currentSong],
   );
+  const songHasKaraoke = useMemo(
+    () =>
+      Boolean(
+        currentSong?.karaoke &&
+          typeof currentSong.karaoke_lyric === "string" &&
+          currentSong.karaoke_lyric.trim()
+      ),
+    [currentSong]
+  );
+  const karaokePauseAtSeconds = useMemo(
+    () =>
+      Math.max(0, Math.trunc(currentSong?.karaoke_pause_seconds ?? 0)),
+    [currentSong]
+  );
+  const songHasTrivia = useMemo(
+    () =>
+      Boolean(
+        currentSong?.trivia &&
+          typeof currentSong.trivia_question === "string" &&
+          currentSong.trivia_question.trim() &&
+          typeof currentSong.trivia_answer === "string" &&
+          currentSong.trivia_answer.trim()
+      ),
+    [currentSong]
+  );
   const mimicaJoinUrl = useMemo(() => {
     if (typeof window === "undefined") {
       return "";
@@ -545,8 +586,11 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, []);
 
   const stopPlayback = useCallback(() => {
-    const internalPlayer =
-      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
+    if (karaokePauseWatchRef.current !== null) {
+      clearInterval(karaokePauseWatchRef.current);
+      karaokePauseWatchRef.current = null;
+    }
+    const internalPlayer = mainPlayerApiRef.current;
     if (internalPlayer && typeof internalPlayer.stopVideo === "function") {
       internalPlayer.stopVideo();
     }
@@ -554,8 +598,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, []);
 
   const restoreMainPlayerVolume = useCallback(() => {
-    const internalPlayer =
-      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
+    const internalPlayer = mainPlayerApiRef.current;
     if (!internalPlayer) return;
 
     const restoredVolume =
@@ -565,8 +608,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, []);
 
   const duckMainPlayerVolume = useCallback(() => {
-    const internalPlayer =
-      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
+    const internalPlayer = mainPlayerApiRef.current;
     if (!internalPlayer || !isPlaying) return;
 
     if (preDuckVolumeRef.current === null) {
@@ -586,6 +628,13 @@ const AutoGame: React.FC<AutoGameProps> = ({
     internalPlayer?.stopVideo?.();
     restoreMainPlayerVolume();
   }, [restoreMainPlayerVolume]);
+
+  const clearKaraokePauseWatch = useCallback(() => {
+    if (karaokePauseWatchRef.current !== null) {
+      clearInterval(karaokePauseWatchRef.current);
+      karaokePauseWatchRef.current = null;
+    }
+  }, []);
 
   const clearTimerInterval = useCallback(() => {
     if (timerIntervalRef.current !== null) {
@@ -616,6 +665,16 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [currentSong, clearYearSpotlightTimeout, runViewTransition]);
 
   useEffect(() => {
+    setKaraokeEnabledForSong(false);
+    setKaraokePaused(false);
+    setKaraokeCompleted(false);
+    setKaraokePauseHandled(false);
+    setKaraokeLyricModalOpen(false);
+    setTriviaQuestionModalOpen(false);
+    setTriviaDetailModalOpen(null);
+  }, [currentSong]);
+
+  useEffect(() => {
     if (queueStatus === "loading") {
       setGameState("loading");
     }
@@ -638,6 +697,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
       gameState !== "playing" ||
       timerLocked ||
       !timerStarted ||
+      karaokePaused ||
       (hasSpecialRemoteRound && !specialTimerRunning)
     ) {
       clearTimerInterval();
@@ -676,11 +736,56 @@ const AutoGame: React.FC<AutoGameProps> = ({
     clearTimerInterval,
     gameState,
     hasSpecialRemoteRound,
+    karaokePaused,
     specialTimerRunning,
     stopPlayback,
     timerEnabled,
     timerLocked,
     timerStarted,
+  ]);
+
+  useEffect(() => {
+    if (
+      !songHasKaraoke ||
+      !karaokeEnabledForSong ||
+      karaokePauseHandled ||
+      !isPlaying
+    ) {
+      clearKaraokePauseWatch();
+      return;
+    }
+
+    const internalPlayer = mainPlayerApiRef.current;
+    if (!internalPlayer?.getCurrentTime || !internalPlayer.pauseVideo) {
+      return;
+    }
+
+    karaokePauseWatchRef.current = window.setInterval(() => {
+      const currentTime = internalPlayer.getCurrentTime?.();
+      if (
+        typeof currentTime !== "number" ||
+        !Number.isFinite(currentTime) ||
+        currentTime + 0.15 < karaokePauseAtSeconds
+      ) {
+        return;
+      }
+
+      clearKaraokePauseWatch();
+      internalPlayer.pauseVideo?.();
+      setKaraokePaused(true);
+      setKaraokePauseHandled(true);
+    }, 250);
+
+    return () => {
+      clearKaraokePauseWatch();
+    };
+  }, [
+    clearKaraokePauseWatch,
+    isPlaying,
+    karaokeEnabledForSong,
+    karaokePauseAtSeconds,
+    karaokePauseHandled,
+    songHasKaraoke,
   ]);
 
   const applyPlaybackOptimizations = useCallback(
@@ -714,11 +819,19 @@ const AutoGame: React.FC<AutoGameProps> = ({
     [clearTimerInterval],
   );
 
+  useEffect(
+    () => () => {
+      clearKaraokePauseWatch();
+    },
+    [clearKaraokePauseWatch],
+  );
+
   const advanceToNextSong = useCallback(() => {
     void runViewTransition(() => {
       setErrorMessage(null);
       setGameState("loading");
       setIsPlaying(false);
+      clearKaraokePauseWatch();
       stopPlayback();
       stopSadTrombone();
       clearYearSpotlightTimeout();
@@ -727,6 +840,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     });
   }, [
     advanceQueue,
+    clearKaraokePauseWatch,
     clearYearSpotlightTimeout,
     resetTimerState,
     runViewTransition,
@@ -792,13 +906,40 @@ const AutoGame: React.FC<AutoGameProps> = ({
       setTimerLocked(false);
       setTimerStarted(false);
       setSpecialTimerRunning(false);
+      if (karaokePaused && karaokeEnabledForSong) {
+        const internalPlayer = mainPlayerApiRef.current;
+        if (internalPlayer) {
+          setKaraokePaused(false);
+          setKaraokeCompleted(true);
+          applyPlaybackOptimizations(internalPlayer);
+          internalPlayer.unMute?.();
+          internalPlayer.setVolume?.(100);
+          internalPlayer.seekTo?.(karaokePauseAtSeconds, true);
+          const maybePromise = internalPlayer.playVideo?.();
+          if (
+            maybePromise &&
+            typeof maybePromise === "object" &&
+            typeof (maybePromise as Promise<unknown>).catch === "function"
+          ) {
+            (maybePromise as Promise<unknown>).catch(() => {
+              setErrorMessage(
+                'No se pudo reanudar automáticamente. Presiona play para seguir desde la pausa del karaoke.'
+              );
+            });
+          }
+        }
+      }
       if (currentSong && typeof currentSong.year === "number") {
         triggerSpotlight("Año", currentSong.year);
       }
     });
   }, [
+    applyPlaybackOptimizations,
     clearTimerInterval,
     currentSong,
+    karaokeEnabledForSong,
+    karaokePauseAtSeconds,
+    karaokePaused,
     runViewTransition,
     triggerSpotlight,
   ]);
@@ -820,15 +961,52 @@ const AutoGame: React.FC<AutoGameProps> = ({
     advanceToNextSong();
   }, [advanceToNextSong]);
 
+  const handleToggleKaraokeMode = useCallback(() => {
+    if (!songHasKaraoke) {
+      return;
+    }
+    const internalPlayer = mainPlayerApiRef.current;
+    const startSeconds = Math.max(
+      0,
+      Math.trunc(currentSong?.play_start_seconds ?? 0)
+    );
+
+    setKaraokeEnabledForSong((prev) => {
+      const next = !prev;
+      setKaraokePaused(false);
+      setKaraokeCompleted(false);
+      setKaraokePauseHandled(false);
+      clearKaraokePauseWatch();
+
+      if (next && internalPlayer) {
+        setGameState("playing");
+        setTimerStarted(true);
+        applyPlaybackOptimizations(internalPlayer);
+        internalPlayer.unMute?.();
+        internalPlayer.setVolume?.(100);
+        internalPlayer.seekTo?.(startSeconds, true);
+        internalPlayer.playVideo?.();
+      }
+
+      return next;
+    });
+  }, [
+    applyPlaybackOptimizations,
+    clearKaraokePauseWatch,
+    currentSong,
+    songHasKaraoke,
+  ]);
+
   const handlePlayerError = useCallback<
     NonNullable<YouTubeProps["onError"]>
   >(() => {
+    clearKaraokePauseWatch();
     setIsPlaying(false);
     setErrorMessage(
       "No se pudo reproducir el video de esta canción. Pasamos a otra pista.",
     );
     advanceToNextSong();
-  }, [advanceToNextSong]);
+  }, [advanceToNextSong, clearKaraokePauseWatch]);
 
   const handleExit = useCallback(() => {
     void runViewTransition(() => {
@@ -838,12 +1016,14 @@ const AutoGame: React.FC<AutoGameProps> = ({
       setGameState("idle");
       setErrorMessage(null);
       setIsPlaying(false);
+      clearKaraokePauseWatch();
       clearYearSpotlightTimeout();
       resetTimerState();
       onExit();
     });
   }, [
     clearYearSpotlightTimeout,
+    clearKaraokePauseWatch,
     onExit,
     resetTimerState,
     resetQueue,
@@ -856,6 +1036,13 @@ const AutoGame: React.FC<AutoGameProps> = ({
     if (timerEnabled && timerLocked && gameState === "playing") {
       setErrorMessage(
         "Se acabó el tiempo. Revela la canción para continuar con la partida.",
+      );
+      return;
+    }
+
+    if (karaokePaused && karaokeEnabledForSong) {
+      setErrorMessage(
+        'La pista está pausada para karaoke. Presiona "Mostrar" para revelar y continuar.'
       );
       return;
     }
@@ -874,8 +1061,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
       return;
     }
 
-    const internalPlayer =
-      playerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
+    const internalPlayer = mainPlayerApiRef.current;
     if (!internalPlayer) return;
 
     if (isPlaying) {
@@ -917,6 +1103,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
       0,
       Math.trunc(currentSong?.play_start_seconds ?? 0)
     );
+    mainPlayerApiRef.current =
+      (event.target as unknown as InternalPlayer) ?? null;
     setIsPlaying(false);
     applyPlaybackOptimizations(
       (event.target as unknown as InternalPlayer) ?? null,
@@ -952,6 +1140,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
   };
 
   const handlePlayerStateChange: YouTubeProps["onStateChange"] = (event) => {
+    mainPlayerApiRef.current =
+      (event.target as unknown as InternalPlayer) ?? null;
     const playerState = event.data;
     if (playerState === 1) {
       applyPlaybackOptimizations(
@@ -973,6 +1163,14 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
     const showDetails = mode === "reveal";
     const showRemoteQr = !showDetails && hasSpecialRemoteRound && !timerStarted;
+    const showKaraokeBadge = songHasKaraoke && !showRemoteQr;
+    const showTriviaBadge = songHasTrivia && !showRemoteQr;
+    const showKaraokeLyric =
+      showDetails &&
+      karaokeEnabledForSong &&
+      Boolean(currentSong.karaoke_lyric) &&
+      karaokeCompleted;
+    const showTriviaDetails = showDetails && songHasTrivia;
     const remoteModeLabel =
       specialRoundMode === "tararear" ? "tararear" : "mímica";
     const songYear =
@@ -990,29 +1188,45 @@ const AutoGame: React.FC<AutoGameProps> = ({
         ? "Escanea el QR y controla la pista desde otro dispositivo."
         : "Escucha, siente y deja que la intuición te guíe.";
     const description = showDetails
-      ? "Disfruta visuales envolventes inspirados en tu canción. Sigue jugando para descubrir nuevas portadas y ambientes memorables."
+      ? karaokeCompleted && karaokeEnabledForSong
+          ? "El karaoke ya se reanudó y toda la información quedó descubierta, incluida la letra configurada."
+          : showTriviaDetails
+            ? "La canción ya quedó descubierta. También puedes abrir la trivia y revisar la pregunta con su respuesta."
+          : "Disfruta visuales envolventes inspirados en tu canción. Sigue jugando para descubrir nuevas portadas y ambientes memorables."
       : showRemoteQr
         ? specialRoundMode === "tararear"
           ? "Cuando alguien mantenga presionado el botón en el celular verá el título y el artista, y además la canción sonará ahí al 30%."
           : "Cuando alguien mantenga presionado el botón en el celular verá el título y el artista."
-        : 'Mantén el suspenso: cuando creas tener la respuesta, presiona "Mostrar" para confirmar tu apuesta.';
+        : karaokePaused && karaokeEnabledForSong
+          ? 'La pista quedó pausada para karaoke. Presiona "Mostrar" para revelar la información, ver la letra y continuar.'
+        : songHasTrivia
+          ? 'Puedes abrir la trivia en cualquier momento. Cuando quieras confirmar la canción, presiona "Mostrar".'
+          : 'Mantén el suspenso: cuando creas tener la respuesta, presiona "Mostrar" para confirmar tu apuesta.';
     const highlightedYear = showDetails && songYear !== null ? songYear : null;
 
     const statusCaptionLabel = showDetails
-      ? "Reproduciendo"
+      ? karaokeCompleted && karaokeEnabledForSong
+          ? "Karaoke reanudado"
+          : "Reproduciendo"
       : showRemoteQr
         ? specialRoundMode === "tararear"
           ? "Tararear activo"
           : "Mímica activa"
+        : karaokePaused && karaokeEnabledForSong
+          ? "Karaoke pausado"
         : "En modo sorpresa";
     const statusCaptionDescription = showDetails
-      ? "Usa los controles para pasar o salir de la partida cuando quieras."
+      ? karaokeCompleted && karaokeEnabledForSong
+          ? "La canción sigue sonando desde la pausa del karaoke con toda la información visible."
+          : "Usa los controles para pasar o salir de la partida cuando quieras."
       : showRemoteQr
         ? timerStarted
           ? specialRoundMode === "tararear"
             ? "El temporizador ya corre. El audio solo suena en el celular mientras mantienen el botón apretado."
             : "El temporizador ya corre. La información depende del botón remoto."
           : "Presiona play para iniciar los 60 segundos."
+        : karaokePaused && karaokeEnabledForSong
+          ? 'La canción se detuvo en el punto de karaoke. Usa "Mostrar" para continuar.'
         : "Puedes pausar, saltar o revelar en cualquier momento.";
 
     const primaryAction = showDetails
@@ -1273,6 +1487,46 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     </IconButton>
                   </Box>
                 ) : null}
+                {showKaraokeBadge ? (
+                  <Chip
+                    icon={<MicIcon />}
+                    label={
+                      karaokeEnabledForSong
+                        ? karaokePaused
+                          ? "Karaoke en pausa"
+                          : karaokeCompleted
+                            ? "Karaoke activo"
+                            : "Karaoke armado"
+                        : "Karaoke disponible"
+                    }
+                    sx={{
+                      mt: { xs: 0.8, sm: 1 },
+                      backgroundColor: karaokeEnabledForSong
+                        ? "rgba(251,191,36,0.22)"
+                        : "rgba(255,255,255,0.1)",
+                      color: theme.text.primary,
+                      border: "1px solid rgba(255,255,255,0.18)",
+                      ".MuiChip-icon": {
+                        color: "inherit",
+                      },
+                    }}
+                  />
+                ) : null}
+                {showTriviaBadge ? (
+                  <Chip
+                    icon={<QuizIcon />}
+                    label="Trivia disponible"
+                    sx={{
+                      mt: { xs: 0.8, sm: 1 },
+                      backgroundColor: "rgba(125,211,252,0.14)",
+                      color: theme.text.primary,
+                      border: "1px solid rgba(255,255,255,0.18)",
+                      ".MuiChip-icon": {
+                        color: "inherit",
+                      },
+                    }}
+                  />
+                ) : null}
               </Stack>
               <Typography
                 variant="body1"
@@ -1284,6 +1538,178 @@ const AutoGame: React.FC<AutoGameProps> = ({
               >
                 {description}
               </Typography>
+              {songHasKaraoke && !showDetails && !showRemoteQr ? (
+                <Button
+                  variant={karaokeEnabledForSong ? "contained" : "outlined"}
+                  color="inherit"
+                  startIcon={<MicIcon />}
+                  onClick={handleToggleKaraokeMode}
+                  sx={{
+                    alignSelf: "flex-start",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    px: 2.2,
+                    py: 1,
+                    color: karaokeEnabledForSong
+                      ? theme.primaryButton.textColor
+                      : theme.text.primary,
+                    background: karaokeEnabledForSong
+                      ? theme.primaryButton.background
+                      : "rgba(255,255,255,0.06)",
+                    borderColor: "rgba(255,255,255,0.2)",
+                  }}
+                >
+                  {karaokeEnabledForSong ? "Karaoke activado" : "Activar karaoke"}
+                </Button>
+              ) : null}
+              {songHasTrivia ? (
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<QuizIcon />}
+                  onClick={() => setTriviaQuestionModalOpen(true)}
+                  sx={{
+                    alignSelf: "flex-start",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    px: 2.2,
+                    py: 1,
+                    color: theme.text.primary,
+                    background: "rgba(255,255,255,0.06)",
+                    borderColor: "rgba(255,255,255,0.2)",
+                  }}
+                >
+                  Abrir trivia
+                </Button>
+              ) : null}
+              {showKaraokeLyric ? (
+                <Box
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setKaraokeLyricModalOpen(true)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setKaraokeLyricModalOpen(true);
+                    }
+                  }}
+                  sx={{
+                    maxWidth: 520,
+                    width: "100%",
+                    p: { xs: 2, sm: 2.5 },
+                    borderRadius: 3,
+                    border: "1px solid rgba(255,255,255,0.16)",
+                    background:
+                      "linear-gradient(180deg, rgba(251,191,36,0.14), rgba(255,255,255,0.05))",
+                    backdropFilter: "blur(12px)",
+                    cursor: "pointer",
+                    transition: "transform 140ms ease, box-shadow 140ms ease",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 18px 36px rgba(15,23,42,0.24)",
+                    },
+                  }}
+                >
+                  <Stack spacing={0.8}>
+                    <Typography
+                      variant="overline"
+                      sx={{ letterSpacing: 2.2, color: theme.status.label }}
+                    >
+                      Letra de karaoke
+                    </Typography>
+                    <Typography
+                      variant="h6"
+                      sx={{ color: theme.text.primary, lineHeight: 1.35 }}
+                    >
+                      {currentSong.karaoke_lyric}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: theme.text.secondary }}
+                    >
+                      Toca la letra para verla en pantalla completa.
+                    </Typography>
+                  </Stack>
+                </Box>
+              ) : null}
+              {showTriviaDetails ? (
+                <Stack spacing={1.5} sx={{ maxWidth: 520, width: "100%" }}>
+                  <Box
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setTriviaDetailModalOpen("question")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setTriviaDetailModalOpen("question");
+                      }
+                    }}
+                    sx={{
+                      width: "100%",
+                      p: { xs: 2, sm: 2.4 },
+                      borderRadius: 3,
+                      border: "1px solid rgba(255,255,255,0.16)",
+                      background:
+                        "linear-gradient(180deg, rgba(125,211,252,0.16), rgba(255,255,255,0.05))",
+                      backdropFilter: "blur(12px)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Stack spacing={0.8}>
+                      <Typography
+                        variant="overline"
+                        sx={{ letterSpacing: 2.2, color: theme.status.label }}
+                      >
+                        Pregunta trivia
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        sx={{ color: theme.text.primary, lineHeight: 1.35 }}
+                      >
+                        {currentSong.trivia_question}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                  <Box
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setTriviaDetailModalOpen("answer")}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setTriviaDetailModalOpen("answer");
+                      }
+                    }}
+                    sx={{
+                      width: "100%",
+                      p: { xs: 2, sm: 2.4 },
+                      borderRadius: 3,
+                      border: "1px solid rgba(255,255,255,0.16)",
+                      background:
+                        "linear-gradient(180deg, rgba(251,191,36,0.16), rgba(255,255,255,0.05))",
+                      backdropFilter: "blur(12px)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Stack spacing={0.8}>
+                      <Typography
+                        variant="overline"
+                        sx={{ letterSpacing: 2.2, color: theme.status.label }}
+                      >
+                        Respuesta trivia
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        sx={{ color: theme.text.primary, lineHeight: 1.35 }}
+                      >
+                        {currentSong.trivia_answer}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                </Stack>
+              ) : null}
               {displayedArtworkError ? (
                 <Typography
                   variant="caption"
@@ -2416,6 +2842,160 @@ const AutoGame: React.FC<AutoGameProps> = ({
       >
         {renderControls()}
       </Box>
+      <Dialog
+        open={karaokeLyricModalOpen}
+        onClose={() => setKaraokeLyricModalOpen(false)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogContent
+          sx={{
+            px: { xs: 3, sm: 5 },
+            py: { xs: 4, sm: 5 },
+            background:
+              "linear-gradient(180deg, rgba(12,24,48,0.98), rgba(20,32,58,0.98))",
+            color: "#f8fbff",
+          }}
+        >
+          <Stack spacing={3}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              spacing={2}
+            >
+              <Typography
+                variant="overline"
+                sx={{ letterSpacing: 2.4, color: "rgba(125,211,252,0.9)" }}
+              >
+                Letra Karaoke
+              </Typography>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={() => setKaraokeLyricModalOpen(false)}
+                sx={{ textTransform: "none", borderRadius: 999 }}
+              >
+                Cerrar
+              </Button>
+            </Stack>
+            <Typography
+              variant="h4"
+              sx={{
+                lineHeight: 1.35,
+                whiteSpace: "pre-wrap",
+                color: "#f8fbff",
+              }}
+            >
+              {currentSong?.karaoke_lyric ?? ""}
+            </Typography>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={triviaQuestionModalOpen}
+        onClose={() => setTriviaQuestionModalOpen(false)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogContent
+          sx={{
+            px: { xs: 3, sm: 5 },
+            py: { xs: 4, sm: 5 },
+            background:
+              "linear-gradient(180deg, rgba(10,32,56,0.98), rgba(20,40,72,0.98))",
+            color: "#f8fbff",
+          }}
+        >
+          <Stack spacing={3}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              spacing={2}
+            >
+              <Typography
+                variant="overline"
+                sx={{ letterSpacing: 2.4, color: "rgba(125,211,252,0.9)" }}
+              >
+                Trivia
+              </Typography>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={() => setTriviaQuestionModalOpen(false)}
+                sx={{ textTransform: "none", borderRadius: 999 }}
+              >
+                Cerrar
+              </Button>
+            </Stack>
+            <Typography
+              variant="h4"
+              sx={{
+                lineHeight: 1.35,
+                whiteSpace: "pre-wrap",
+                color: "#f8fbff",
+              }}
+            >
+              {currentSong?.trivia_question ?? ""}
+            </Typography>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={triviaDetailModalOpen !== null}
+        onClose={() => setTriviaDetailModalOpen(null)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogContent
+          sx={{
+            px: { xs: 3, sm: 5 },
+            py: { xs: 4, sm: 5 },
+            background:
+              "linear-gradient(180deg, rgba(14,24,44,0.98), rgba(18,28,52,0.98))",
+            color: "#f8fbff",
+          }}
+        >
+          <Stack spacing={3}>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              spacing={2}
+            >
+              <Typography
+                variant="overline"
+                sx={{ letterSpacing: 2.4, color: "rgba(251,191,36,0.9)" }}
+              >
+                {triviaDetailModalOpen === "answer"
+                  ? "Respuesta Trivia"
+                  : "Pregunta Trivia"}
+              </Typography>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={() => setTriviaDetailModalOpen(null)}
+                sx={{ textTransform: "none", borderRadius: 999 }}
+              >
+                Cerrar
+              </Button>
+            </Stack>
+            <Typography
+              variant="h4"
+              sx={{
+                lineHeight: 1.35,
+                whiteSpace: "pre-wrap",
+                color: "#f8fbff",
+              }}
+            >
+              {triviaDetailModalOpen === "answer"
+                ? currentSong?.trivia_answer ?? ""
+                : currentSong?.trivia_question ?? ""}
+            </Typography>
+          </Stack>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };

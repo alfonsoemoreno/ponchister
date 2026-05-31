@@ -43,6 +43,12 @@ type FormState = {
   tags: SongTag[];
   mimica: boolean;
   tararear: boolean;
+  karaoke: boolean;
+  karaoke_pause_seconds: string;
+  karaoke_lyric: string;
+  trivia: boolean;
+  trivia_question: string;
+  trivia_answer: string;
 };
 
 const EMPTY_STATE: FormState = {
@@ -54,6 +60,12 @@ const EMPTY_STATE: FormState = {
   tags: [],
   mimica: false,
   tararear: false,
+  karaoke: false,
+  karaoke_pause_seconds: "0",
+  karaoke_lyric: "",
+  trivia: false,
+  trivia_question: "",
+  trivia_answer: "",
 };
 
 export default function SongFormDialog({
@@ -83,6 +95,12 @@ export default function SongFormDialog({
         tags: normalizeSongTags(initialValue.tags, initialValue.isspanish),
         mimica: initialValue.mimica === true,
         tararear: initialValue.tararear === true,
+        karaoke: initialValue.karaoke === true,
+        karaoke_pause_seconds: String(initialValue.karaoke_pause_seconds ?? 0),
+        karaoke_lyric: initialValue.karaoke_lyric ?? "",
+        trivia: initialValue.trivia === true,
+        trivia_question: initialValue.trivia_question ?? "",
+        trivia_answer: initialValue.trivia_answer ?? "",
       });
       setErrors({});
       return;
@@ -118,6 +136,26 @@ export default function SongFormDialog({
     setValues((prev) => ({ ...prev, tararear: event.target.checked }));
   };
 
+  const handleKaraokeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = event.target.checked;
+    setValues((prev) => ({
+      ...prev,
+      karaoke: checked,
+      karaoke_pause_seconds: checked ? prev.karaoke_pause_seconds : "0",
+      karaoke_lyric: checked ? prev.karaoke_lyric : "",
+    }));
+  };
+
+  const handleTriviaChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = event.target.checked;
+    setValues((prev) => ({
+      ...prev,
+      trivia: checked,
+      trivia_question: checked ? prev.trivia_question : "",
+      trivia_answer: checked ? prev.trivia_answer : "",
+    }));
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -145,6 +183,34 @@ export default function SongFormDialog({
       parsedPlayStartSeconds === ""
         ? 0
         : Number.parseInt(parsedPlayStartSeconds, 10);
+    const parsedKaraokePauseSeconds = values.karaoke_pause_seconds.trim();
+    const karaokePauseSecondsValue =
+      parsedKaraokePauseSeconds === ""
+        ? 0
+        : Number.parseInt(parsedKaraokePauseSeconds, 10);
+
+    if (values.karaoke) {
+      if (Number.isNaN(karaokePauseSecondsValue) || karaokePauseSecondsValue < 0) {
+        nextErrors.karaoke_pause_seconds = "Indica un segundo de pausa válido";
+      }
+      if (!values.karaoke_lyric.trim()) {
+        nextErrors.karaoke_lyric = "Debes agregar la letra del karaoke";
+      }
+    }
+
+    if (values.trivia) {
+      if (!values.trivia_question.trim()) {
+        nextErrors.trivia_question = "Debes agregar la pregunta de trivia";
+      }
+      if (!values.trivia_answer.trim()) {
+        nextErrors.trivia_answer = "Debes agregar la respuesta de trivia";
+      }
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
 
     const tags = normalizeSongTags(values.tags);
     const payload: SongInput = {
@@ -159,6 +225,15 @@ export default function SongFormDialog({
       isspanish: isSpanishTagSelected(tags),
       mimica: values.mimica,
       tararear: values.tararear,
+      karaoke: values.karaoke,
+      karaoke_pause_seconds:
+        values.karaoke && !Number.isNaN(karaokePauseSecondsValue)
+          ? Math.max(0, karaokePauseSecondsValue)
+          : 0,
+      karaoke_lyric: values.karaoke ? values.karaoke_lyric.trim() : null,
+      trivia: values.trivia,
+      trivia_question: values.trivia ? values.trivia_question.trim() : null,
+      trivia_answer: values.trivia ? values.trivia_answer.trim() : null,
     };
 
     const submitted = await onSubmit(payload);
@@ -272,6 +347,26 @@ export default function SongFormDialog({
                 }
                 label="Modo tararear"
               />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={values.karaoke}
+                    onChange={handleKaraokeChange}
+                    disabled={loading}
+                  />
+                }
+                label="Modo karaoke"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={values.trivia}
+                    onChange={handleTriviaChange}
+                    disabled={loading}
+                  />
+                }
+                label="Modo trivia"
+              />
             </Stack>
             <Typography variant="body2" sx={{ mb: 0.75, color: "text.secondary" }}>
               Mímica: QR y control remoto para revelar la canción en otro dispositivo.
@@ -279,7 +374,79 @@ export default function SongFormDialog({
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
               Tararear: igual que mímica, pero además la canción suena al 30% en el celular mientras se mantiene el botón apretado.
             </Typography>
+            <Typography variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
+              Karaoke: la canción se pausa en el segundo configurado para que continúen la letra antes de seguir reproduciendo.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
+              Trivia: permite abrir una pregunta en grande y revelar su respuesta junto con la canción.
+            </Typography>
           </Box>
+          {values.karaoke ? (
+            <Stack spacing={2}>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
+                <TextField
+                  label="Pausar en segundo"
+                  value={values.karaoke_pause_seconds}
+                  onChange={handleChange("karaoke_pause_seconds")}
+                  type="number"
+                  inputProps={{ inputMode: "numeric", min: 0, step: 1 }}
+                  error={Boolean(errors.karaoke_pause_seconds)}
+                  helperText={
+                    errors.karaoke_pause_seconds ??
+                    "Segundo exacto del video donde la pista debe detenerse."
+                  }
+                  fullWidth
+                  disabled={loading}
+                />
+              </Stack>
+              <TextField
+                label="Letra del karaoke"
+                value={values.karaoke_lyric}
+                onChange={handleChange("karaoke_lyric")}
+                error={Boolean(errors.karaoke_lyric)}
+                helperText={
+                  errors.karaoke_lyric ??
+                  "Texto que aparecerá después de pausar para comprobar la continuación."
+                }
+                multiline
+                minRows={3}
+                fullWidth
+                disabled={loading}
+              />
+            </Stack>
+          ) : null}
+          {values.trivia ? (
+            <Stack spacing={2}>
+              <TextField
+                label="Pregunta trivia"
+                value={values.trivia_question}
+                onChange={handleChange("trivia_question")}
+                error={Boolean(errors.trivia_question)}
+                helperText={
+                  errors.trivia_question ??
+                  "Pregunta que se podrá abrir en un modal grande durante el juego."
+                }
+                multiline
+                minRows={2}
+                fullWidth
+                disabled={loading}
+              />
+              <TextField
+                label="Respuesta trivia"
+                value={values.trivia_answer}
+                onChange={handleChange("trivia_answer")}
+                error={Boolean(errors.trivia_answer)}
+                helperText={
+                  errors.trivia_answer ??
+                  "Respuesta que aparecerá al descubrir la canción."
+                }
+                multiline
+                minRows={2}
+                fullWidth
+                disabled={loading}
+              />
+            </Stack>
+          ) : null}
           <Box>
             <Typography
               variant="subtitle2"

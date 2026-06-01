@@ -227,8 +227,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const [gameState, setGameState] = useState<GameState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [playerKey, setPlayerKey] = useState(0);
-  const playerRef = useRef<PlayerRef>(null);
   const mainPlayerApiRef = useRef<InternalPlayer | null>(null);
   const sadTrombonePlayerRef = useRef<PlayerRef>(null);
   const [spotlightVisible, setSpotlightVisible] = useState(false);
@@ -656,7 +654,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
       return;
     }
     void runViewTransition(() => {
-      setPlayerKey((prev) => prev + 1);
       setIsPlaying(false);
       setGameState("playing");
       setErrorMessage(null);
@@ -2785,31 +2782,27 @@ const AutoGame: React.FC<AutoGameProps> = ({
         viewTransitionName: "auto-game-root",
       }}
     >
-      {videoId && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 40,
-            height: 20,
-            zIndex: 1,
-            opacity: 0.01,
-            pointerEvents: "none",
-          }}
-        >
-          <YouTube
-            key={playerKey}
-            videoId={videoId}
-            opts={playerOptions}
-            ref={playerRef}
-            onReady={handlePlayerReady}
-            onError={handlePlayerError}
-            onStateChange={handlePlayerStateChange}
-          />
-        </Box>
-      )}
+      <Box
+        sx={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 40,
+          height: 20,
+          zIndex: 1,
+          opacity: 0.01,
+          pointerEvents: "none",
+        }}
+      >
+        <YouTube
+          videoId={videoId ?? ""}
+          opts={playerOptions}
+          onReady={handlePlayerReady}
+          onError={handlePlayerError}
+          onStateChange={handlePlayerStateChange}
+        />
+      </Box>
       <Box
         sx={{
           position: "absolute",

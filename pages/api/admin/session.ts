@@ -1,5 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { requireAdmin } from "../_admin";
+import { eq } from "drizzle-orm";
+import { adminUsers } from "../../../src/db/schema";
+import { db } from "../_db";
+import { getAdminSession, getClearSessionCookie } from "../_auth";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   if (req.method !== "GET") {
@@ -8,8 +11,30 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     return;
   }
 
-  const user = await requireAdmin(req, res);
-  if (!user) {
+  const session = getAdminSession(req);
+  if (!session) {
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ user: null }));
+    return;
+  }
+
+  const [user] = await db
+    .select({
+      id: adminUsers.id,
+      email: adminUsers.email,
+      role: adminUsers.role,
+      displayName: adminUsers.displayName,
+      avatarUrl: adminUsers.avatarUrl,
+      active: adminUsers.active,
+    })
+    .from(adminUsers)
+    .where(eq(adminUsers.id, session.id))
+    .limit(1);
+
+  if (!user || !user.active) {
+    res.setHeader("Set-Cookie", getClearSessionCookie());
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ user: null }));
     return;
   }
 

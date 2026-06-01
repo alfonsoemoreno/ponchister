@@ -255,6 +255,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const [localTararearEnabled, setLocalTararearEnabled] =
     useState<boolean>(tararearEnabled);
   const [specialTimerRunning, setSpecialTimerRunning] = useState(false);
+  const [sessionStarted, setSessionStarted] = useState(false);
   const [karaokeEnabledForSong, setKaraokeEnabledForSong] = useState(false);
   const [karaokePaused, setKaraokePaused] = useState(false);
   const [karaokeCompleted, setKaraokeCompleted] = useState(false);
@@ -674,6 +675,12 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [currentSong]);
 
   useEffect(() => {
+    if (!sessionStarted) {
+      if (!currentSong) {
+        setGameState("idle");
+      }
+      return;
+    }
     if (queueStatus === "loading") {
       setGameState("loading");
     }
@@ -683,7 +690,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     if (queueStatus === "idle" && !currentSong) {
       setGameState("idle");
     }
-  }, [currentSong, queueStatus]);
+  }, [currentSong, queueStatus, sessionStarted]);
 
   useEffect(() => {
     resetTimerState();
@@ -849,6 +856,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
   const handleStart = useCallback(() => {
     void runViewTransition(async () => {
+      setSessionStarted(true);
       setErrorMessage(null);
       setGameState("loading");
       setIsPlaying(false);
@@ -1012,6 +1020,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
   const handleExit = useCallback(() => {
     exitingRef.current = true;
+    setSessionStarted(false);
     clearKaraokePauseWatch();
     clearYearSpotlightTimeout();
     resetTimerState();

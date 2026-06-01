@@ -268,6 +268,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const mimicaSeedRef = useRef(Math.random());
   const preDuckVolumeRef = useRef<number | null>(null);
   const karaokePauseWatchRef = useRef<number | null>(null);
+  const exitingRef = useRef(false);
 
   useEffect(() => {
     setLocalRange(yearRange);
@@ -662,6 +663,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [currentSong, clearYearSpotlightTimeout, runViewTransition]);
 
   useEffect(() => {
+    exitingRef.current = false;
     setKaraokeEnabledForSong(false);
     setKaraokePaused(false);
     setKaraokeCompleted(false);
@@ -997,6 +999,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const handlePlayerError = useCallback<
     NonNullable<YouTubeProps["onError"]>
   >(() => {
+    if (exitingRef.current) {
+      return;
+    }
     clearKaraokePauseWatch();
     setIsPlaying(false);
     setErrorMessage(
@@ -1006,25 +1011,26 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [advanceToNextSong, clearKaraokePauseWatch]);
 
   const handleExit = useCallback(() => {
-    void runViewTransition(() => {
-      stopPlayback();
-      stopSadTrombone();
-      resetQueue();
-      setGameState("idle");
-      setErrorMessage(null);
-      setIsPlaying(false);
-      clearKaraokePauseWatch();
-      clearYearSpotlightTimeout();
-      resetTimerState();
+    exitingRef.current = true;
+    clearKaraokePauseWatch();
+    clearYearSpotlightTimeout();
+    resetTimerState();
+    stopPlayback();
+    stopSadTrombone();
+    mainPlayerApiRef.current = null;
+    resetQueue();
+    setGameState("idle");
+    setErrorMessage(null);
+    setIsPlaying(false);
+    window.setTimeout(() => {
       onExit();
-    });
+    }, 0);
   }, [
     clearYearSpotlightTimeout,
     clearKaraokePauseWatch,
     onExit,
     resetTimerState,
     resetQueue,
-    runViewTransition,
     stopPlayback,
     stopSadTrombone,
   ]);
@@ -1096,6 +1102,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
   }, [duckMainPlayerVolume]);
 
   const handlePlayerReady: YouTubeProps["onReady"] = (event) => {
+    if (exitingRef.current) {
+      return;
+    }
     const startSeconds = Math.max(
       0,
       Math.trunc(currentSong?.play_start_seconds ?? 0)
@@ -1114,6 +1123,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
   };
 
   const handleSadTrombonePlayerReady: YouTubeProps["onReady"] = (event) => {
+    if (exitingRef.current) {
+      return;
+    }
     const internalPlayer = (event.target as unknown as InternalPlayer) ?? null;
     internalPlayer?.pauseVideo?.();
     internalPlayer?.unMute?.();
@@ -1125,6 +1137,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const handleSadTrombonePlayerStateChange: YouTubeProps["onStateChange"] = (
     event,
   ) => {
+    if (exitingRef.current) {
+      return;
+    }
     const playerState = event.data;
     if (playerState === 1) {
       duckMainPlayerVolume();
@@ -1137,6 +1152,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
   };
 
   const handlePlayerStateChange: YouTubeProps["onStateChange"] = (event) => {
+    if (exitingRef.current) {
+      return;
+    }
     mainPlayerApiRef.current =
       (event.target as unknown as InternalPlayer) ?? null;
     const playerState = event.data;

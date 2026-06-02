@@ -218,55 +218,55 @@ export const createAdaptiveTheme = (
 
     return {
       ...DEFAULT_THEME,
-      overlayTint: "rgba(5, 12, 26, 0.64)",
+      overlayTint: "rgba(4, 10, 22, 0.78)",
       text: {
-        primary: "#061223",
-        secondary: "rgba(12,32,60,0.88)",
-        body: "rgba(14,38,68,0.78)",
-        caption: "rgba(12,32,60,0.65)",
-        muted: "rgba(14,38,68,0.72)",
+        primary: "#f8fbff",
+        secondary: "rgba(235,244,255,0.92)",
+        body: "rgba(224,239,255,0.88)",
+        caption: "rgba(214,230,250,0.78)",
+        muted: "rgba(224,239,255,0.82)",
       },
-      textShadow: "0 30px 60px rgba(0,0,0,0.35)",
+      textShadow: "0 28px 56px rgba(0,0,0,0.58)",
       alert: {
-        background: "rgba(255,255,255,0.78)",
-        color: "#061223",
-        border: "rgba(6,22,44,0.18)",
+        background: "rgba(7,18,38,0.6)",
+        color: "#f8fbff",
+        border: "rgba(255,255,255,0.14)",
       },
       chips: {
         primary: {
-          background: "rgba(8,22,46,0.12)",
-          color: "#061223",
-          borderColor: "rgba(6,22,44,0.16)",
+          background: "rgba(255,255,255,0.12)",
+          color: "#f8fbff",
+          borderColor: "rgba(255,255,255,0.18)",
           borderStyle: "solid",
         },
         secondary: {
-          background: rgbToCss(lightTone, 0.22),
-          color: rgbToCss(hoverTone),
-          borderColor: rgbToCss(deepTone, 0.32),
+          background: rgbToCss(lightTone, 0.24),
+          color: "#f8fbff",
+          borderColor: rgbToCss(lighten(deepTone, 0.2), 0.28),
           borderStyle: "solid",
         },
         tertiary: {
-          background: "rgba(255,255,255,0.74)",
-          color: "#061223",
-          borderColor: "rgba(6,22,44,0.18)",
+          background: "rgba(255,255,255,0.12)",
+          color: "rgba(235,244,255,0.94)",
+          borderColor: "rgba(255,255,255,0.22)",
           borderStyle: "dashed",
         },
       },
-      spinner: rgbToCss(deepTone),
+      spinner: "#f8fbff",
       iconButton: {
         background: `linear-gradient(135deg, ${rgbToCss(
           lighten(adjustedBase, 0.48),
-          0.82
+          0.28
         )} 0%, ${rgbToCss(lighten(adjustedBase, 0.32), 0.88)} 100%)`,
         hoverBackground: `linear-gradient(135deg, ${rgbToCss(
           lighten(adjustedBase, 0.42),
-          0.92
+          0.38
         )} 0%, ${rgbToCss(lighten(adjustedBase, 0.22), 0.98)} 100%)`,
-        border: "3px solid rgba(6,22,44,0.22)",
-        color: rgbToCss(darken(adjustedBase, 0.78)),
-        hoverColor: rgbToCss(darken(adjustedBase, 0.85)),
-        shadow: "0 26px 56px -28px rgba(8,22,48,0.5)",
-        hoverShadow: "0 30px 64px -26px rgba(6,18,38,0.58)",
+        border: "3px solid rgba(255,255,255,0.24)",
+        color: "#ffffff",
+        hoverColor: "#ffffff",
+        shadow: "0 26px 56px -28px rgba(0,0,0,0.5)",
+        hoverShadow: "0 30px 64px -26px rgba(0,0,0,0.58)",
       },
       primaryButton: {
         background: `linear-gradient(135deg, ${rgbToCss(
@@ -286,23 +286,23 @@ export const createAdaptiveTheme = (
         )}`,
       },
       secondaryButton: {
-        border: "rgba(6,22,44,0.35)",
-        textColor: "rgba(6,22,44,0.92)",
-        hoverBorder: "rgba(6,22,44,0.45)",
-        hoverBackground: "rgba(6,22,44,0.12)",
+        border: "rgba(255,255,255,0.34)",
+        textColor: "rgba(248,251,255,0.94)",
+        hoverBorder: "rgba(255,255,255,0.56)",
+        hoverBackground: "rgba(255,255,255,0.12)",
       },
       status: {
-        label: "rgba(14,38,68,0.78)",
-        description: "rgba(14,38,68,0.72)",
+        label: "rgba(224,239,255,0.8)",
+        description: "rgba(235,244,255,0.86)",
       },
       fallback: {
-        text: "rgba(14,38,68,0.78)",
-        caption: "rgba(12,32,60,0.62)",
-        icon: rgbToCss(deepTone),
+        text: "rgba(224,239,255,0.86)",
+        caption: "rgba(214,230,250,0.78)",
+        icon: "#f8fbff",
         background: "transparent",
       },
-      warningText: "rgba(172,58,58,0.88)",
-      progressOverlay: rgbToCss(darken(adjustedBase, 0.6), 0.45),
+      warningText: "rgba(255,210,210,0.94)",
+      progressOverlay: "rgba(4,10,24,0.54)",
       spotlight: {
         background: `radial-gradient(circle at 50% 52%, ${rgbToCss(
           spotlightCore,
@@ -324,9 +324,9 @@ export const createAdaptiveTheme = (
           darken(adjustedBase, 0.72),
           0.7
         )}, inset 0 0 42px ${rgbToCss(lighten(adjustedBase, 0.18), 0.26)}`,
-        labelColor: rgbToCss(darken(adjustedBase, 0.68), 0.92),
-        valueColor: rgbToCss(darken(adjustedBase, 0.78)),
-        valueShadow: `0 48px 94px ${rgbToCss(darken(adjustedBase, 0.9), 0.42)}`,
+        labelColor: "rgba(255,255,255,0.9)",
+        valueColor: "#ffffff",
+        valueShadow: `0 48px 94px ${rgbToCss(darken(adjustedBase, 0.9), 0.7)}`,
       },
     };
   }

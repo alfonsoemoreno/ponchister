@@ -1382,13 +1382,21 @@ const AutoGame: React.FC<AutoGameProps> = ({
           sx={{
             position: "relative",
             zIndex: 3,
-            p: { xs: 3, sm: 4, md: 6 },
+            p: { xs: 2, sm: 4, md: 6 },
             alignItems: { xs: "stretch", md: "center" },
-            gap: { xs: 4, md: 5 },
+            gap: { xs: 2.5, md: 5 },
             height: { xs: "auto", md: "100dvh" },
-            minHeight: { md: "100dvh" },
-            pb: { xs: 6, md: 6 },
-            justifyContent: { md: "center" },
+            minHeight: { xs: "100dvh", md: "100dvh" },
+            pb: {
+              xs: "calc(env(safe-area-inset-bottom, 0px) + 18px)",
+              md: 6,
+            },
+            pt: {
+              xs: "calc(env(safe-area-inset-top, 0px) + 12px)",
+              sm: 4,
+              md: 6,
+            },
+            justifyContent: { xs: "space-between", md: "center" },
             width: { md: "min(1350px, 100vw)" },
             mx: { md: "auto" },
             viewTransitionName: "auto-game-panel",
@@ -1415,6 +1423,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 justifyContent: "flex-start",
                 maxWidth: 520,
                 width: "100%",
+                mt: { xs: "auto", md: 0 },
               }}
             >
               {displayedError ? (
@@ -1747,134 +1756,163 @@ const AutoGame: React.FC<AutoGameProps> = ({
               ) : null}
             </Box>
             <Stack
-              direction="row"
-              spacing={2}
-              alignItems="center"
+              spacing={{ xs: 1.75, md: 2.5 }}
               sx={{
-                pt: { xs: 1, md: 3 },
-                flexWrap: "wrap",
+                pt: { xs: 1.5, md: 4 },
                 alignSelf: { xs: "stretch", md: "flex-start" },
+                position: { xs: "sticky", md: "static" },
+                bottom: {
+                  xs: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+                  md: "auto",
+                },
+                mx: { xs: -0.5, md: 0 },
+                p: { xs: 1.5, md: 0 },
+                borderRadius: { xs: 4, md: 0 },
+                background: {
+                  xs: "linear-gradient(180deg, rgba(4,17,34,0.92) 0%, rgba(6,20,42,0.84) 100%)",
+                  md: "transparent",
+                },
+                border: {
+                  xs: "1px solid rgba(255,255,255,0.14)",
+                  md: "none",
+                },
+                backdropFilter: { xs: "blur(18px)", md: "none" },
+                boxShadow: {
+                  xs: "0 24px 60px rgba(0,0,0,0.24)",
+                  md: "none",
+                },
               }}
             >
-              <IconButton
-                onClick={handlePlayPause}
-                disabled={
-                  timerEnabled && timerLocked && gameState === "playing"
-                }
+              <Stack
+                direction="row"
+                spacing={1.5}
+                alignItems="center"
                 sx={{
-                  width: 88,
-                  height: 88,
-                  borderRadius: "50%",
-                  border: theme.iconButton.border,
-                  background: theme.iconButton.background,
-                  boxShadow: theme.iconButton.shadow,
-                  color: theme.iconButton.color,
-                  transition: "transform 160ms ease",
-                  "&:hover": {
-                    transform: "translateY(-4px) scale(1.02)",
-                    background: theme.iconButton.hoverBackground,
-                    boxShadow: theme.iconButton.hoverShadow,
-                    color: theme.iconButton.hoverColor,
-                  },
+                  alignSelf: { xs: "stretch", md: "flex-start" },
                 }}
               >
-                {isPlaying && !showRemoteQr ? (
-                  <PauseIcon sx={{ fontSize: 44 }} />
-                ) : (
-                  <PlayArrowIcon sx={{ fontSize: 48 }} />
-                )}
-              </IconButton>
-              <Stack spacing={1}>
-                <Typography
-                  variant="caption"
-                  sx={{ letterSpacing: 1, color: theme.status.label }}
+                <IconButton
+                  onClick={handlePlayPause}
+                  disabled={
+                    timerEnabled && timerLocked && gameState === "playing"
+                  }
+                  sx={{
+                    width: { xs: 72, md: 88 },
+                    height: { xs: 72, md: 88 },
+                    borderRadius: "50%",
+                    border: theme.iconButton.border,
+                    background: theme.iconButton.background,
+                    boxShadow: theme.iconButton.shadow,
+                    color: theme.iconButton.color,
+                    transition: "transform 160ms ease",
+                    flexShrink: 0,
+                    "&:hover": {
+                      transform: "translateY(-4px) scale(1.02)",
+                      background: theme.iconButton.hoverBackground,
+                      boxShadow: theme.iconButton.hoverShadow,
+                      color: theme.iconButton.hoverColor,
+                    },
+                  }}
                 >
-                  {statusCaptionLabel}
-                </Typography>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ color: theme.status.description }}
-                >
-                  {statusCaptionDescription}
-                </Typography>
+                  {isPlaying && !showRemoteQr ? (
+                    <PauseIcon sx={{ fontSize: { xs: 38, md: 44 } }} />
+                  ) : (
+                    <PlayArrowIcon sx={{ fontSize: { xs: 42, md: 48 } }} />
+                  )}
+                </IconButton>
+                <Stack spacing={0.6} sx={{ minWidth: 0 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ letterSpacing: 1, color: theme.status.label }}
+                  >
+                    {statusCaptionLabel}
+                  </Typography>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ color: theme.status.description }}
+                  >
+                    {statusCaptionDescription}
+                  </Typography>
+                </Stack>
               </Stack>
-            </Stack>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={2}
-              sx={{
-                pt: { xs: 2, md: 4 },
-                alignSelf: { xs: "stretch", md: "flex-start" },
-              }}
-            >
-              <Button
-                variant={primaryAction.variant}
-                color={primaryAction.color}
-                startIcon={primaryAction.icon}
-                onClick={primaryAction.onClick}
-                disabled={primaryAction.disabled}
+              <Stack
+                direction="row"
+                spacing={1.25}
                 sx={{
-                  minWidth: 200,
-                  textTransform: "none",
-                  fontWeight: 700,
-                  borderRadius: 999,
-                  px: 3.5,
-                  py: 1.5,
-                  boxShadow:
-                    primaryAction.variant === "contained"
-                      ? theme.primaryButton.shadow
-                      : undefined,
-                  background:
-                    primaryAction.variant === "contained"
-                      ? theme.primaryButton.background
-                      : undefined,
-                  color:
-                    primaryAction.variant === "contained"
-                      ? theme.primaryButton.textColor
-                      : undefined,
-                  "&:hover":
-                    primaryAction.variant === "contained"
-                      ? {
-                          background: theme.primaryButton.hoverBackground,
-                          boxShadow: theme.primaryButton.hoverShadow,
-                        }
-                      : undefined,
+                  alignSelf: { xs: "stretch", md: "flex-start" },
                 }}
               >
-                {primaryAction.label}
-              </Button>
-              <Button
-                variant={secondaryAction.variant}
-                color={secondaryAction.color}
-                startIcon={secondaryAction.icon}
-                onClick={secondaryAction.onClick}
-                sx={{
-                  minWidth: 200,
-                  textTransform: "none",
-                  fontWeight: 700,
-                  borderRadius: 999,
-                  px: 3.5,
-                  py: 1.5,
-                  borderColor:
-                    secondaryAction.variant === "outlined"
-                      ? theme.secondaryButton.border
-                      : undefined,
-                  color:
-                    secondaryAction.variant === "outlined"
-                      ? theme.secondaryButton.textColor
-                      : undefined,
-                  "&:hover":
-                    secondaryAction.variant === "outlined"
-                      ? {
-                          borderColor: theme.secondaryButton.hoverBorder,
-                          backgroundColor:
-                            theme.secondaryButton.hoverBackground,
-                        }
-                      : undefined,
-                }}
-              >
-                {secondaryAction.label}
-              </Button>
+                <Button
+                  variant={primaryAction.variant}
+                  color={primaryAction.color}
+                  startIcon={primaryAction.icon}
+                  onClick={primaryAction.onClick}
+                  disabled={primaryAction.disabled}
+                  sx={{
+                    minWidth: 0,
+                    flex: 1,
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    px: { xs: 2, md: 3.5 },
+                    py: 1.5,
+                    boxShadow:
+                      primaryAction.variant === "contained"
+                        ? theme.primaryButton.shadow
+                        : undefined,
+                    background:
+                      primaryAction.variant === "contained"
+                        ? theme.primaryButton.background
+                        : undefined,
+                    color:
+                      primaryAction.variant === "contained"
+                        ? theme.primaryButton.textColor
+                        : undefined,
+                    "&:hover":
+                      primaryAction.variant === "contained"
+                        ? {
+                            background: theme.primaryButton.hoverBackground,
+                            boxShadow: theme.primaryButton.hoverShadow,
+                          }
+                        : undefined,
+                  }}
+                >
+                  {primaryAction.label}
+                </Button>
+                <Button
+                  variant={secondaryAction.variant}
+                  color={secondaryAction.color}
+                  startIcon={secondaryAction.icon}
+                  onClick={secondaryAction.onClick}
+                  sx={{
+                    minWidth: 0,
+                    flex: 1,
+                    textTransform: "none",
+                    fontWeight: 700,
+                    borderRadius: 999,
+                    px: { xs: 2, md: 3.5 },
+                    py: 1.5,
+                    borderColor:
+                      secondaryAction.variant === "outlined"
+                        ? theme.secondaryButton.border
+                        : undefined,
+                    color:
+                      secondaryAction.variant === "outlined"
+                        ? theme.secondaryButton.textColor
+                        : undefined,
+                    "&:hover":
+                      secondaryAction.variant === "outlined"
+                        ? {
+                            borderColor: theme.secondaryButton.hoverBorder,
+                            backgroundColor:
+                              theme.secondaryButton.hoverBackground,
+                          }
+                        : undefined,
+                  }}
+                >
+                  {secondaryAction.label}
+                </Button>
+              </Stack>
             </Stack>
           </Box>
           <Box
@@ -1892,7 +1930,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
               sx={{
                 position: "relative",
                 width: {
-                  xs: showRemoteQr ? "min(88vw, 340px)" : "72%",
+                  xs: showRemoteQr ? "min(88vw, 320px)" : "min(64vw, 250px)",
                   sm: 300,
                   md: "min(44vw, 77vh)",
                 },
@@ -2126,55 +2164,64 @@ const AutoGame: React.FC<AutoGameProps> = ({
           sx={{
             position: "relative",
             zIndex: 3,
-            width: "min(700px, 78vw)",
+            width: { xs: "min(700px, 92vw)", md: "min(700px, 78vw)" },
             mx: "auto",
             pt: {
-              xs: "calc(env(safe-area-inset-top, 0px) + 24px)",
+              xs: "calc(env(safe-area-inset-top, 0px) + 18px)",
               sm: 5,
               md: 6,
             },
-            pb: { xs: 8, md: 8 },
+            pb: {
+              xs: "calc(env(safe-area-inset-bottom, 0px) + 18px)",
+              md: 8,
+            },
             alignItems: "center",
             textAlign: "center",
             viewTransitionName: "auto-game-panel",
-            minHeight: { md: "100dvh" },
-            justifyContent: { md: "center" },
+            minHeight: { xs: "100dvh", md: "100dvh" },
+            justifyContent: { xs: "space-between", md: "center" },
           }}
         >
-          <Box
-            component="img"
-            src="/ponchister_logo.png"
-            alt="Ponchister"
-            sx={{
-              width: { xs: 140, sm: 160, md: 180 },
-              height: { xs: 140, sm: 160, md: 180 },
-              objectFit: "contain",
-              filter: "drop-shadow(0 18px 40px rgba(2,10,36,0.55))",
-            }}
-          />
-          <Typography
-            variant="h2"
-            sx={{
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              textShadow: "0 24px 56px rgba(0,0,0,0.55)",
-              fontSize: "clamp(1.7rem, 6vw, 3.2rem)",
-              lineHeight: { xs: 1.2, sm: 1.15 },
-            }}
+          <Stack
+            spacing={{ xs: 2, md: 3 }}
+            sx={{ width: "100%", alignItems: "center" }}
           >
-            Configura tu juego
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              color: theme.text.body,
-              maxWidth: 520,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            Ajusta lo esencial y comienza cuando quieras.
-          </Typography>
+            <Box
+              component="img"
+              src="/ponchister_logo.png"
+              alt="Ponchister"
+              sx={{
+                width: { xs: 110, sm: 160, md: 180 },
+                height: { xs: 110, sm: 160, md: 180 },
+                objectFit: "contain",
+                filter: "drop-shadow(0 18px 40px rgba(2,10,36,0.55))",
+              }}
+            />
+            <Typography
+              variant="h2"
+              sx={{
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                textShadow: "0 24px 56px rgba(0,0,0,0.55)",
+                fontSize: "clamp(1.7rem, 6vw, 3.2rem)",
+                lineHeight: { xs: 1.15, sm: 1.15 },
+              }}
+            >
+              Configura tu juego
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: theme.text.body,
+                maxWidth: 520,
+                alignItems: "center",
+                justifyContent: "center",
+                px: { xs: 1, sm: 0 },
+              }}
+            >
+              Ajusta lo esencial y comienza cuando quieras.
+            </Typography>
+          </Stack>
           <Stack
             spacing={2}
             sx={{
@@ -2558,12 +2605,33 @@ const AutoGame: React.FC<AutoGameProps> = ({
             direction={{ xs: "column", sm: "row" }}
             spacing={2}
             sx={{
-              pt: { xs: 2, md: 3 },
+              pt: { xs: 1.5, md: 3 },
               alignSelf: "center",
-              width: "fit-content",
-              maxWidth: 520,
+              width: "100%",
+              maxWidth: 700,
               justifyContent: "center",
               alignItems: "center",
+              position: { xs: "sticky", md: "static" },
+              bottom: {
+                xs: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+                md: "auto",
+              },
+              px: { xs: 1, md: 0 },
+              py: { xs: 1.5, md: 0 },
+              borderRadius: { xs: 4, md: 0 },
+              background: {
+                xs: "linear-gradient(180deg, rgba(5,20,48,0.92) 0%, rgba(5,18,42,0.84) 100%)",
+                md: "transparent",
+              },
+              border: {
+                xs: "1px solid rgba(148,216,255,0.16)",
+                md: "none",
+              },
+              backdropFilter: { xs: "blur(18px)", md: "none" },
+              boxShadow: {
+                xs: "0 24px 60px rgba(0,0,0,0.24)",
+                md: "none",
+              },
             }}
           >
             <Button

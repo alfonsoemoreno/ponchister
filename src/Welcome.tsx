@@ -311,6 +311,7 @@ const Welcome: React.FC<WelcomeProps> = ({
           display: "flex",
           justifyContent: "center",
           alignItems: "stretch",
+          flex: 1,
         }}
       >
         <Stack
@@ -318,125 +319,171 @@ const Welcome: React.FC<WelcomeProps> = ({
           sx={{
             width: "min(920px, 92vw)",
             pt: {
-              xs: "calc(env(safe-area-inset-top, 0px) + 18px)",
+              xs: "calc(env(safe-area-inset-top, 0px) + 72px)",
               sm: 5,
               md: 9,
             },
-            pb: { xs: 4, md: 9 },
+            pb: {
+              xs: "calc(env(safe-area-inset-bottom, 0px) + 28px)",
+              md: 9,
+            },
             alignItems: "center",
             textAlign: "center",
+            justifyContent: { xs: "space-between", md: "center" },
+            minHeight: {
+              xs: "100dvh",
+              md: "auto",
+            },
           }}
         >
-          <Box
-            component="img"
-            src="/ponchister_logo.png"
-            alt="Ponchister"
-            sx={{
-              width: { xs: 252, sm: 288, md: 324 },
-              height: { xs: 252, sm: 288, md: 324 },
-              objectFit: "contain",
-              filter: "drop-shadow(0 24px 50px rgba(2,10,36,0.65))",
-            }}
-          />
-          <Typography
-            variant="overline"
-            sx={{
-              letterSpacing: 2,
-              fontWeight: 700,
-              color: "rgba(148,216,255,0.86)",
-              mt: { xs: -3.5, sm: -3 },
-            }}
-          >
-            Catálogo {yearRange.min} - {yearRange.max}
-          </Typography>
-          <Typography
-            variant="h2"
-            sx={{
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              textShadow: "0 24px 56px rgba(0,0,0,0.55)",
-              maxWidth: 720,
-              fontSize: "clamp(1.7rem, 6vw, 3.2rem)",
-              lineHeight: { xs: 1.2, sm: 1.15 },
-              textAlign: "center",
-              overflowWrap: "anywhere",
-              whiteSpace: "normal",
-            }}
-          >
-            Ponchister: música y sorpresa
-          </Typography>
-          <Typography
-            variant="body1"
-            sx={{
-              color: "rgba(224,239,255,0.82)",
-              maxWidth: 540,
-              lineHeight: 1.6,
-              fontSize: { xs: "1rem", sm: "1.05rem" },
-            }}
-          >
-            Presiona "Ir al juego" y deja que el sistema elija canciones para
-            todos. Solo escucha, adivina y disfruta.
-          </Typography>
           <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={2}
+            spacing={{ xs: 1.25, md: 2 }}
             sx={{
-              alignSelf: "center",
-              justifyContent: "center",
               alignItems: "center",
-              rowGap: "10px",
               width: "100%",
-              maxWidth: 520,
             }}
           >
-            <Button
-              variant="contained"
-              color="inherit"
-              startIcon={<AutoAwesomeIcon />}
-              onClick={handleOpenModeDialog}
+            <Box
+              component="img"
+              src="/ponchister_logo.png"
+              alt="Ponchister"
               sx={{
-                width: { xs: "100%", sm: "auto" },
-                flex: { sm: 1 },
-                textTransform: "none",
+                width: { xs: 176, sm: 288, md: 324 },
+                height: { xs: 176, sm: 288, md: 324 },
+                objectFit: "contain",
+                filter: "drop-shadow(0 24px 50px rgba(2,10,36,0.65))",
+              }}
+            />
+            <Typography
+              variant="overline"
+              sx={{
+                letterSpacing: 2,
                 fontWeight: 700,
-                borderRadius: 999,
-                px: 3.5,
-                py: 1.6,
-                background:
-                  "linear-gradient(120deg, #38bdf8 0%, #0ea5e9 50%, #22d3ee 100%)",
-                boxShadow: "0 22px 48px -26px rgba(56,189,248,0.85)",
-                "&:hover": {
-                  background:
-                    "linear-gradient(120deg, #22d3ee 0%, #38bdf8 45%, #0ea5e9 100%)",
-                },
+                color: "rgba(148,216,255,0.86)",
+                mt: { xs: -2.5, sm: -3 },
               }}
             >
-              Ir al juego
-            </Button>
-            <Button
-              variant="outlined"
-              color="inherit"
-              onClick={handleOpenRules}
+              Catálogo {yearRange.min} - {yearRange.max}
+            </Typography>
+            <Typography
+              variant="h2"
               sx={{
-                width: { xs: "100%", sm: "auto" },
-                flex: { sm: 1 },
-                textTransform: "none",
-                fontWeight: 700,
-                borderRadius: 999,
-                px: 3.5,
-                py: 1.6,
-                borderColor: "rgba(255,255,255,0.36)",
-                color: "rgba(224,239,255,0.92)",
-                backgroundColor: "rgba(6,24,58,0.4)",
-                "&:hover": {
-                  borderColor: "rgba(255,255,255,0.6)",
-                  backgroundColor: "rgba(255,255,255,0.08)",
-                },
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                textShadow: "0 24px 56px rgba(0,0,0,0.55)",
+                maxWidth: 720,
+                fontSize: "clamp(1.7rem, 6vw, 3.2rem)",
+                lineHeight: { xs: 1.15, sm: 1.15 },
+                textAlign: "center",
+                overflowWrap: "anywhere",
+                whiteSpace: "normal",
               }}
             >
-              Ver reglas
-            </Button>
+              Ponchister: música y sorpresa
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: "rgba(224,239,255,0.82)",
+                maxWidth: 540,
+                lineHeight: 1.55,
+                fontSize: { xs: "0.95rem", sm: "1.05rem" },
+                px: { xs: 1.5, sm: 0 },
+              }}
+            >
+              Presiona "Ir al juego" y deja que el sistema elija canciones para
+              todos. Solo escucha, adivina y disfruta.
+            </Typography>
           </Stack>
+          <Box
+            sx={{
+              position: { xs: "sticky", md: "static" },
+              bottom: {
+                xs: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
+                md: "auto",
+              },
+              width: "100%",
+              maxWidth: 560,
+              px: { xs: 0.5, sm: 0 },
+              py: { xs: 0.5, md: 0 },
+              borderRadius: { xs: 4, md: 0 },
+              background: {
+                xs: "linear-gradient(180deg, rgba(5,20,48,0.9) 0%, rgba(5,18,42,0.78) 100%)",
+                md: "transparent",
+              },
+              border: {
+                xs: "1px solid rgba(148,216,255,0.16)",
+                md: "none",
+              },
+              backdropFilter: { xs: "blur(18px)", md: "none" },
+              boxShadow: {
+                xs: "0 22px 60px rgba(0,0,0,0.28)",
+                md: "none",
+              },
+            }}
+          >
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              sx={{
+                alignSelf: "center",
+                justifyContent: "center",
+                alignItems: "center",
+                rowGap: "10px",
+                width: "100%",
+                maxWidth: 520,
+                mx: "auto",
+              }}
+            >
+              <Button
+                variant="contained"
+                color="inherit"
+                startIcon={<AutoAwesomeIcon />}
+                onClick={handleOpenModeDialog}
+                sx={{
+                  width: { xs: "100%", sm: "auto" },
+                  flex: { sm: 1 },
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.6,
+                  background:
+                    "linear-gradient(120deg, #38bdf8 0%, #0ea5e9 50%, #22d3ee 100%)",
+                  boxShadow: "0 22px 48px -26px rgba(56,189,248,0.85)",
+                  "&:hover": {
+                    background:
+                      "linear-gradient(120deg, #22d3ee 0%, #38bdf8 45%, #0ea5e9 100%)",
+                  },
+                }}
+              >
+                Ir al juego
+              </Button>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={handleOpenRules}
+                sx={{
+                  width: { xs: "100%", sm: "auto" },
+                  flex: { sm: 1 },
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3.5,
+                  py: 1.6,
+                  borderColor: "rgba(255,255,255,0.36)",
+                  color: "rgba(224,239,255,0.92)",
+                  backgroundColor: "rgba(6,24,58,0.4)",
+                  "&:hover": {
+                    borderColor: "rgba(255,255,255,0.6)",
+                    backgroundColor: "rgba(255,255,255,0.08)",
+                  },
+                }}
+              >
+                Ver reglas
+              </Button>
+            </Stack>
+          </Box>
         </Stack>
       </Box>
       <Dialog

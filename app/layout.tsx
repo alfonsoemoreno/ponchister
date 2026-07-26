@@ -1,4 +1,5 @@
 import "./globals.css";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import MuiRegistry from "./mui-registry";
 
 export const metadata = {
@@ -20,6 +21,7 @@ export default function RootLayout({
     <html lang="es">
       <body>
         <MuiRegistry>{children}</MuiRegistry>
+        <SpeedInsights />
       </body>
     </html>
   );

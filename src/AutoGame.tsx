@@ -301,7 +301,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const preDuckVolumeRef = useRef<number | null>(null);
   const karaokePauseWatchRef = useRef<number | null>(null);
   const exitingRef = useRef(false);
-  const startTriggerArmedRef = useRef(false);
 
   useEffect(() => {
     setLocalRange(yearRange);
@@ -887,18 +886,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     stopSadTrombone,
   ]);
 
-  const armStartTrigger = useCallback(() => {
-    startTriggerArmedRef.current = true;
-  }, []);
-
   const handleStart = useCallback(() => {
-    // A click synthesized by the transition from the welcome screen does not
-    // have a preceding pointer/key event on this button, so ignore it.
-    if (!startTriggerArmedRef.current) {
-      return;
-    }
-    startTriggerArmedRef.current = false;
-
     void runViewTransition(async () => {
       setSessionStarted(true);
       setErrorMessage(null);
@@ -2683,8 +2671,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
               color="primary"
               startIcon={<PlayArrowIcon />}
               onClick={handleStart}
-              onPointerDown={armStartTrigger}
-              onKeyDown={armStartTrigger}
               sx={{
                 minWidth: { sm: 220 },
                 width: { xs: "100%", sm: 220 },
@@ -2831,8 +2817,6 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 color="primary"
                 startIcon={<RestartAltIcon />}
                 onClick={handleStart}
-                onPointerDown={armStartTrigger}
-                onKeyDown={armStartTrigger}
                 sx={{
                   minWidth: 200,
                   textTransform: "none",

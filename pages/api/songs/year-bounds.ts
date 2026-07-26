@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { eq, sql } from "drizzle-orm";
 import { songs } from "../../../src/db/schema";
 import { db } from "../_db";
+import { setPublicCatalogCache } from "../../../src/server/publicCatalogCache";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   if (req.method !== "GET") {
@@ -19,6 +20,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     .where(eq(songs.catalogStatus, "approved"));
 
   res.setHeader("Content-Type", "application/json");
+  setPublicCatalogCache(res);
   res.end(
     JSON.stringify({
       min: row?.min ?? null,

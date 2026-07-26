@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { setPublicCatalogCache } from "../../../src/server/publicCatalogCache";
 
 const ITUNES_BASE_URL = "https://itunes.apple.com/search";
 
@@ -36,7 +37,7 @@ export default async function handler(
 
     const body = await response.text();
     res.setHeader("Content-Type", "application/json");
-    res.setHeader("Cache-Control", "public, max-age=60");
+    setPublicCatalogCache(res);
     res.end(body);
   } catch {
     res.statusCode = 502;

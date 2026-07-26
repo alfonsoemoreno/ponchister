@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { asc, eq } from "drizzle-orm";
 import { songTags } from "../../src/db/schema";
 import { db } from "./_db";
+import { setPublicCatalogCache } from "../../src/server/publicCatalogCache";
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   if (req.method !== "GET") {
@@ -24,6 +25,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     .orderBy(asc(songTags.label), asc(songTags.id));
 
   res.setHeader("Content-Type", "application/json");
+  setPublicCatalogCache(res);
   res.end(
     JSON.stringify(
       rows.map((row) => ({

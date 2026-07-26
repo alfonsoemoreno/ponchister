@@ -1,4 +1,5 @@
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import MuiRegistry from "./mui-registry";
 
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="es">
       <body>
         <MuiRegistry>{children}</MuiRegistry>
+        <Analytics />
         <SpeedInsights />
       </body>
     </html>

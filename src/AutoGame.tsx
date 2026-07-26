@@ -1039,7 +1039,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const handlePlayerError = useCallback<
     NonNullable<YouTubeProps["onError"]>
   >(() => {
-    if (exitingRef.current) {
+    // An empty player can emit an error while the configuration screen opens.
+    // It must never advance the queue before the user starts a session.
+    if (exitingRef.current || !sessionStarted || !currentSong) {
       return;
     }
     clearKaraokePauseWatch();
@@ -1048,7 +1050,12 @@ const AutoGame: React.FC<AutoGameProps> = ({
       "No se pudo reproducir el video de esta canción. Pasamos a otra pista.",
     );
     advanceToNextSong();
-  }, [advanceToNextSong, clearKaraokePauseWatch]);
+  }, [
+    advanceToNextSong,
+    clearKaraokePauseWatch,
+    currentSong,
+    sessionStarted,
+  ]);
 
   const handleExit = useCallback(() => {
     exitingRef.current = true;
@@ -2909,27 +2916,29 @@ const AutoGame: React.FC<AutoGameProps> = ({
         viewTransitionName: "auto-game-root",
       }}
     >
-      <Box
-        sx={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 40,
-          height: 20,
-          zIndex: 1,
-          opacity: 0.01,
-          pointerEvents: "none",
-        }}
-      >
-        <YouTube
-          videoId={videoId ?? ""}
-          opts={playerOptions}
-          onReady={handlePlayerReady}
-          onError={handlePlayerError}
-          onStateChange={handlePlayerStateChange}
-        />
-      </Box>
+      {sessionStarted && currentSong && videoId ? (
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 40,
+            height: 20,
+            zIndex: 1,
+            opacity: 0.01,
+            pointerEvents: "none",
+          }}
+        >
+          <YouTube
+            videoId={videoId}
+            opts={playerOptions}
+            onReady={handlePlayerReady}
+            onError={handlePlayerError}
+            onStateChange={handlePlayerStateChange}
+          />
+        </Box>
+      ) : null}
       <Box
         sx={{
           position: "absolute",

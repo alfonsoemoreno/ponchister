@@ -301,6 +301,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const preDuckVolumeRef = useRef<number | null>(null);
   const karaokePauseWatchRef = useRef<number | null>(null);
   const exitingRef = useRef(false);
+  // Ignore the pointer event that opened this screen if it lands on the
+  // similarly-positioned start button after the view transition.
+  const startAvailableAtRef = useRef(Date.now() + 600);
 
   useEffect(() => {
     setLocalRange(yearRange);
@@ -887,6 +890,10 @@ const AutoGame: React.FC<AutoGameProps> = ({
   ]);
 
   const handleStart = useCallback(() => {
+    if (Date.now() < startAvailableAtRef.current) {
+      return;
+    }
+
     void runViewTransition(async () => {
       setSessionStarted(true);
       setErrorMessage(null);

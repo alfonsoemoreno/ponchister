@@ -28,13 +28,18 @@ import CampaignIcon from "@mui/icons-material/Campaign";
 import MicIcon from "@mui/icons-material/Mic";
 import QuizIcon from "@mui/icons-material/Quiz";
 
-import { fetchAllSongs } from "./services/songService";
+import { fetchSongQueue } from "./services/songService";
 import {
   fetchMyCollectionSongs,
   fetchMyPlaylistSongs,
 } from "./services/songService";
 import { createGameSession } from "./services/gameSessionService";
-import { extractYoutubeId } from "./lib/autoGameQueue";
+import {
+  buildBalancedQueue,
+  dedupePlayableSongs,
+  extractYoutubeId,
+  getSongArtistKey,
+} from "./lib/autoGameQueue";
 import { useAutoGameQueue } from "./hooks/useAutoGameQueue";
 import { useArtworkLookup } from "./hooks/useArtworkLookup";
 import { useArtworkPalette } from "./hooks/useArtworkPalette";
@@ -43,7 +48,7 @@ import { YearSpotlight } from "./auto-game/YearSpotlight";
 import LocalQrCode from "./components/LocalQrCode";
 import { useViewTransition } from "./hooks/useViewTransition";
 import { createAdaptiveTheme } from "./auto-game/theme";
-import type { GameSource, PlaylistSummary, YearRange } from "./types";
+import type { GameSource, PlaylistSummary, Song, YearRange } from "./types";
 import {
   getSongTagLabel,
   normalizeSongTags,
@@ -91,6 +96,32 @@ type GameState = "idle" | "loading" | "playing" | "revealed" | "error";
 
 type PlayerRef = YouTube | null;
 type SpecialRoundMode = "none" | "mimica" | "tararear";
+
+type QueueRequestOptions = {
+  excludedSongIds: number[];
+  excludedArtistKeys: string[];
+  recentSongIds: number[];
+};
+
+function buildPersonalQueue(songs: Song[], options: QueueRequestOptions) {
+  const excludedSongIds = new Set(options.excludedSongIds);
+  const excludedArtistKeys = new Set(options.excludedArtistKeys);
+  const recentSongIds = new Set(options.recentSongIds);
+  const candidates = dedupePlayableSongs(songs).filter(
+    (song) =>
+      !excludedSongIds.has(song.id) &&
+      !excludedArtistKeys.has(getSongArtistKey(song.artist))
+  );
+  const freshCandidates = candidates.filter((song) => !recentSongIds.has(song.id));
+  const resetRecentHistory = candidates.length > 0 && freshCandidates.length === 0;
+
+  return {
+    songs: buildBalancedQueue(
+      resetRecentHistory ? candidates : freshCandidates
+    ).slice(0, 25),
+    resetRecentHistory,
+  };
+}
 
 const TIMER_DURATION_SECONDS = 60;
 const SPECIAL_SONG_CHANCE = 0.12;
@@ -370,7 +401,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     onTararearModeChange(checked);
   };
 
-  const fetchSongsForRange = useCallback(() => {
+  const fetchSongsForRange = useCallback((queueOptions: QueueRequestOptions) => {
     if (gameSource === "personal_catalog") {
       return fetchMyCollectionSongs().then((songs) => {
         const filtered = songs.filter((song) =>
@@ -385,7 +416,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
             "Tu colección personal no tiene canciones para las etiquetas seleccionadas.",
           );
         }
-        return filtered;
+        return buildPersonalQueue(filtered, queueOptions);
       });
     }
     if (gameSource === "personal_playlist" && playlist) {
@@ -402,15 +433,16 @@ const AutoGame: React.FC<AutoGameProps> = ({
             "La playlist personal seleccionada no tiene canciones para las etiquetas seleccionadas.",
           );
         }
-        return filtered;
+        return buildPersonalQueue(filtered, queueOptions);
       });
     }
-    return fetchAllSongs({
+    return fetchSongQueue({
       minYear: playlist ? null : yearRange.min,
       maxYear: playlist ? null : yearRange.max,
       selectedTags: localSelectedTags,
       tagMatchMode: localTagMatchMode,
       playlistId: playlist?.scope === "public" ? playlist.id : null,
+      ...queueOptions,
     });
   }, [
     gameSource,
@@ -833,7 +865,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   );
 
   const advanceToNextSong = useCallback(() => {
-    void runViewTransition(() => {
+    void runViewTransition(async () => {
       setErrorMessage(null);
       setGameState("loading");
       setIsPlaying(false);
@@ -842,7 +874,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
       stopSadTrombone();
       clearYearSpotlightTimeout();
       resetTimerState();
-      advanceQueue();
+      await advanceQueue();
     });
   }, [
     advanceQueue,

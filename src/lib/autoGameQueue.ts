@@ -23,7 +23,7 @@ function songYearKey(song: Song): string {
   return typeof song.year === "number" ? String(song.year) : UNKNOWN_YEAR_KEY;
 }
 
-function normalizeArtistKey(artist: string): string {
+export function getSongArtistKey(artist: string): string {
   return artist.trim().replace(/\s+/g, " ").toLocaleLowerCase();
 }
 
@@ -34,7 +34,7 @@ function takeNextSong(
   usedArtists: Set<string>
 ): Song | undefined {
   for (let index = bucket.length - 1; index >= 0; index -= 1) {
-    const artistKey = normalizeArtistKey(bucket[index]?.artist ?? "");
+    const artistKey = getSongArtistKey(bucket[index]?.artist ?? "");
     if (usedArtists.has(artistKey)) {
       continue;
     }
@@ -72,7 +72,7 @@ export function buildBalancedQueue(songs: Song[]): Song[] {
     const activeEntries = Array.from(buckets.entries()).filter(
       ([, bucket]) =>
         bucket.some(
-          (song) => !usedArtists.has(normalizeArtistKey(song.artist))
+          (song) => !usedArtists.has(getSongArtistKey(song.artist))
         )
     );
 
@@ -110,7 +110,7 @@ export function buildBalancedQueue(songs: Song[]): Song[] {
     }
 
     queue.push(song);
-    usedArtists.add(normalizeArtistKey(song.artist));
+    usedArtists.add(getSongArtistKey(song.artist));
     usage.set(selected.yearKey, selected.usage + 1);
   }
 

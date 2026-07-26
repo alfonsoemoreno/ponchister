@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { buildBalancedQueue, dedupePlayableSongs } from "../lib/autoGameQueue";
+import { getSongArtistKey } from "../lib/autoGameQueue";
 import {
   forgetRecentSongIds,
   loadRecentSongIds,
@@ -10,7 +10,11 @@ import type { Song } from "../types";
 export type QueueStatus = "idle" | "loading" | "ready" | "exhausted" | "error";
 
 export interface AutoGameQueueOptions {
-  fetchSongs: () => Promise<Song[]>;
+  fetchSongs: (options: {
+    excludedSongIds: number[];
+    excludedArtistKeys: string[];
+    recentSongIds: number[];
+  }) => Promise<{ songs: Song[]; resetRecentHistory: boolean }>;
 }
 
 export interface AutoGameQueueApi {
@@ -20,7 +24,7 @@ export interface AutoGameQueueApi {
   hasMoreSongs: boolean;
   queueSize: number;
   startQueue: () => Promise<boolean>;
-  advanceQueue: () => void;
+  advanceQueue: () => Promise<void>;
   resetQueue: () => void;
 }
 
@@ -34,6 +38,7 @@ export function useAutoGameQueue({
   const queueRef = useRef<Song[]>([]);
   const queueIndexRef = useRef(0);
   const seenSongIdsRef = useRef<Set<number>>(new Set());
+  const seenArtistKeysRef = useRef<Set<string>>(new Set());
 
   const selectNextSong = useCallback((): Song | null => {
     const queue = queueRef.current;
@@ -50,42 +55,39 @@ export function useAutoGameQueue({
     return null;
   }, []);
 
-  const selectCycleSongs = useCallback((songs: Song[]): Song[] => {
+  const loadNextBatch = useCallback(async (): Promise<boolean> => {
     const recentSongIds = loadRecentSongIds();
-    const recentSongIdSet = new Set(recentSongIds);
-    const availableSongIds = new Set(songs.map((song) => song.id));
-    const freshSongs = songs.filter((song) => !recentSongIdSet.has(song.id));
+    const result = await fetchSongs({
+      excludedSongIds: Array.from(seenSongIdsRef.current),
+      excludedArtistKeys: Array.from(seenArtistKeysRef.current),
+      recentSongIds,
+    });
 
-    if (freshSongs.length > 0) {
-      return freshSongs;
+    if (result.resetRecentHistory) {
+      forgetRecentSongIds(recentSongIds);
     }
 
-    forgetRecentSongIds(availableSongIds);
-    return songs;
-  }, []);
+    queueRef.current = result.songs;
+    queueIndexRef.current = 0;
+    return result.songs.length > 0;
+  }, [fetchSongs]);
 
   const startQueue = useCallback(async () => {
     setStatus("loading");
     setError(null);
     setCurrentSong(null);
     seenSongIdsRef.current.clear();
+    seenArtistKeysRef.current.clear();
     queueRef.current = [];
     queueIndexRef.current = 0;
 
     try {
-      const songs = await fetchSongs();
-      const dedupedSongs = dedupePlayableSongs(songs);
-      const cycleSongs = selectCycleSongs(dedupedSongs);
-      const playableSongs = buildBalancedQueue(cycleSongs);
-
-      if (!playableSongs.length) {
+      const hasSongs = await loadNextBatch();
+      if (!hasSongs) {
         throw new Error(
           "No hay canciones reproducibles disponibles en la base de datos."
         );
       }
-
-      queueRef.current = playableSongs;
-      queueIndexRef.current = 0;
 
       const nextSong = selectNextSong();
 
@@ -96,11 +98,12 @@ export function useAutoGameQueue({
       }
 
       seenSongIdsRef.current.add(nextSong.id);
+      seenArtistKeysRef.current.add(getSongArtistKey(nextSong.artist));
       rememberRecentSongIds([nextSong.id]);
       setCurrentSong(nextSong);
       setStatus("ready");
       console.info(
-        `[queue] songId=${nextSong.id} action=start position=1 total=${playableSongs.length}`
+        `[queue] songId=${nextSong.id} action=start position=1 total=${queueRef.current.length}`
       );
       return true;
     } catch (caught) {
@@ -112,19 +115,26 @@ export function useAutoGameQueue({
       setStatus("error");
       return false;
     }
-  }, [fetchSongs, selectCycleSongs, selectNextSong]);
+  }, [loadNextBatch, selectNextSong]);
 
-  const advanceQueue = useCallback(() => {
-    if (!queueRef.current.length) {
-      setStatus("exhausted");
-      setCurrentSong(null);
-      setError(
-        "Ya escuchaste todas las canciones disponibles en esta partida. Reinicia para volver a jugar."
-      );
-      return;
+  const advanceQueue = useCallback(async () => {
+    let nextSong = selectNextSong();
+
+    if (!nextSong) {
+      try {
+        const hasSongs = await loadNextBatch();
+        nextSong = hasSongs ? selectNextSong() : null;
+      } catch (caught) {
+        const message =
+          caught instanceof Error
+            ? caught.message
+            : "No se pudo cargar el siguiente grupo de canciones.";
+        setStatus("error");
+        setCurrentSong(null);
+        setError(message);
+        return;
+      }
     }
-
-    const nextSong = selectNextSong();
 
     if (!nextSong) {
       setStatus("exhausted");
@@ -136,18 +146,20 @@ export function useAutoGameQueue({
     }
 
     seenSongIdsRef.current.add(nextSong.id);
+    seenArtistKeysRef.current.add(getSongArtistKey(nextSong.artist));
     rememberRecentSongIds([nextSong.id]);
     setCurrentSong(nextSong);
     setStatus("ready");
     console.info(
       `[queue] songId=${nextSong.id} action=advance position=${queueIndexRef.current} total=${queueRef.current.length}`
     );
-  }, [selectNextSong]);
+  }, [loadNextBatch, selectNextSong]);
 
   const resetQueue = useCallback(() => {
     queueRef.current = [];
     queueIndexRef.current = 0;
     seenSongIdsRef.current.clear();
+    seenArtistKeysRef.current.clear();
     setCurrentSong(null);
     setError(null);
     setStatus("idle");

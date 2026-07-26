@@ -182,13 +182,16 @@ export async function fetchSongYearBounds(options?: {
   return cachedYearBounds;
 }
 
-export async function fetchAllSongs(options?: {
+export async function fetchSongQueue(options?: {
   minYear?: number | null;
   maxYear?: number | null;
   selectedTags?: string[];
   tagMatchMode?: SongTagMatchMode;
   playlistId?: number | null;
-}): Promise<Song[]> {
+  excludedSongIds?: number[];
+  excludedArtistKeys?: string[];
+  recentSongIds?: number[];
+}): Promise<{ songs: Song[]; resetRecentHistory: boolean }> {
   const minYear =
     typeof options?.minYear === "number" ? Math.floor(options.minYear) : null;
   const maxYear =
@@ -197,38 +200,28 @@ export async function fetchAllSongs(options?: {
   const tagMatchMode = options?.tagMatchMode === "all" ? "all" : "any";
   const playlistId =
     typeof options?.playlistId === "number" ? Math.trunc(options.playlistId) : null;
-  const hasYearFilter =
-    typeof minYear === "number" || typeof maxYear === "number";
-  const params = new URLSearchParams();
-  if (typeof minYear === "number") params.set("minYear", String(minYear));
-  if (typeof maxYear === "number") params.set("maxYear", String(maxYear));
-  if (selectedTags.length) params.set("tags", selectedTags.join(","));
-  if (selectedTags.length) params.set("tagMatchMode", tagMatchMode);
-  if (typeof playlistId === "number") params.set("playlistId", String(playlistId));
-  const data = await fetchJson<Record<string, unknown>[]>(
-    `/api/songs?${params.toString()}`
-  );
-  const collected = data.map((raw) => normalizeSong(raw));
+  const data = await fetchJson<{
+    songs?: Record<string, unknown>[];
+    resetRecentHistory?: boolean;
+  }>("/api/songs/queue", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      minYear,
+      maxYear,
+      selectedTags,
+      tagMatchMode,
+      playlistId,
+      excludedSongIds: options?.excludedSongIds ?? [],
+      excludedArtistKeys: options?.excludedArtistKeys ?? [],
+      recentSongIds: options?.recentSongIds ?? [],
+    }),
+  });
 
-  if (!collected.length && typeof playlistId === "number") {
-    throw new Error(
-      "La playlist seleccionada no tiene canciones disponibles para reproducirse."
-    );
-  }
-
-  if (!collected.length && selectedTags.length) {
-    throw new Error(
-      "No hay canciones que coincidan con las etiquetas seleccionadas. Ajusta los filtros para continuar."
-    );
-  }
-
-  if (!collected.length && hasYearFilter) {
-    throw new Error(
-      "No hay canciones dentro del rango de años seleccionado. Ajusta la configuración para continuar."
-    );
-  }
-
-  return collected;
+  return {
+    songs: (data.songs ?? []).map((raw) => normalizeSong(raw)),
+    resetRecentHistory: data.resetRecentHistory === true,
+  };
 }
 
 export async function fetchMyCollectionSongs(): Promise<Song[]> {

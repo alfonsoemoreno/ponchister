@@ -24,6 +24,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TextField,
   Tooltip,
@@ -46,6 +47,7 @@ import { listSongTags } from "./services/songTagService";
 import {
   createMySong,
   deleteMySong,
+  getMySong,
   listMySongs,
   submitMySongToPublic,
   updateMySong,
@@ -95,12 +97,17 @@ interface AudioPreviewState {
   videoId: string;
 }
 
+const PAGE_SIZE = 50;
+
 export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) {
   const [songs, setSongs] = useState<Song[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingSong, setEditingSong] = useState<Song | null>(null);
+  const [loadingSongId, setLoadingSongId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [availableSongTags, setAvailableSongTags] = useState<SongTagDefinition[]>(
     DEFAULT_SONG_TAG_DEFINITIONS
@@ -126,21 +133,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
   const youtubeProbeRequestIdRef = useRef(0);
   const autoValidatedUncheckedRef = useRef<Record<string, boolean>>({});
 
-  const filteredSongs = useMemo(() => {
-    const normalizedQuery = searchTerm.trim().toLowerCase();
-    if (!normalizedQuery) {
-      return songs;
-    }
-
-    return songs.filter((song) =>
-      [
-        song.artist,
-        song.title,
-        song.youtube_url,
-        song.year?.toString() ?? "",
-      ].some((value) => value.toLowerCase().includes(normalizedQuery))
-    );
-  }, [searchTerm, songs]);
+  const filteredSongs = songs;
 
   const pageSpanishCount = useMemo(
     () => filteredSongs.filter((song) => song.isspanish).length,
@@ -150,8 +143,9 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
   const loadSongs = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listMySongs();
-      setSongs(data);
+      const data = await listMySongs({ page, pageSize: PAGE_SIZE, search: searchTerm });
+      setSongs(data.songs);
+      setTotal(data.total);
     } catch (err) {
       onFeedback({
         severity: "error",
@@ -161,7 +155,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
     } finally {
       setLoading(false);
     }
-  }, [onFeedback]);
+  }, [onFeedback, page, searchTerm]);
 
   useEffect(() => {
     void loadSongs();
@@ -192,6 +186,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
 
   useEffect(() => {
     const handler = window.setTimeout(() => {
+      setPage(0);
       setSearchTerm(searchInput.trim());
     }, 300);
 
@@ -555,10 +550,21 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
     setFormOpen(true);
   };
 
-  const openEditForm = (song: Song) => {
-    setFormMode("edit");
-    setEditingSong(song);
-    setFormOpen(true);
+  const openEditForm = async (song: Song) => {
+    setLoadingSongId(song.id);
+    try {
+      const detailedSong = await getMySong(song.id);
+      setFormMode("edit");
+      setEditingSong(detailedSong);
+      setFormOpen(true);
+    } catch (err) {
+      onFeedback({
+        severity: "error",
+        message: err instanceof Error ? err.message : "No se pudo abrir la canción.",
+      });
+    } finally {
+      setLoadingSongId(null);
+    }
   };
 
   const handleSubmit = async (payload: SongInput) => {
@@ -978,7 +984,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
             Canciones totales
           </Typography>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            {songs.length}
+            {total}
           </Typography>
         </Paper>
         <Paper
@@ -1102,6 +1108,17 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
         >
           {renderMobileCards()}
           {renderDesktopTable()}
+          <TablePagination
+            component="div"
+            count={total}
+            page={page}
+            rowsPerPage={PAGE_SIZE}
+            rowsPerPageOptions={[PAGE_SIZE]}
+            onPageChange={(_event, nextPage) => setPage(nextPage)}
+            labelRowsPerPage="Canciones por página"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+            sx={{ borderTop: "1px solid", borderColor: "divider" }}
+          />
         </Paper>
       )}
 
@@ -1150,11 +1167,11 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
         <MenuItem
           onClick={() => {
             if (songMenuSong) {
-              openEditForm(songMenuSong);
+              void openEditForm(songMenuSong);
             }
             handleSongMenuClose();
           }}
-          disabled={!songMenuSong}
+          disabled={!songMenuSong || loadingSongId === songMenuSong.id}
         >
           <ListItemIcon>
             <EditIcon fontSize="small" />

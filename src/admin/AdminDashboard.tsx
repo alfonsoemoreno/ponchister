@@ -231,6 +231,11 @@ export default function AdminDashboard({
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
 
+  const handleMyCollectionFeedback = useCallback((payload: FeedbackState) => {
+    setFeedback(payload);
+    setSnackbarOpen(true);
+  }, []);
+
   const [deleteTarget, setDeleteTarget] = useState<Song | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -3031,12 +3036,7 @@ export default function AdminDashboard({
                     }}
                   />
                 ) : activeTab === "my-collection" ? (
-                  <MyCollectionView
-                    onFeedback={(payload) => {
-                      setFeedback(payload);
-                      setSnackbarOpen(true);
-                    }}
-                  />
+                  <MyCollectionView onFeedback={handleMyCollectionFeedback} />
                 ) : (
                   <AdminUsersPanel isSuperAdmin={isSuperAdmin} />
                 )}

@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
 import { songs } from "../../../../src/db/schema";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
@@ -105,6 +105,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
 
   if (req.method === "GET") {
+    const url = new URL(req.url ?? "", "http://localhost");
+    const requestedPage = Number(url.searchParams.get("page") ?? "0");
+    const requestedPageSize = Number(url.searchParams.get("pageSize") ?? "50");
+    const page = Number.isInteger(requestedPage) && requestedPage >= 0 ? requestedPage : 0;
+    const pageSize =
+      Number.isInteger(requestedPageSize) && requestedPageSize > 0
+        ? Math.min(requestedPageSize, 2_000)
+        : 50;
+    const search = url.searchParams.get("search")?.trim() ?? "";
+    const filters = [
+      eq(songs.scope, "personal"),
+      eq(songs.ownerUserId, user.id),
+    ];
+
+    if (search) {
+      const likeTerm = `%${search}%`;
+      const searchFilter = or(
+        ilike(songs.artist, likeTerm),
+        ilike(songs.title, likeTerm),
+        ilike(songs.youtubeUrl, likeTerm)
+      );
+      if (searchFilter) filters.push(searchFilter);
+    }
+
+    const whereClause = and(...filters);
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(songs)
+      .where(whereClause);
     const rows = await db
       .select({
         id: songs.id,
@@ -119,10 +148,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         tararear: songs.tararear,
         karaoke: songs.karaoke,
         karaoke_pause_seconds: songs.karaokePauseSeconds,
-        karaoke_lyric: songs.karaokeLyric,
+        // The lyric and trivia text can be very large. They are only needed
+        // when a song is opened for editing, so do not transfer them with a list.
+        karaoke_lyric: sql<string | null>`null`,
         trivia: songs.trivia,
-        trivia_question: songs.triviaQuestion,
-        trivia_answer: songs.triviaAnswer,
+        trivia_question: sql<string | null>`null`,
+        trivia_answer: sql<string | null>`null`,
         youtube_status: songs.youtubeStatus,
         youtube_validation_message: songs.youtubeValidationMessage,
         youtube_validation_code: songs.youtubeValidationCode,
@@ -133,11 +164,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         approved_at: songs.approvedAt,
       })
       .from(songs)
-      .where(and(eq(songs.scope, "personal"), eq(songs.ownerUserId, user.id)))
-      .orderBy(asc(songs.artist), asc(songs.title), asc(songs.id));
+      .where(whereClause)
+      .orderBy(asc(songs.artist), asc(songs.title), asc(songs.id))
+      .limit(pageSize)
+      .offset(page * pageSize);
 
     res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify(rows.map((row) => serializeSong(row, owner))));
+    res.end(
+      JSON.stringify({
+        songs: rows.map((row) => serializeSong(row, owner)),
+        total: Number(countRow?.count ?? 0),
+      })
+    );
     return;
   }
 

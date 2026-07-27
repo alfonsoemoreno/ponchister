@@ -145,9 +145,36 @@ function sanitizeInput(payload: SongInput): SongInput {
   };
 }
 
-export async function listMySongs(): Promise<Song[]> {
-  const data = await fetchJson<Record<string, unknown>[]>(API_BASE);
-  return data.map(normalizeSong);
+export interface MySongsPage {
+  songs: Song[];
+  total: number;
+}
+
+export async function listMySongs(options?: {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+}): Promise<MySongsPage> {
+  const params = new URLSearchParams({
+    page: String(options?.page ?? 0),
+    pageSize: String(options?.pageSize ?? 50),
+  });
+  if (options?.search?.trim()) {
+    params.set("search", options.search.trim());
+  }
+  const data = await fetchJson<{
+    songs?: Record<string, unknown>[];
+    total?: number;
+  }>(`${API_BASE}?${params.toString()}`);
+  return {
+    songs: (data.songs ?? []).map(normalizeSong),
+    total: typeof data.total === "number" ? data.total : 0,
+  };
+}
+
+export async function getMySong(id: number): Promise<Song> {
+  const data = await fetchJson<Record<string, unknown>>(`${API_BASE}/${id}`);
+  return normalizeSong(data);
 }
 
 export async function createMySong(

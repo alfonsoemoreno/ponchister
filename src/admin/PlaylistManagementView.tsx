@@ -118,7 +118,9 @@ export default function PlaylistManagementView({
     try {
       const [playlistData, songData] = await Promise.all([
         listPlaylists(scope),
-        scope === "personal" ? listMySongs() : fetchAllSongs(),
+        scope === "personal"
+          ? listMySongs({ pageSize: 100 }).then((result) => result.songs)
+          : fetchAllSongs(),
       ]);
       setPlaylists(playlistData);
       setSongs(songData);

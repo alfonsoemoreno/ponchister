@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { songs } from "../../../../src/db/schema";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
+import { serializeAdminIdentity } from "../../../../src/admin/serializers";
 import {
   isSpanishTagSelected,
   normalizeSongTags,
@@ -51,6 +52,47 @@ const parseYoutubeValidation = (body: Record<string, unknown>) => {
   };
 };
 
+function serializeSong(
+  row: {
+    id: number;
+    artist: string;
+    title: string;
+    year: number | null;
+    play_start_seconds: number;
+    youtube_url: string;
+    tags: string[];
+    isspanish: boolean;
+    mimica: boolean;
+    tararear: boolean;
+    karaoke: boolean;
+    karaoke_pause_seconds: number;
+    karaoke_lyric: string | null;
+    trivia: boolean;
+    trivia_question: string | null;
+    trivia_answer: string | null;
+    youtube_status: string | null;
+    youtube_validation_message: string | null;
+    youtube_validation_code: number | null;
+    youtube_validated_at: Date | null;
+    catalog_status: string;
+    created_at: Date;
+    updated_at: Date;
+    approved_at: Date | null;
+  },
+  owner: ReturnType<typeof serializeAdminIdentity>
+) {
+  return {
+    ...row,
+    scope: "personal",
+    youtube_validated_at: row.youtube_validated_at?.toISOString() ?? null,
+    created_at: row.created_at.toISOString(),
+    updated_at: row.updated_at.toISOString(),
+    approved_at: row.approved_at?.toISOString() ?? null,
+    created_by_user: owner,
+    approved_by_user: null,
+  };
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await requireAdmin(req, res);
   if (!user) return;
@@ -66,6 +108,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     eq(songs.scope, "personal"),
     eq(songs.ownerUserId, user.id)
   );
+
+  if (req.method === "GET") {
+    const [song] = await db
+      .select({
+        id: songs.id,
+        artist: songs.artist,
+        title: songs.title,
+        year: songs.year,
+        play_start_seconds: songs.playStartSeconds,
+        youtube_url: songs.youtubeUrl,
+        tags: songs.songAttributes,
+        isspanish: songs.isSpanish,
+        mimica: songs.mimica,
+        tararear: songs.tararear,
+        karaoke: songs.karaoke,
+        karaoke_pause_seconds: songs.karaokePauseSeconds,
+        karaoke_lyric: songs.karaokeLyric,
+        trivia: songs.trivia,
+        trivia_question: songs.triviaQuestion,
+        trivia_answer: songs.triviaAnswer,
+        youtube_status: songs.youtubeStatus,
+        youtube_validation_message: songs.youtubeValidationMessage,
+        youtube_validation_code: songs.youtubeValidationCode,
+        youtube_validated_at: songs.youtubeValidatedAt,
+        catalog_status: songs.catalogStatus,
+        created_at: songs.createdAt,
+        updated_at: songs.updatedAt,
+        approved_at: songs.approvedAt,
+      })
+      .from(songs)
+      .where(baseWhere);
+
+    if (!song) {
+      res.status(404).end("Canción no encontrada.");
+      return;
+    }
+
+    const owner = serializeAdminIdentity({
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+    });
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(serializeSong(song, owner)));
+    return;
+  }
 
   if (req.method === "PUT") {
     const body = parseBody(req);

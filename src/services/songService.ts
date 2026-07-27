@@ -225,14 +225,38 @@ export async function fetchSongQueue(options?: {
 }
 
 export async function fetchMyCollectionSongs(): Promise<Song[]> {
-  const data = await fetchJsonWithCredentials<Record<string, unknown>[]>(
-    "/api/admin/my-songs"
-  );
-  const collected = data.map((raw) => normalizeSong(raw));
-  if (!collected.length) {
+  const result = await fetchMyCollectionQueue();
+  if (!result.songs.length) {
     throw new Error("Tu colección personal no tiene canciones disponibles.");
   }
-  return collected;
+  return result.songs;
+}
+
+export async function fetchMyCollectionQueue(options?: {
+  selectedTags?: string[];
+  tagMatchMode?: SongTagMatchMode;
+  excludedSongIds?: number[];
+  excludedArtistKeys?: string[];
+  recentSongIds?: number[];
+}): Promise<{ songs: Song[]; resetRecentHistory: boolean }> {
+  const data = await fetchJsonWithCredentials<{
+    songs?: Record<string, unknown>[];
+    resetRecentHistory?: boolean;
+  }>("/api/admin/my-songs/queue", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      selectedTags: normalizeSongTags(options?.selectedTags ?? []),
+      tagMatchMode: options?.tagMatchMode === "all" ? "all" : "any",
+      excludedSongIds: options?.excludedSongIds ?? [],
+      excludedArtistKeys: options?.excludedArtistKeys ?? [],
+      recentSongIds: options?.recentSongIds ?? [],
+    }),
+  });
+  return {
+    songs: (data.songs ?? []).map(normalizeSong),
+    resetRecentHistory: data.resetRecentHistory === true,
+  };
 }
 
 export async function fetchMyPlaylistSongs(playlistId: number): Promise<Song[]> {

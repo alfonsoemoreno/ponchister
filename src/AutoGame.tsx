@@ -28,10 +28,10 @@ import CampaignIcon from "@mui/icons-material/Campaign";
 import MicIcon from "@mui/icons-material/Mic";
 import QuizIcon from "@mui/icons-material/Quiz";
 
-import { fetchSongQueue } from "./services/songService";
 import {
-  fetchMyCollectionSongs,
+  fetchMyCollectionQueue,
   fetchMyPlaylistSongs,
+  fetchSongQueue,
 } from "./services/songService";
 import { createGameSession } from "./services/gameSessionService";
 import {
@@ -403,20 +403,17 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
   const fetchSongsForRange = useCallback((queueOptions: QueueRequestOptions) => {
     if (gameSource === "personal_catalog") {
-      return fetchMyCollectionSongs().then((songs) => {
-        const filtered = songs.filter((song) =>
-          songMatchesSelectedTags(
-            song.tags,
-            localSelectedTags,
-            localTagMatchMode,
-          ),
-        );
-        if (!filtered.length) {
+      return fetchMyCollectionQueue({
+        selectedTags: localSelectedTags,
+        tagMatchMode: localTagMatchMode,
+        ...queueOptions,
+      }).then((result) => {
+        if (!result.songs.length) {
           throw new Error(
             "Tu colección personal no tiene canciones para las etiquetas seleccionadas.",
           );
         }
-        return buildPersonalQueue(filtered, queueOptions);
+        return result;
       });
     }
     if (gameSource === "personal_playlist" && playlist) {

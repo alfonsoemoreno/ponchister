@@ -65,6 +65,7 @@ import {
   formatSongTags,
   getSongTagLabel,
   type SongTagDefinition,
+  type SongTag,
 } from "../lib/songTags";
 
 interface MyCollectionViewProps {
@@ -98,6 +99,27 @@ interface AudioPreviewState {
 }
 
 const PAGE_SIZE = 50;
+type SortOption =
+  | "id_asc"
+  | "id_desc"
+  | "artist_asc"
+  | "artist_desc"
+  | "title_asc"
+  | "title_desc"
+  | "year_desc"
+  | "year_asc";
+type SpecialModeFilter = "all" | "mimica" | "tararear" | "karaoke" | "trivia";
+const DEFAULT_SORT_OPTION: SortOption = "artist_asc";
+const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
+  { value: "id_asc", label: "ID ascendente" },
+  { value: "id_desc", label: "ID descendente" },
+  { value: "artist_asc", label: "Artista A → Z" },
+  { value: "artist_desc", label: "Artista Z → A" },
+  { value: "title_asc", label: "Canción A → Z" },
+  { value: "title_desc", label: "Canción Z → A" },
+  { value: "year_desc", label: "Año más reciente" },
+  { value: "year_asc", label: "Año más antiguo" },
+];
 
 export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -116,6 +138,11 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
   const [submittingSongId, setSubmittingSongId] = useState<number | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [yearInput, setYearInput] = useState("");
+  const [yearFilter, setYearFilter] = useState<number | null>(null);
+  const [selectedFilterTags, setSelectedFilterTags] = useState<SongTag[]>([]);
+  const [specialModeFilter, setSpecialModeFilter] = useState<SpecialModeFilter>("all");
+  const [sortOption, setSortOption] = useState<SortOption>(DEFAULT_SORT_OPTION);
   const [songMenuAnchorEl, setSongMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [songMenuSong, setSongMenuSong] = useState<Song | null>(null);
   const [audioPreview, setAudioPreview] = useState<AudioPreviewState | null>(null);
@@ -140,10 +167,37 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
     [filteredSongs]
   );
 
+  const sortConfig = useMemo<{
+    sortBy: "id" | "artist" | "title" | "year";
+    direction: "asc" | "desc";
+  }>(() => {
+    const [sortBy, direction] = sortOption.split("_") as [
+      "id" | "artist" | "title" | "year",
+      "asc" | "desc",
+    ];
+    return { sortBy, direction };
+  }, [sortOption]);
+
+  const filtersActive =
+    yearFilter !== null ||
+    yearInput.trim() !== "" ||
+    selectedFilterTags.length > 0 ||
+    specialModeFilter !== "all" ||
+    sortOption !== DEFAULT_SORT_OPTION;
+
   const loadSongs = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listMySongs({ page, pageSize: PAGE_SIZE, search: searchTerm });
+      const data = await listMySongs({
+        page,
+        pageSize: PAGE_SIZE,
+        search: searchTerm,
+        year: yearFilter,
+        tags: selectedFilterTags,
+        specialMode: specialModeFilter,
+        sortBy: sortConfig.sortBy,
+        sortDirection: sortConfig.direction,
+      });
       setSongs(data.songs);
       setTotal(data.total);
     } catch (err) {
@@ -155,7 +209,15 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
     } finally {
       setLoading(false);
     }
-  }, [onFeedback, page, searchTerm]);
+  }, [
+    onFeedback,
+    page,
+    searchTerm,
+    yearFilter,
+    selectedFilterTags,
+    specialModeFilter,
+    sortConfig,
+  ]);
 
   useEffect(() => {
     void loadSongs();
@@ -192,6 +254,33 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
 
     return () => window.clearTimeout(handler);
   }, [searchInput]);
+
+  useEffect(() => {
+    const handler = window.setTimeout(() => {
+      const trimmed = yearInput.trim();
+      if (!trimmed) {
+        setYearFilter(null);
+        return;
+      }
+      const parsed = Number.parseInt(trimmed, 10);
+      if (!Number.isNaN(parsed)) setYearFilter(parsed);
+    }, 300);
+    return () => window.clearTimeout(handler);
+  }, [yearInput]);
+
+  const updateFilters = <T,>(setter: (value: T) => void, value: T) => {
+    setter(value);
+    setPage(0);
+  };
+
+  const handleClearFilters = () => {
+    setYearInput("");
+    setYearFilter(null);
+    setSelectedFilterTags([]);
+    setSpecialModeFilter("all");
+    setSortOption(DEFAULT_SORT_OPTION);
+    setPage(0);
+  };
 
   const toPersistedYoutubeValidation = useCallback(
     (result: YoutubeValidationResult): SongYoutubeValidationPayload | null => {
@@ -1081,6 +1170,89 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
               </IconButton>
             </Box>
           </Tooltip>
+        </Stack>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          alignItems={{ xs: "stretch", md: "center" }}
+          sx={{ mt: 2 }}
+        >
+          <TextField
+            label="Filtrar por año"
+            type="number"
+            value={yearInput}
+            onChange={(event) => setYearInput(event.target.value)}
+            placeholder="Ej: 1994"
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ min: 0 }}
+            size="small"
+            sx={{ width: { xs: "100%", md: 180 } }}
+          />
+          <TextField
+            select
+            label="Modalidad"
+            value={specialModeFilter}
+            onChange={(event) =>
+              updateFilters(
+                setSpecialModeFilter,
+                event.target.value as SpecialModeFilter
+              )
+            }
+            size="small"
+            sx={{ width: { xs: "100%", md: 180 } }}
+          >
+            <MenuItem value="all">Todas</MenuItem>
+            <MenuItem value="mimica">Con mímica</MenuItem>
+            <MenuItem value="tararear">Con tarareo</MenuItem>
+            <MenuItem value="karaoke">Con karaoke</MenuItem>
+            <MenuItem value="trivia">Con trivia</MenuItem>
+          </TextField>
+          <TextField
+            select
+            label="Ordenar por"
+            value={sortOption}
+            onChange={(event) =>
+              updateFilters(setSortOption, event.target.value as SortOption)
+            }
+            size="small"
+            sx={{ width: { xs: "100%", md: 220 } }}
+          >
+            {SORT_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Button
+            variant="outlined"
+            onClick={handleClearFilters}
+            disabled={!filtersActive}
+            sx={{ alignSelf: { xs: "stretch", md: "flex-start" } }}
+          >
+            Limpiar filtros
+          </Button>
+        </Stack>
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 2 }}>
+          {availableSongTags.map((tag) => {
+            const selected = selectedFilterTags.includes(tag.slug);
+            return (
+              <Chip
+                key={tag.slug}
+                label={tag.label}
+                clickable
+                color={selected ? "primary" : "default"}
+                variant={selected ? "filled" : "outlined"}
+                onClick={() => {
+                  updateFilters(
+                    setSelectedFilterTags,
+                    selected
+                      ? selectedFilterTags.filter((slug) => slug !== tag.slug)
+                      : [...selectedFilterTags, tag.slug]
+                  );
+                }}
+              />
+            );
+          })}
         </Stack>
       </Paper>
 

@@ -4,6 +4,7 @@ import {
   normalizeSongTags,
   syncSongModeTags,
 } from "../../lib/songTags";
+import type { SongTag } from "../../lib/songTags";
 
 const API_BASE = "/api/admin/my-songs";
 
@@ -154,6 +155,11 @@ export async function listMySongs(options?: {
   page?: number;
   pageSize?: number;
   search?: string;
+  year?: number | null;
+  tags?: SongTag[];
+  specialMode?: "all" | "mimica" | "tararear" | "karaoke" | "trivia";
+  sortBy?: "id" | "artist" | "title" | "year";
+  sortDirection?: "asc" | "desc";
 }): Promise<MySongsPage> {
   const params = new URLSearchParams({
     page: String(options?.page ?? 0),
@@ -162,6 +168,13 @@ export async function listMySongs(options?: {
   if (options?.search?.trim()) {
     params.set("search", options.search.trim());
   }
+  if (typeof options?.year === "number") params.set("year", String(options.year));
+  if (options?.tags?.length) params.set("tags", options.tags.join(","));
+  if (options?.specialMode && options.specialMode !== "all") {
+    params.set("specialMode", options.specialMode);
+  }
+  if (options?.sortBy) params.set("sortBy", options.sortBy);
+  if (options?.sortDirection) params.set("sortDirection", options.sortDirection);
   const data = await fetchJson<{
     songs?: Record<string, unknown>[];
     total?: number;

@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { songs } from "../../../../src/db/schema";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
@@ -114,10 +114,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         ? Math.min(requestedPageSize, 2_000)
         : 50;
     const search = url.searchParams.get("search")?.trim() ?? "";
+    const yearParam = url.searchParams.get("year");
+    const year = yearParam ? Number(yearParam) : null;
+    const tags = normalizeSongTags(url.searchParams.get("tags"));
+    const specialMode =
+      url.searchParams.get("specialMode") === "mimica" ||
+      url.searchParams.get("specialMode") === "tararear" ||
+      url.searchParams.get("specialMode") === "karaoke" ||
+      url.searchParams.get("specialMode") === "trivia"
+        ? url.searchParams.get("specialMode")
+        : null;
+    const sortBy =
+      (url.searchParams.get("sortBy") as "id" | "artist" | "title" | "year") ??
+      "artist";
+    const sortDirection =
+      (url.searchParams.get("sortDirection") as "asc" | "desc") ?? "asc";
     const filters = [
       eq(songs.scope, "personal"),
       eq(songs.ownerUserId, user.id),
     ];
+
+    if (typeof year === "number" && Number.isFinite(year)) {
+      filters.push(eq(songs.year, year));
+    }
+    if (tags.length) {
+      filters.push(
+        sql`${songs.songAttributes} @> ARRAY[${sql.join(
+          tags.map((tag) => sql`${tag}`),
+          sql.raw(", ")
+        )}]::text[]`
+      );
+    }
+    if (specialMode === "mimica") filters.push(eq(songs.mimica, true));
+    if (specialMode === "tararear") filters.push(eq(songs.tararear, true));
+    if (specialMode === "karaoke") filters.push(eq(songs.karaoke, true));
+    if (specialMode === "trivia") filters.push(eq(songs.trivia, true));
 
     if (search) {
       const likeTerm = `%${search}%`;
@@ -130,6 +161,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const whereClause = and(...filters);
+    const orderDirection = sortDirection === "desc" ? desc : asc;
+    const orderBy = [
+      orderDirection(
+        sortBy === "artist"
+          ? songs.artist
+          : sortBy === "title"
+          ? songs.title
+          : sortBy === "year"
+          ? songs.year
+          : songs.id
+      ),
+    ];
+    if (sortBy !== "id") orderBy.push(asc(songs.id));
     const [countRow] = await db
       .select({ count: sql<number>`count(*)` })
       .from(songs)
@@ -165,7 +209,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
       .from(songs)
       .where(whereClause)
-      .orderBy(asc(songs.artist), asc(songs.title), asc(songs.id))
+      .orderBy(...orderBy)
       .limit(pageSize)
       .offset(page * pageSize);
 

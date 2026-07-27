@@ -259,13 +259,37 @@ export async function fetchMyCollectionQueue(options?: {
   };
 }
 
-export async function fetchMyPlaylistSongs(playlistId: number): Promise<Song[]> {
-  const data = await fetchJsonWithCredentials<Record<string, unknown>[]>(
-    `/api/admin/my-playlist-songs?playlistId=${playlistId}`
-  );
-  const collected = data.map((raw) => normalizeSong(raw));
+export async function fetchMyPlaylistSongs(
+  playlistId: number,
+  options?: {
+    selectedTags?: string[];
+    tagMatchMode?: SongTagMatchMode;
+    excludedSongIds?: number[];
+    excludedArtistKeys?: string[];
+    recentSongIds?: number[];
+  }
+): Promise<{ songs: Song[]; resetRecentHistory: boolean }> {
+  const data = await fetchJsonWithCredentials<{
+    songs?: Record<string, unknown>[];
+    resetRecentHistory?: boolean;
+  }>("/api/admin/my-playlist-songs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      playlistId,
+      selectedTags: normalizeSongTags(options?.selectedTags ?? []),
+      tagMatchMode: options?.tagMatchMode === "all" ? "all" : "any",
+      excludedSongIds: options?.excludedSongIds ?? [],
+      excludedArtistKeys: options?.excludedArtistKeys ?? [],
+      recentSongIds: options?.recentSongIds ?? [],
+    }),
+  });
+  const collected = (data.songs ?? []).map((raw) => normalizeSong(raw));
   if (!collected.length) {
     throw new Error("La playlist personal seleccionada no tiene canciones.");
   }
-  return collected;
+  return {
+    songs: collected,
+    resetRecentHistory: data.resetRecentHistory === true,
+  };
 }

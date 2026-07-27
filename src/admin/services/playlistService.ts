@@ -147,6 +147,11 @@ function normalizePlaylist(raw: Record<string, unknown>): Playlist {
     songs: Array.isArray(raw.songs)
       ? raw.songs.map((song) => normalizeSong(song as Record<string, unknown>))
       : undefined,
+    songIds: Array.isArray(raw.songIds)
+      ? raw.songIds
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      : undefined,
   };
 }
 

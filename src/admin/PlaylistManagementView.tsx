@@ -155,7 +155,10 @@ export default function PlaylistManagementView({
         name: detailedPlaylist.name,
         description: detailedPlaylist.description ?? "",
         active: detailedPlaylist.active,
-        songIds: detailedPlaylist.songs?.map((song) => song.id) ?? [],
+        songIds:
+          detailedPlaylist.songIds ??
+          detailedPlaylist.songs?.map((song) => song.id) ??
+          [],
       });
       setSongSearch("");
       setViewMode("editor");

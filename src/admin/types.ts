@@ -97,6 +97,7 @@ export interface Playlist {
   updated_at?: string | null;
   created_by_user?: AdminIdentity | null;
   songs?: Song[];
+  songIds?: number[];
 }
 
 export interface PlaylistInput {

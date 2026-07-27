@@ -499,8 +499,22 @@ export async function fetchSongStatistics(): Promise<SongStatisticsGroup> {
 }
 
 export async function fetchAllSongs(): Promise<Song[]> {
-  const data = await fetchJson<Record<string, unknown>[]>(
-    `${API_BASE}/songs/all`
-  );
-  return data.map((item) => normalizeSong(item));
+  const pageSize = 100;
+  const collected: Song[] = [];
+  let page = 0;
+  let total = Number.POSITIVE_INFINITY;
+
+  while (collected.length < total) {
+    const data = await fetchJson<{
+      songs?: Record<string, unknown>[];
+      total?: number;
+    }>(`${API_BASE}/songs/all?page=${page}&pageSize=${pageSize}`);
+    const entries = Array.isArray(data.songs) ? data.songs : [];
+    collected.push(...entries.map((item) => normalizeSong(item)));
+    total = typeof data.total === "number" && data.total >= 0 ? data.total : collected.length;
+    if (!entries.length) break;
+    page += 1;
+  }
+
+  return collected;
 }

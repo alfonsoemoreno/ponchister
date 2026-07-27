@@ -119,22 +119,6 @@ async function hydratePlaylist(id: number) {
   const playlistSongRows = await db
     .select({
       id: songs.id,
-      artist: songs.artist,
-      title: songs.title,
-      year: songs.year,
-      play_start_seconds: songs.playStartSeconds,
-      youtube_url: songs.youtubeUrl,
-      tags: songs.songAttributes,
-      isspanish: songs.isSpanish,
-      mimica: songs.mimica,
-      tararear: songs.tararear,
-      karaoke: songs.karaoke,
-      karaoke_pause_seconds: songs.karaokePauseSeconds,
-      karaoke_lyric: songs.karaokeLyric,
-      trivia: songs.trivia,
-      trivia_question: songs.triviaQuestion,
-      trivia_answer: songs.triviaAnswer,
-      position: playlistSongs.position,
     })
     .from(playlistSongs)
     .innerJoin(songs, eq(playlistSongs.songId, songs.id))
@@ -185,11 +169,9 @@ async function hydratePlaylist(id: number) {
     updated_at: playlist.updatedAt.toISOString(),
     created_by_user:
       playlist.createdBy !== null ? (userMap.get(playlist.createdBy) ?? null) : null,
-    songs: playlistSongRows.map((row) => {
-      const { position, ...song } = row;
-      void position;
-      return song;
-    }),
+    // The editor already has the lightweight catalog summary. Returning only
+    // IDs here avoids resending every song field for a large playlist.
+    songIds: playlistSongRows.map((row) => row.id),
   };
 }
 

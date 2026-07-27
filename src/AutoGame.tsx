@@ -35,10 +35,7 @@ import {
 } from "./services/songService";
 import { createGameSession } from "./services/gameSessionService";
 import {
-  buildBalancedQueue,
-  dedupePlayableSongs,
   extractYoutubeId,
-  getSongArtistKey,
 } from "./lib/autoGameQueue";
 import { useAutoGameQueue } from "./hooks/useAutoGameQueue";
 import { useArtworkLookup } from "./hooks/useArtworkLookup";
@@ -48,11 +45,10 @@ import { YearSpotlight } from "./auto-game/YearSpotlight";
 import LocalQrCode from "./components/LocalQrCode";
 import { useViewTransition } from "./hooks/useViewTransition";
 import { createAdaptiveTheme } from "./auto-game/theme";
-import type { GameSource, PlaylistSummary, Song, YearRange } from "./types";
+import type { GameSource, PlaylistSummary, YearRange } from "./types";
 import {
   getSongTagLabel,
   normalizeSongTags,
-  songMatchesSelectedTags,
   type SongTagMatchMode,
   type SongTagDefinition,
   type SongTag,
@@ -102,26 +98,6 @@ type QueueRequestOptions = {
   excludedArtistKeys: string[];
   recentSongIds: number[];
 };
-
-function buildPersonalQueue(songs: Song[], options: QueueRequestOptions) {
-  const excludedSongIds = new Set(options.excludedSongIds);
-  const excludedArtistKeys = new Set(options.excludedArtistKeys);
-  const recentSongIds = new Set(options.recentSongIds);
-  const candidates = dedupePlayableSongs(songs).filter(
-    (song) =>
-      !excludedSongIds.has(song.id) &&
-      !excludedArtistKeys.has(getSongArtistKey(song.artist))
-  );
-  const freshCandidates = candidates.filter((song) => !recentSongIds.has(song.id));
-  const resetRecentHistory = candidates.length > 0 && freshCandidates.length === 0;
-
-  return {
-    songs: buildBalancedQueue(
-      resetRecentHistory ? candidates : freshCandidates
-    ).slice(0, 25),
-    resetRecentHistory,
-  };
-}
 
 const TIMER_DURATION_SECONDS = 60;
 const SPECIAL_SONG_CHANCE = 0.12;
@@ -417,20 +393,10 @@ const AutoGame: React.FC<AutoGameProps> = ({
       });
     }
     if (gameSource === "personal_playlist" && playlist) {
-      return fetchMyPlaylistSongs(playlist.id).then((songs) => {
-        const filtered = songs.filter((song) =>
-          songMatchesSelectedTags(
-            song.tags,
-            localSelectedTags,
-            localTagMatchMode,
-          ),
-        );
-        if (!filtered.length) {
-          throw new Error(
-            "La playlist personal seleccionada no tiene canciones para las etiquetas seleccionadas.",
-          );
-        }
-        return buildPersonalQueue(filtered, queueOptions);
+      return fetchMyPlaylistSongs(playlist.id, {
+        selectedTags: localSelectedTags,
+        tagMatchMode: localTagMatchMode,
+        ...queueOptions,
       });
     }
     return fetchSongQueue({

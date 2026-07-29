@@ -1539,21 +1539,25 @@ export default function AdminDashboard({
               ) : null}
             </TableCell>
             <TableCell width={80}>{song.id}</TableCell>
-            <TableCell sx={{ minWidth: 180 }}>
-              <Typography variant="body2" fontWeight={600} noWrap>
-                {song.artist}
-              </Typography>
+            <TableCell sx={{ width: "18%", minWidth: 0, overflow: "hidden" }}>
+              <Tooltip title={song.artist} disableInteractive>
+                <Typography variant="body2" fontWeight={600} noWrap>
+                  {song.artist}
+                </Typography>
+              </Tooltip>
             </TableCell>
-            <TableCell sx={{ minWidth: 220 }}>
-              <Typography variant="body2" noWrap>
-                {song.title}
-              </Typography>
+            <TableCell sx={{ width: "24%", minWidth: 0, overflow: "hidden" }}>
+              <Tooltip title={song.title} disableInteractive>
+                <Typography variant="body2" noWrap>
+                  {song.title}
+                </Typography>
+              </Tooltip>
               <Typography variant="caption" color="text.secondary" noWrap>
                 Alta: {getSongOwnerLabel(song)}
               </Typography>
             </TableCell>
-            <TableCell width={120}>{song.year ?? "-"}</TableCell>
-            <TableCell width={140} align="center">
+            <TableCell width={64}>{song.year ?? "-"}</TableCell>
+            <TableCell width={104} align="center">
               <Chip
                 label={catalogChip.label}
                 color={catalogChip.color}
@@ -1561,7 +1565,7 @@ export default function AdminDashboard({
                 size="small"
               />
             </TableCell>
-            <TableCell width={160} align="center">
+            <TableCell width={116} align="center">
               <Tooltip title={youtubeStatus.tooltip} disableInteractive>
                 <Chip
                   label={youtubeStatus.label}
@@ -1571,7 +1575,7 @@ export default function AdminDashboard({
                 />
               </Tooltip>
             </TableCell>
-            <TableCell width={220} align="center">
+            <TableCell width={152} align="center">
               <Stack
                 direction="row"
                 spacing={0.75}
@@ -1595,7 +1599,7 @@ export default function AdminDashboard({
                 )}
               </Stack>
             </TableCell>
-            <TableCell align="right" width={176}>
+            <TableCell align="right" width={104}>
               <Stack
                 direction="row"
                 spacing={0.5}
@@ -1766,6 +1770,7 @@ export default function AdminDashboard({
                   sx={{
                     fontWeight: 700,
                     lineHeight: 1.2,
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {song.artist}
@@ -1788,6 +1793,7 @@ export default function AdminDashboard({
                   sx={{
                     fontWeight: 600,
                     lineHeight: 1.25,
+                    overflowWrap: "anywhere",
                   }}
                 >
                   {song.title}
@@ -2763,7 +2769,7 @@ export default function AdminDashboard({
                     >
                       <Box
                         sx={{
-                          display: { xs: "flex", md: "none" },
+                          display: { xs: "flex", lg: "none" },
                           flexDirection: "column",
                           gap: 2,
                           py: 1,
@@ -2772,11 +2778,13 @@ export default function AdminDashboard({
                         {renderMobileSongCards()}
                       </Box>
                       <TableContainer
-                        sx={{ display: { xs: "none", md: "block" } }}
+                        sx={{ display: { xs: "none", lg: "block" }, maxWidth: "100%" }}
                       >
                         <Table
                           size="medium"
                           sx={{
+                            width: "100%",
+                            tableLayout: "fixed",
                             "& th": {
                               textTransform: "none",
                               letterSpacing: 0.2,

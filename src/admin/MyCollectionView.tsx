@@ -696,10 +696,12 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
   };
 
   const renderDesktopTable = () => (
-    <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
+    <TableContainer sx={{ display: { xs: "none", lg: "block" }, maxWidth: "100%" }}>
       <Table
         size="medium"
         sx={{
+          width: "100%",
+          tableLayout: "fixed",
           "& th": {
             textTransform: "none",
             letterSpacing: 0.2,
@@ -738,22 +740,26 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                   animationFillMode: "both",
                 }}
               >
-                <TableCell width={80}>{song.id}</TableCell>
-                <TableCell sx={{ minWidth: 180 }}>
-                  <Typography variant="body2" fontWeight={600} noWrap>
-                    {song.artist}
-                  </Typography>
+                <TableCell width={56}>{song.id}</TableCell>
+                <TableCell sx={{ width: "25%", minWidth: 0, overflow: "hidden" }}>
+                  <Tooltip title={song.artist} disableInteractive>
+                    <Typography variant="body2" fontWeight={600} noWrap>
+                      {song.artist}
+                    </Typography>
+                  </Tooltip>
                 </TableCell>
-                <TableCell sx={{ minWidth: 220 }}>
-                  <Typography variant="body2" noWrap>
-                    {song.title}
-                  </Typography>
+                <TableCell sx={{ width: "30%", minWidth: 0, overflow: "hidden" }}>
+                  <Tooltip title={song.title} disableInteractive>
+                    <Typography variant="body2" noWrap>
+                      {song.title}
+                    </Typography>
+                  </Tooltip>
                   <Typography variant="caption" color="text.secondary" noWrap>
                     Mi colección
                   </Typography>
                 </TableCell>
-                <TableCell width={120}>{song.year ?? "-"}</TableCell>
-                <TableCell width={160} align="center">
+                <TableCell width={64}>{song.year ?? "-"}</TableCell>
+                <TableCell width={116} align="center">
                   <Tooltip title={youtubeStatus.tooltip} disableInteractive>
                     <Chip
                       label={youtubeStatus.label}
@@ -763,7 +769,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                     />
                   </Tooltip>
                 </TableCell>
-                <TableCell width={220} align="center">
+                <TableCell width={152} align="center">
                   <Stack
                     direction="row"
                     spacing={0.75}
@@ -787,7 +793,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                     )}
                   </Stack>
                 </TableCell>
-                <TableCell align="right" width={176}>
+                <TableCell align="right" width={104}>
                   <Stack
                     direction="row"
                     spacing={0.5}
@@ -832,7 +838,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
   const renderMobileCards = () => (
     <Box
       sx={{
-        display: { xs: "flex", md: "none" },
+        display: { xs: "flex", lg: "none" },
         flexDirection: "column",
         gap: 2,
         py: 1,
@@ -932,7 +938,10 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                   >
                     Artista
                   </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                  <Typography
+                    variant="h5"
+                    sx={{ fontWeight: 700, lineHeight: 1.2, overflowWrap: "anywhere" }}
+                  >
                     {song.artist}
                   </Typography>
                 </Box>
@@ -948,7 +957,10 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                   >
                     Canción
                   </Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.25 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 600, lineHeight: 1.25, overflowWrap: "anywhere" }}
+                  >
                     {song.title}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">

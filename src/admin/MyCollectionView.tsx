@@ -717,7 +717,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
         <TableHead>
           <TableRow>
             <TableCell>ID</TableCell>
-            <TableCell>Canción</TableCell>
+            <TableCell colSpan={2}>Canción</TableCell>
             <TableCell>Año</TableCell>
             <TableCell align="center">YouTube</TableCell>
             <TableCell align="center">Etiquetas</TableCell>
@@ -740,7 +740,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                 }}
               >
                 <TableCell width={56}>{song.id}</TableCell>
-                <TableCell sx={{ width: "55%", minWidth: 0, overflow: "hidden" }}>
+                <TableCell colSpan={2} sx={{ minWidth: 0, overflow: "hidden" }}>
                   <Tooltip title={song.title} disableInteractive>
                     <Typography variant="body2" fontWeight={600} noWrap>
                       {song.title}

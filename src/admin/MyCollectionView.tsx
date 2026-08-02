@@ -716,9 +716,9 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
       >
         <TableHead>
           <TableRow>
-            <TableCell>ID</TableCell>
+            <TableCell width={32}>ID</TableCell>
             <TableCell colSpan={2}>Canción</TableCell>
-            <TableCell>Año</TableCell>
+            <TableCell width={32}>Año</TableCell>
             <TableCell align="center">YouTube</TableCell>
             <TableCell align="center">Etiquetas</TableCell>
             <TableCell align="right">Acciones</TableCell>
@@ -739,7 +739,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                   animationFillMode: "both",
                 }}
               >
-                <TableCell width={56}>{song.id}</TableCell>
+                <TableCell width={32}>{song.id}</TableCell>
                 <TableCell colSpan={2} sx={{ minWidth: 0, overflow: "hidden" }}>
                   <Tooltip title={song.title} disableInteractive>
                     <Typography variant="body2" fontWeight={600} noWrap>
@@ -765,7 +765,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                     Mi colección
                   </Typography>
                 </TableCell>
-                <TableCell width={64}>{song.year ?? "-"}</TableCell>
+                <TableCell width={32}>{song.year ?? "-"}</TableCell>
                 <TableCell width={116} align="center">
                   <Tooltip title={youtubeStatus.tooltip} disableInteractive>
                     <Chip

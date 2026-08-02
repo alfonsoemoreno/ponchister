@@ -1538,7 +1538,7 @@ export default function AdminDashboard({
                 />
               ) : null}
             </TableCell>
-            <TableCell width={80}>{song.id}</TableCell>
+            <TableCell width={40}>{song.id}</TableCell>
             <TableCell colSpan={2} sx={{ minWidth: 0, overflow: "hidden" }}>
               <Tooltip title={song.title} disableInteractive>
                 <Typography variant="body2" fontWeight={600} noWrap>
@@ -1564,7 +1564,7 @@ export default function AdminDashboard({
                 Alta: {getSongOwnerLabel(song)}
               </Typography>
             </TableCell>
-            <TableCell width={64}>{song.year ?? "-"}</TableCell>
+            <TableCell width={32}>{song.year ?? "-"}</TableCell>
             <TableCell width={104} align="center">
               <Chip
                 label={catalogChip.label}
@@ -2819,9 +2819,9 @@ export default function AdminDashboard({
                                   />
                                 ) : null}
                               </TableCell>
-                              <TableCell>ID</TableCell>
+                              <TableCell width={40}>ID</TableCell>
                               <TableCell colSpan={2}>Canción</TableCell>
-                              <TableCell>Año</TableCell>
+                              <TableCell width={32}>Año</TableCell>
                               <TableCell align="center">Catálogo</TableCell>
                               <TableCell align="center">YouTube</TableCell>
                               <TableCell align="center">Etiquetas</TableCell>

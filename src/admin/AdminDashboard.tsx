@@ -1489,7 +1489,7 @@ export default function AdminDashboard({
     if (loading) {
       return (
         <TableRow>
-          <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+          <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
             <CircularProgress color="primary" />
           </TableCell>
         </TableRow>
@@ -1499,7 +1499,7 @@ export default function AdminDashboard({
     if (!songs.length) {
       return (
         <TableRow>
-          <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+          <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
             <Typography variant="body1" color="text.secondary">
               {searchTerm
                 ? "No hay resultados que coincidan con tu búsqueda."
@@ -1539,20 +1539,28 @@ export default function AdminDashboard({
               ) : null}
             </TableCell>
             <TableCell width={80}>{song.id}</TableCell>
-            <TableCell sx={{ width: "18%", minWidth: 0, overflow: "hidden" }}>
-              <Tooltip title={song.artist} disableInteractive>
-                <Typography variant="body2" fontWeight={600} noWrap>
-                  {song.artist}
-                </Typography>
-              </Tooltip>
-            </TableCell>
-            <TableCell sx={{ width: "24%", minWidth: 0, overflow: "hidden" }}>
+            <TableCell sx={{ width: "42%", minWidth: 0, overflow: "hidden" }}>
               <Tooltip title={song.title} disableInteractive>
-                <Typography variant="body2" noWrap>
+                <Typography variant="body2" fontWeight={600} noWrap>
                   {song.title}
                 </Typography>
               </Tooltip>
-              <Typography variant="caption" color="text.secondary" noWrap>
+              <Tooltip title={song.artist} disableInteractive>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  noWrap
+                  display="block"
+                >
+                  {song.artist}
+                </Typography>
+              </Tooltip>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                noWrap
+                display="block"
+              >
                 Alta: {getSongOwnerLabel(song)}
               </Typography>
             </TableCell>
@@ -2812,7 +2820,6 @@ export default function AdminDashboard({
                                 ) : null}
                               </TableCell>
                               <TableCell>ID</TableCell>
-                              <TableCell>Artista</TableCell>
                               <TableCell>Canción</TableCell>
                               <TableCell>Año</TableCell>
                               <TableCell align="center">Catálogo</TableCell>

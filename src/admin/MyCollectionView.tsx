@@ -717,7 +717,6 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
         <TableHead>
           <TableRow>
             <TableCell>ID</TableCell>
-            <TableCell>Artista</TableCell>
             <TableCell>Canción</TableCell>
             <TableCell>Año</TableCell>
             <TableCell align="center">YouTube</TableCell>
@@ -741,20 +740,28 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                 }}
               >
                 <TableCell width={56}>{song.id}</TableCell>
-                <TableCell sx={{ width: "25%", minWidth: 0, overflow: "hidden" }}>
-                  <Tooltip title={song.artist} disableInteractive>
-                    <Typography variant="body2" fontWeight={600} noWrap>
-                      {song.artist}
-                    </Typography>
-                  </Tooltip>
-                </TableCell>
-                <TableCell sx={{ width: "30%", minWidth: 0, overflow: "hidden" }}>
+                <TableCell sx={{ width: "55%", minWidth: 0, overflow: "hidden" }}>
                   <Tooltip title={song.title} disableInteractive>
-                    <Typography variant="body2" noWrap>
+                    <Typography variant="body2" fontWeight={600} noWrap>
                       {song.title}
                     </Typography>
                   </Tooltip>
-                  <Typography variant="caption" color="text.secondary" noWrap>
+                  <Tooltip title={song.artist} disableInteractive>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      noWrap
+                      display="block"
+                    >
+                      {song.artist}
+                    </Typography>
+                  </Tooltip>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    noWrap
+                    display="block"
+                  >
                     Mi colección
                   </Typography>
                 </TableCell>

@@ -186,6 +186,9 @@ function App() {
     [],
   );
   const [personalPlaylists, setPersonalPlaylists] = useState<PlaylistSummary[]>([]);
+  const [playlistLoadState, setPlaylistLoadState] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
   const [selectedPlaylist, setSelectedPlaylist] = useState<PlaylistSummary | null>(
     () => readStoredPlaylist(),
   );
@@ -339,23 +342,8 @@ function App() {
     };
   }, []);
 
-  useEffect(() => {
-    if (view !== "welcome") {
-      return;
-    }
-
-    void fetchAvailableSongTags()
-      .then((tags) => {
-        if (tags.length) {
-          setAvailableSongTags(tags);
-        }
-      })
-      .catch(() => {
-        /* noop */
-      });
-  }, [view]);
-
   const loadPlaylists = useCallback(async () => {
+    setPlaylistLoadState("loading");
     try {
       const [playlists, adminUser] = await Promise.all([
         fetchAvailablePlaylists(),
@@ -374,54 +362,14 @@ function App() {
         );
         return match ?? null;
       });
+      setPlaylistLoadState("ready");
     } catch (error) {
       console.error("[ponchister] No se pudieron cargar las playlists.", error);
       setAvailablePlaylists([]);
       setPersonalPlaylists([]);
       setSelectedPlaylist(null);
+      setPlaylistLoadState("error");
     }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const run = async () => {
-      try {
-        const [playlists, adminUser] = await Promise.all([
-          fetchAvailablePlaylists(),
-          fetchAdminSession().catch(() => null),
-        ]);
-        if (cancelled) return;
-        setAvailablePlaylists(playlists);
-        setCurrentAdminUser(adminUser);
-        const personal = adminUser
-          ? await fetchPersonalPlaylists().catch(() => [])
-          : [];
-        if (cancelled) return;
-        setPersonalPlaylists(personal);
-        setSelectedPlaylist((prev) => {
-          if (!prev) return null;
-          const match = [...playlists, ...personal].find(
-            (playlist) => playlist.id === prev.id && playlist.scope === prev.scope
-          );
-          return match ?? null;
-        });
-      } catch (error) {
-        console.error("[ponchister] No se pudieron cargar las playlists.", error);
-        if (!cancelled) {
-          setAvailablePlaylists([]);
-          setPersonalPlaylists([]);
-          setSelectedPlaylist(null);
-          setCurrentAdminUser(null);
-        }
-      }
-    };
-
-    void run();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   useEffect(() => {
@@ -544,6 +492,8 @@ function App() {
         yearRange={normalizedYearRange}
         playlists={availablePlaylists}
         personalPlaylists={personalPlaylists}
+        playlistLoadState={playlistLoadState}
+        onRetryPlaylists={loadPlaylists}
         selectedPlaylist={selectedPlaylist}
         currentAdminUser={currentAdminUser}
       />

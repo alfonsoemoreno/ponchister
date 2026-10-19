@@ -5,7 +5,6 @@ import type {
   SongDuplicateMatch,
   SongInput,
   SongYoutubeValidationPayload,
-  SongStatistics,
   SongStatisticsGroup,
   YoutubeValidationStatus,
 } from "../types";
@@ -196,29 +195,36 @@ export async function listSongs({
   page,
   pageSize,
   search,
+  ids,
   year,
   tags,
   catalogStatus,
   specialMode,
   sortBy = "id",
   sortDirection = "asc",
+  signal,
+  includeTotal = true,
 }: {
   page: number;
   pageSize: number;
   search?: string;
+  ids?: number[];
   year?: number | null;
   tags?: string[];
   catalogStatus?: "all" | "pending" | "approved";
   specialMode?: "all" | "mimica" | "tararear" | "karaoke" | "trivia";
   sortBy?: "id" | "artist" | "title" | "year";
   sortDirection?: "asc" | "desc";
-}): Promise<{ songs: Song[]; total: number }> {
+  signal?: AbortSignal;
+  includeTotal?: boolean;
+}): Promise<{ songs: Song[]; total: number; hasMore: boolean }> {
   const params = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
     sortBy,
     sortDirection,
   });
+  if (!includeTotal) params.set("includeTotal", "false");
 
   if (typeof year === "number") {
     params.set("year", String(year));
@@ -226,6 +232,7 @@ export async function listSongs({
   if (search && search.trim() !== "") {
     params.set("search", search.trim());
   }
+  if (ids?.length) params.set("ids", ids.join(","));
   const normalizedTags = normalizeSongTags(tags ?? []);
   if (normalizedTags.length) {
     params.set("tags", normalizedTags.join(","));
@@ -245,12 +252,22 @@ export async function listSongs({
   const data = await fetchJson<{
     songs: Record<string, unknown>[];
     total: number;
-  }>(`${API_BASE}/songs?${params.toString()}`);
+    hasMore?: boolean;
+  }>(`${API_BASE}/songs?${params.toString()}`, { signal });
 
   return {
     songs: data.songs.map((item) => normalizeSong(item)),
     total: data.total,
+    hasMore:
+      typeof data.hasMore === "boolean"
+        ? data.hasMore
+        : (page + 1) * pageSize < data.total,
   };
+}
+
+export async function getSong(id: number): Promise<Song> {
+  const data = await fetchJson<Record<string, unknown>>(`${API_BASE}/songs/${id}`);
+  return normalizeSong(data);
 }
 
 export async function createSong(
@@ -359,162 +376,17 @@ export async function bulkApproveSongs(songIds: number[]): Promise<number> {
   return typeof data.count === "number" ? data.count : 0;
 }
 
-export async function fetchSongStatistics(): Promise<SongStatisticsGroup> {
-  const songs = await fetchAllSongs();
-  const STAT_LIMIT = 10;
-
-  const computeStats = (collection: Song[]): SongStatistics => {
-    const totalSongs = collection.length;
-    const missingYearCount = collection.reduce(
-      (acc, song) => (song.year === null ? acc + 1 : acc),
-      0
-    );
-
-    const yearMap = new Map<number, number>();
-    const decadeMap = new Map<number, number>();
-    const artistMap = new Map<string, number>();
-    const tagMap = new Map<string, number>();
-    const toSongEntries = (filteredSongs: Song[]) =>
-      filteredSongs
-        .map((song) => ({
-          label: `${song.artist.trim() || "Sin artista"} - ${
-            song.title.trim() || "Sin canción"
-          }`,
-          count: 1,
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label))
-        .slice(0, STAT_LIMIT);
-
-    collection.forEach((song) => {
-      const artistKey = song.artist.trim() || "Sin artista";
-      artistMap.set(artistKey, (artistMap.get(artistKey) ?? 0) + 1);
-      song.tags.forEach((tag) => {
-        tagMap.set(tag, (tagMap.get(tag) ?? 0) + 1);
-      });
-
-      if (song.year === null) {
-        return;
-      }
-
-      yearMap.set(song.year, (yearMap.get(song.year) ?? 0) + 1);
-      const decade = Math.floor(song.year / 10) * 10;
-      decadeMap.set(decade, (decadeMap.get(decade) ?? 0) + 1);
-    });
-
-    const yearEntries = Array.from(yearMap.entries()).map(([year, count]) => ({
-      label: String(year),
-      value: year,
-      count,
-    }));
-
-    const yearsMostCommon = [...yearEntries]
-      .sort((a, b) => {
-        if (b.count === a.count) {
-          return a.value - b.value;
-        }
-        return b.count - a.count;
-      })
-      .slice(0, STAT_LIMIT)
-      .map(({ label, count }) => ({ label, count }));
-
-    const yearsLeastCommon = [...yearEntries]
-      .sort((a, b) => {
-        if (a.count === b.count) {
-          return a.value - b.value;
-        }
-        return a.count - b.count;
-      })
-      .slice(0, Math.min(STAT_LIMIT, yearEntries.length))
-      .map(({ label, count }) => ({ label, count }));
-
-    const decadeEntries = Array.from(decadeMap.entries()).map(
-      ([decade, count]) => ({
-        label: `${decade}s`,
-        value: decade,
-        count,
-      })
-    );
-
-    const decadesLeastCommon = [...decadeEntries]
-      .sort((a, b) => {
-        if (a.count === b.count) {
-          return a.value - b.value;
-        }
-        return a.count - b.count;
-      })
-      .slice(0, Math.min(STAT_LIMIT, decadeEntries.length))
-      .map(({ label, count }) => ({ label, count }));
-
-    const artistsMostCommon = Array.from(artistMap.entries())
-      .map(([label, count]) => ({ label, count }))
-      .sort((a, b) => {
-        if (b.count === a.count) {
-          return a.label.localeCompare(b.label);
-        }
-        return b.count - a.count;
-      })
-      .slice(0, STAT_LIMIT);
-
-    const tagsMostCommon = Array.from(tagMap.entries())
-      .map(([tag, count]) => ({
-        label: tag,
-        count,
-      }))
-      .sort((a, b) => {
-        if (b.count === a.count) {
-          return a.label.localeCompare(b.label);
-        }
-        return b.count - a.count;
-      })
-      .slice(0, STAT_LIMIT);
-
-    return {
-      totalSongs,
-      missingYearCount,
-      mimicaCount: collection.filter((song) => song.mimica).length,
-      tararearCount: collection.filter((song) => song.tararear).length,
-      karaokeCount: collection.filter((song) => song.karaoke).length,
-      triviaCount: collection.filter((song) => song.trivia).length,
-      yearsMostCommon,
-      yearsLeastCommon,
-      decadesLeastCommon,
-      artistsMostCommon,
-      tagsMostCommon,
-      mimicaSongs: toSongEntries(collection.filter((song) => song.mimica)),
-      tararearSongs: toSongEntries(collection.filter((song) => song.tararear)),
-      karaokeSongs: toSongEntries(collection.filter((song) => song.karaoke)),
-      triviaSongs: toSongEntries(collection.filter((song) => song.trivia)),
-    };
-  };
-
-  const overallStats = computeStats(songs);
-  const spanishStats = computeStats(
-    songs.filter((song) => song.tags.includes("espanol"))
-  );
-
-  return {
-    overall: overallStats,
-    spanish: spanishStats,
-  };
+export async function bulkUpdateSongs(payload:
+  | { operation: "add-tags"; songIds: number[]; tags: string[] }
+  | { operation: "set-mode"; songIds: number[]; mode: "mimica" | "tararear" }
+): Promise<number> {
+  const data = await fetchJson<{ count: number }>(`${API_BASE}/songs/bulk-update`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return typeof data.count === "number" ? data.count : 0;
 }
 
-export async function fetchAllSongs(): Promise<Song[]> {
-  const pageSize = 100;
-  const collected: Song[] = [];
-  let page = 0;
-  let total = Number.POSITIVE_INFINITY;
-
-  while (collected.length < total) {
-    const data = await fetchJson<{
-      songs?: Record<string, unknown>[];
-      total?: number;
-    }>(`${API_BASE}/songs/all?page=${page}&pageSize=${pageSize}`);
-    const entries = Array.isArray(data.songs) ? data.songs : [];
-    collected.push(...entries.map((item) => normalizeSong(item)));
-    total = typeof data.total === "number" && data.total >= 0 ? data.total : collected.length;
-    if (!entries.length) break;
-    page += 1;
-  }
-
-  return collected;
+export async function fetchSongStatistics(): Promise<SongStatisticsGroup> {
+  return fetchJson<SongStatisticsGroup>("/api/admin/song-statistics");
 }

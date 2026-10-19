@@ -149,17 +149,21 @@ function sanitizeInput(payload: SongInput): SongInput {
 export interface MySongsPage {
   songs: Song[];
   total: number;
+  hasMore: boolean;
 }
 
 export async function listMySongs(options?: {
   page?: number;
   pageSize?: number;
   search?: string;
+  ids?: number[];
   year?: number | null;
   tags?: SongTag[];
   specialMode?: "all" | "mimica" | "tararear" | "karaoke" | "trivia";
   sortBy?: "id" | "artist" | "title" | "year";
   sortDirection?: "asc" | "desc";
+  signal?: AbortSignal;
+  includeTotal?: boolean;
 }): Promise<MySongsPage> {
   const params = new URLSearchParams({
     page: String(options?.page ?? 0),
@@ -168,6 +172,7 @@ export async function listMySongs(options?: {
   if (options?.search?.trim()) {
     params.set("search", options.search.trim());
   }
+  if (options?.ids?.length) params.set("ids", options.ids.join(","));
   if (typeof options?.year === "number") params.set("year", String(options.year));
   if (options?.tags?.length) params.set("tags", options.tags.join(","));
   if (options?.specialMode && options.specialMode !== "all") {
@@ -175,13 +180,21 @@ export async function listMySongs(options?: {
   }
   if (options?.sortBy) params.set("sortBy", options.sortBy);
   if (options?.sortDirection) params.set("sortDirection", options.sortDirection);
+  if (options?.includeTotal === false) params.set("includeTotal", "false");
   const data = await fetchJson<{
     songs?: Record<string, unknown>[];
     total?: number;
-  }>(`${API_BASE}?${params.toString()}`);
+    hasMore?: boolean;
+  }>(`${API_BASE}?${params.toString()}`, { signal: options?.signal });
+  const page = options?.page ?? 0;
+  const pageSize = options?.pageSize ?? 50;
   return {
     songs: (data.songs ?? []).map(normalizeSong),
     total: typeof data.total === "number" ? data.total : 0,
+    hasMore:
+      typeof data.hasMore === "boolean"
+        ? data.hasMore
+        : (page + 1) * pageSize < (data.total ?? 0),
   };
 }
 

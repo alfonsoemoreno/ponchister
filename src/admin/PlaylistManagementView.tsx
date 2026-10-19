@@ -7,22 +7,33 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   InputAdornment,
   Paper,
   Stack,
   Switch,
+  Tab,
+  Tabs,
+  Tooltip,
   TextField,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ClearIcon from "@mui/icons-material/Clear";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import SearchIcon from "@mui/icons-material/Search";
 import type { Playlist, PlaylistInput, Song } from "./types";
+import { listSongs } from "./services/songService";
 import {
   createPlaylist,
   deletePlaylist,
@@ -30,8 +41,9 @@ import {
   listPlaylists,
   updatePlaylist,
 } from "./services/playlistService";
-import { fetchAllSongs } from "./services/songService";
 import { listMySongs } from "./services/mySongService";
+
+const SONG_PAGE_SIZE = 50;
 
 interface PlaylistManagementViewProps {
   onFeedback: (payload: {
@@ -70,8 +82,8 @@ const SCOPE_META = {
       "Solo se muestran canciones aprobadas del catálogo oficial.",
     emptyState: "Todavía no hay playlists públicas creadas.",
     chipColor: "success" as const,
-    accent: "#ecfdf5",
-    border: "#bbf7d0",
+    accent: "#fff2ec",
+    border: "#ffd1c3",
   },
   personal: {
     title: "Mis playlists",
@@ -86,8 +98,8 @@ const SCOPE_META = {
       "Aquí aparecen únicamente las canciones de tu colección personal.",
     emptyState: "Todavía no has creado playlists personales.",
     chipColor: "info" as const,
-    accent: "#eff6ff",
-    border: "#bfdbfe",
+    accent: "#e9f9fa",
+    border: "#b9e9eb",
   },
 };
 
@@ -98,8 +110,14 @@ function songLabel(song: Song): string {
 export default function PlaylistManagementView({
   onFeedback,
 }: PlaylistManagementViewProps) {
+  const theme = useTheme();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [songs, setSongs] = useState<Song[]>([]);
+  const [availableSongs, setAvailableSongs] = useState<Song[]>([]);
+  const [availableHasMore, setAvailableHasMore] = useState(false);
+  const [songPage, setSongPage] = useState(0);
+  const [loadingSongs, setLoadingSongs] = useState(false);
+  const [songLoadError, setSongLoadError] = useState<string | null>(null);
   const [scope, setScope] = useState<"public" | "personal">("public");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -116,14 +134,9 @@ export default function PlaylistManagementView({
     setLoading(true);
     setError(null);
     try {
-      const [playlistData, songData] = await Promise.all([
-        listPlaylists(scope),
-        scope === "personal"
-          ? listMySongs({ pageSize: 100 }).then((result) => result.songs)
-          : fetchAllSongs(),
-      ]);
+      const playlistData = await listPlaylists(scope);
       setPlaylists(playlistData);
-      setSongs(songData);
+      setSongs([]);
     } catch (err) {
       setError(
         err instanceof Error
@@ -143,6 +156,8 @@ export default function PlaylistManagementView({
     setEditingPlaylist(null);
     setForm(EMPTY_FORM);
     setSongSearch("");
+    setSongPage(0);
+    setSongLoadError(null);
     setViewMode("editor");
   };
 
@@ -150,17 +165,27 @@ export default function PlaylistManagementView({
     setSaving(true);
     try {
       const detailedPlaylist = await getPlaylist(playlist.id);
+      const songIds = detailedPlaylist.songIds ?? detailedPlaylist.songs?.map((song) => song.id) ?? [];
+      const selectedSongsPage = songIds.length
+        ? scope === "personal"
+          ? await listMySongs({ page: 0, pageSize: songIds.length, ids: songIds })
+          : await listSongs({ page: 0, pageSize: songIds.length, ids: songIds, sortBy: "artist" })
+        : { songs: [], total: 0 };
       setEditingPlaylist(detailedPlaylist);
       setForm({
         name: detailedPlaylist.name,
         description: detailedPlaylist.description ?? "",
         active: detailedPlaylist.active,
-        songIds:
-          detailedPlaylist.songIds ??
-          detailedPlaylist.songs?.map((song) => song.id) ??
-          [],
+        songIds,
+      });
+      setSongs((current) => {
+        const byId = new Map(current.map((song) => [song.id, song]));
+        for (const song of selectedSongsPage.songs) byId.set(song.id, song);
+        return [...byId.values()];
       });
       setSongSearch("");
+      setSongPage(0);
+      setSongLoadError(null);
       setViewMode("editor");
     } catch (err) {
       onFeedback({
@@ -180,19 +205,48 @@ export default function PlaylistManagementView({
     setEditingPlaylist(null);
     setForm(EMPTY_FORM);
     setSongSearch("");
+    setSongPage(0);
     setViewMode("list");
   };
 
+  useEffect(() => {
+    if (viewMode !== "editor") return;
+    let cancelled = false;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setLoadingSongs(true);
+      setSongLoadError(null);
+      const request = scope === "personal"
+        ? listMySongs({ page: songPage, pageSize: SONG_PAGE_SIZE, search: songSearch, sortBy: "artist", sortDirection: "asc", signal: controller.signal, includeTotal: false })
+        : listSongs({ page: songPage, pageSize: SONG_PAGE_SIZE, search: songSearch, catalogStatus: "approved", sortBy: "artist", sortDirection: "asc", signal: controller.signal, includeTotal: false });
+
+      void request.then((result) => {
+        if (cancelled) return;
+        setAvailableSongs(result.songs);
+        setAvailableHasMore(result.hasMore);
+        setSongs((current) => {
+          const byId = new Map(current.map((song) => [song.id, song]));
+          for (const song of result.songs) byId.set(song.id, song);
+          return [...byId.values()];
+        });
+      }).catch((err: unknown) => {
+        if (cancelled) return;
+        setAvailableSongs([]);
+        setAvailableHasMore(false);
+        setSongLoadError(err instanceof Error ? err.message : "No se pudieron cargar las canciones.");
+      }).finally(() => {
+        if (!cancelled) setLoadingSongs(false);
+      });
+    }, songSearch.trim() ? 250 : 0);
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [scope, songPage, songSearch, viewMode]);
+
   const songMap = useMemo(
     () => new Map(songs.map((song) => [song.id, song])),
-    [songs]
-  );
-
-  const sortedSongs = useMemo(
-    () =>
-      [...songs].sort((left, right) =>
-        songLabel(left).localeCompare(songLabel(right), "es")
-      ),
     [songs]
   );
 
@@ -205,32 +259,22 @@ export default function PlaylistManagementView({
     [form.songIds, songMap]
   );
 
-  const availableSongs = useMemo(() => {
-    const selectedIds = new Set(form.songIds);
-    return sortedSongs.filter((song) => !selectedIds.has(song.id));
-  }, [form.songIds, sortedSongs]);
-
   const filteredAvailableSongs = useMemo(() => {
-    const query = songSearch.trim().toLowerCase();
-    if (!query) return availableSongs;
-
-    return availableSongs.filter((song) => {
-      const haystack = `${song.artist} ${song.title} ${song.year ?? ""}`.toLowerCase();
-      return haystack.includes(query);
-    });
-  }, [availableSongs, songSearch]);
+    const selectedIds = new Set(form.songIds);
+    return availableSongs.filter((song) => !selectedIds.has(song.id));
+  }, [availableSongs, form.songIds]);
 
   const addSong = (songId: number) => {
     setForm((prev) => ({
       ...prev,
-      songIds: [...prev.songIds, songId],
+      songIds: prev.songIds.includes(songId) ? prev.songIds : [...prev.songIds, songId],
     }));
   };
 
   const addVisibleSongs = () => {
     setForm((prev) => ({
       ...prev,
-      songIds: [...prev.songIds, ...filteredAvailableSongs.map((song) => song.id)],
+      songIds: [...new Set([...prev.songIds, ...filteredAvailableSongs.map((song) => song.id)])],
     }));
   };
 
@@ -348,89 +392,112 @@ export default function PlaylistManagementView({
       key={playlist.id}
       elevation={0}
       sx={{
-        p: 2,
-        borderRadius: 0,
+        p: { xs: 2, sm: 2.5 },
+        borderRadius: 2,
         border: "1px solid",
-        borderColor:
-          editingPlaylist?.id === playlist.id ? "text.primary" : "divider",
-        backgroundColor:
-          editingPlaylist?.id === playlist.id ? "#f8fafc" : "background.paper",
+        borderColor: "divider",
+        backgroundColor: "background.paper",
+        transition: "border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease",
+        "&:hover": {
+          borderColor: "primary.light",
+          boxShadow: "0 8px 24px rgba(15, 23, 42, 0.07)",
+          transform: "translateY(-1px)",
+        },
       }}
     >
-      <Stack spacing={1.5}>
+      <Stack spacing={2}>
         <Stack
           direction="row"
           justifyContent="space-between"
-          alignItems="flex-start"
-          spacing={1.5}
+          alignItems="center"
+          spacing={2}
         >
           <Box sx={{ minWidth: 0 }}>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-              <Avatar
-                src={playlist.created_by_user?.avatar_url ?? undefined}
-                sx={{ width: 28, height: 28, bgcolor: "#0f172a", fontSize: 12 }}
-              >
-                {(
-                  playlist.created_by_user?.display_name ||
-                  playlist.created_by_user?.email ||
-                  "U"
-                )
-                  .charAt(0)
-                  .toUpperCase()}
-              </Avatar>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                {playlist.name}
-              </Typography>
-              <Chip
-                label={playlist.scope === "personal" ? "Personal" : "Pública"}
-                size="small"
-                color={playlist.scope === "personal" ? "info" : "success"}
-                variant="outlined"
-              />
-            </Stack>
-            <Typography variant="body2" color="text.secondary">
-              {playlist.description || "Sin descripción"}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Creada por{" "}
-              {playlist.created_by_user?.display_name ||
-                playlist.created_by_user?.email ||
-                "Sin registro"}
+            <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.3, overflowWrap: "anywhere" }}>
+              {playlist.name}
             </Typography>
           </Box>
           <Chip
             label={playlist.active ? "Activa" : "Pausada"}
             color={playlist.active ? "success" : "default"}
             size="small"
+            variant={playlist.active ? "filled" : "outlined"}
           />
         </Stack>
-        <Stack direction="row" spacing={1} flexWrap="wrap">
-          <Chip
-            label={`${playlist.songCount} canciones`}
-            size="small"
-            variant="outlined"
-          />
-        </Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          <Button
-            variant="outlined"
-            startIcon={<EditIcon />}
-            onClick={() => void beginEdit(playlist)}
-            disabled={saving}
-            fullWidth
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            minHeight: 42,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {playlist.description || "Sin descripción"}
+        </Typography>
+        <Divider />
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={1.5}
+          justifyContent="space-between"
+          alignItems={{ xs: "stretch", sm: "center" }}
+        >
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            flexWrap="wrap"
+            useFlexGap
+            sx={{ minWidth: 0 }}
           >
-            Editar
-          </Button>
-          <Button
-            color="error"
-            variant="outlined"
-            startIcon={<DeleteIcon />}
-            onClick={() => setDeleteTarget(playlist)}
-            disabled={saving}
-            fullWidth
-          >
-            Eliminar
-          </Button>
+            <Chip
+              label={`${playlist.songCount} ${playlist.songCount === 1 ? "canción" : "canciones"}`}
+              size="small"
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+            <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+              <Avatar
+                src={playlist.created_by_user?.avatar_url ?? undefined}
+                sx={{ width: 24, height: 24, bgcolor: "primary.main", fontSize: 11 }}
+              >
+                {(playlist.created_by_user?.display_name || playlist.created_by_user?.email || "U").charAt(0).toUpperCase()}
+              </Avatar>
+              <Tooltip title={playlist.created_by_user?.display_name || playlist.created_by_user?.email || "Sin registro"}>
+                <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 180 }}>
+                  {playlist.created_by_user?.display_name || playlist.created_by_user?.email || "Sin registro"}
+                </Typography>
+              </Tooltip>
+            </Stack>
+          </Stack>
+          <Stack direction="row" spacing={0.75} alignItems="center" sx={{ flexShrink: 0 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<EditIcon />}
+              onClick={() => void beginEdit(playlist)}
+              disabled={saving}
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              Editar
+            </Button>
+            <Tooltip title={`Eliminar ${playlist.name}`}>
+              <span>
+                <IconButton
+                  size="small"
+                  color="error"
+                  aria-label={`Eliminar playlist ${playlist.name}`}
+                  onClick={() => setDeleteTarget(playlist)}
+                  disabled={saving}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Stack>
         </Stack>
       </Stack>
     </Paper>
@@ -440,7 +507,7 @@ export default function PlaylistManagementView({
     <Paper
       key={song.id}
       variant="outlined"
-      sx={{ p: 1.25, borderRadius: 0 }}
+      sx={{ p: 1.25, borderRadius: 1 }}
     >
       <Stack
         direction="row"
@@ -449,10 +516,13 @@ export default function PlaylistManagementView({
         spacing={1.25}
       >
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 700, whiteSpace: "normal", overflowWrap: "anywhere" }}
+          >
             {song.artist}
           </Typography>
-          <Typography variant="body2" color="text.secondary" noWrap>
+          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>
             {song.title}
             {song.year ? ` · ${song.year}` : ""}
           </Typography>
@@ -469,10 +539,10 @@ export default function PlaylistManagementView({
           elevation={0}
           sx={{
             p: 2,
-            borderRadius: 0,
+            borderRadius: 1,
             border: "1px solid",
-            borderColor: scopeMeta.border,
-            backgroundColor: scopeMeta.accent,
+            borderColor: theme.palette.mode === "dark" ? "divider" : scopeMeta.border,
+            backgroundColor: theme.palette.mode === "dark" ? "background.paper" : scopeMeta.accent,
           }}
         >
           <Stack spacing={1}>
@@ -517,7 +587,12 @@ export default function PlaylistManagementView({
             >
               Volver al listado
             </Button>
-            <Button variant="contained" onClick={handleSave} disabled={saving}>
+            <Button
+              variant="contained"
+              onClick={handleSave}
+              disabled={saving || !form.name.trim() || !form.songIds.length}
+              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
               {editingPlaylist ? "Guardar cambios" : "Crear playlist"}
             </Button>
           </Stack>
@@ -527,13 +602,20 @@ export default function PlaylistManagementView({
           elevation={0}
           sx={{
             p: { xs: 2, md: 2.5 },
-            borderRadius: 0,
+            borderRadius: 1,
             border: "1px solid",
             borderColor: "divider",
           }}
         >
           <Stack spacing={2.5}>
-            <Stack spacing={2}>
+            <Box
+              sx={{
+                display: "grid",
+                gap: 2,
+                gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) minmax(280px, 0.7fr)" },
+                alignItems: "stretch",
+              }}
+            >
               <TextField
                 label="Nombre"
                 value={form.name}
@@ -556,32 +638,46 @@ export default function PlaylistManagementView({
                 minRows={2}
                 fullWidth
                 disabled={saving}
+                sx={{ gridColumn: { md: "1 / -1" }, gridRow: { md: 2 } }}
               />
-              <Stack
-                direction="row"
-                spacing={1.25}
-                alignItems="center"
-                justifyContent="space-between"
-                flexWrap="wrap"
+              <Paper
+                variant="outlined"
+                sx={{
+                  gridColumn: { md: 2 },
+                  gridRow: { md: 1 },
+                  p: 1.75,
+                  borderRadius: 1.5,
+          backgroundColor: form.active && theme.palette.mode === "light" ? "#fff8f4" : "background.paper",
+          borderColor: "divider",
+                }}
               >
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                    Playlist activa
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Solo las playlists activas se ofrecen antes de iniciar una
-                    partida.
-                  </Typography>
-                </Box>
-                <Switch
-                  checked={form.active}
-                  onChange={(_, checked) =>
-                    setForm((prev) => ({ ...prev, active: checked }))
-                  }
-                  disabled={saving}
-                />
-              </Stack>
-            </Stack>
+                <Stack
+                  direction="row"
+                  spacing={1.25}
+                  alignItems="center"
+                  justifyContent="space-between"
+                >
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      Disponible en el juego
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {form.active
+                        ? "Los jugadores podrán elegir esta playlist."
+                        : "La playlist queda guardada, pero no se ofrecerá al iniciar partidas."}
+                    </Typography>
+                  </Box>
+                  <Switch
+                    checked={form.active}
+                    inputProps={{ "aria-label": "Disponible en el juego" }}
+                    onChange={(_, checked) =>
+                      setForm((prev) => ({ ...prev, active: checked }))
+                    }
+                    disabled={saving}
+                  />
+                </Stack>
+              </Paper>
+            </Box>
 
             <Divider />
 
@@ -589,10 +685,10 @@ export default function PlaylistManagementView({
               elevation={0}
               sx={{
                 p: 2,
-                borderRadius: 0,
+                borderRadius: 1,
                 border: "1px solid",
                 borderColor: "divider",
-                backgroundColor: "#fbfcfe",
+                backgroundColor: "background.default",
               }}
             >
               <Stack spacing={2}>
@@ -612,13 +708,17 @@ export default function PlaylistManagementView({
                   </Box>
                   <Stack direction="row" spacing={1} flexWrap="wrap">
                     <Chip
-                      label={`${selectedSongs.length} seleccionadas`}
+                      label={`${form.songIds.length} seleccionadas`}
                       size="small"
                       color="primary"
                       variant="outlined"
                     />
                     <Chip
-                      label={`${filteredAvailableSongs.length} disponibles`}
+                      label={availableSongs.length === 0
+                        ? "Sin resultados"
+                        : availableHasMore
+                        ? `Al menos ${songPage * SONG_PAGE_SIZE + availableSongs.length} resultados`
+                        : `${songPage * SONG_PAGE_SIZE + availableSongs.length} resultados`}
                       size="small"
                       variant="outlined"
                     />
@@ -627,9 +727,12 @@ export default function PlaylistManagementView({
 
                 <TextField
                   label="Buscar canciones"
-                  placeholder="Artista, canción o año"
+                  placeholder="Artista o canción"
                   value={songSearch}
-                  onChange={(event) => setSongSearch(event.target.value)}
+                  onChange={(event) => {
+                    setSongSearch(event.target.value);
+                    setSongPage(0);
+                  }}
                   fullWidth
                   InputProps={{
                     startAdornment: (
@@ -642,7 +745,7 @@ export default function PlaylistManagementView({
                         <IconButton
                           edge="end"
                           size="small"
-                          onClick={() => setSongSearch("")}
+                          onClick={() => { setSongSearch(""); setSongPage(0); }}
                         >
                           <ClearIcon fontSize="small" />
                         </IconButton>
@@ -664,7 +767,7 @@ export default function PlaylistManagementView({
                   <Paper
                     variant="outlined"
                     sx={{
-                      borderRadius: 0,
+                      borderRadius: 1,
                       minHeight: 320,
                       display: "flex",
                       flexDirection: "column",
@@ -679,7 +782,7 @@ export default function PlaylistManagementView({
                         py: 1.5,
                         borderBottom: "1px solid",
                         borderColor: "divider",
-                        backgroundColor: "#f8fafc",
+                        backgroundColor: theme.palette.mode === "dark" ? "background.paper" : "#fff8f4",
                       }}
                     >
                       <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -690,14 +793,21 @@ export default function PlaylistManagementView({
                         onClick={addVisibleSongs}
                         disabled={!filteredAvailableSongs.length || saving}
                       >
-                        Agregar visibles
+                        Agregar resultados visibles
                       </Button>
                     </Stack>
                     <Stack
                       spacing={1}
                       sx={{ p: 1.5, overflowY: "auto", maxHeight: 420 }}
                     >
-                      {filteredAvailableSongs.length ? (
+                      {loadingSongs ? (
+                        <Stack alignItems="center" spacing={1} sx={{ py: 4 }}>
+                          <CircularProgress size={24} />
+                          <Typography variant="body2" color="text.secondary">Cargando canciones…</Typography>
+                        </Stack>
+                      ) : songLoadError ? (
+                        <Alert severity="error">{songLoadError}</Alert>
+                      ) : filteredAvailableSongs.length ? (
                         filteredAvailableSongs.map((song) =>
                           renderSongItem(
                             song,
@@ -718,12 +828,24 @@ export default function PlaylistManagementView({
                         </Typography>
                       )}
                     </Stack>
+                    {!loadingSongs && !songLoadError && (songPage > 0 || availableHasMore) && (
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 2, py: 1, borderTop: "1px solid", borderColor: "divider" }}>
+                        <Typography variant="caption" color="text.secondary">
+                          {songPage * SONG_PAGE_SIZE + 1}–{songPage * SONG_PAGE_SIZE + availableSongs.length}
+                          {availableHasMore ? " · hay más resultados" : " · fin de resultados"}
+                        </Typography>
+                        <Stack direction="row" spacing={1}>
+                          <Button size="small" disabled={loadingSongs || songPage === 0} onClick={() => setSongPage((page) => Math.max(0, page - 1))}>Anterior</Button>
+                          <Button size="small" disabled={loadingSongs || !availableHasMore} onClick={() => setSongPage((page) => page + 1)}>Siguiente</Button>
+                        </Stack>
+                      </Stack>
+                    )}
                   </Paper>
 
                   <Paper
                     variant="outlined"
                     sx={{
-                      borderRadius: 0,
+                      borderRadius: 1,
                       minHeight: 320,
                       display: "flex",
                       flexDirection: "column",
@@ -738,7 +860,7 @@ export default function PlaylistManagementView({
                         py: 1.5,
                         borderBottom: "1px solid",
                         borderColor: "divider",
-                        backgroundColor: "#f8fafc",
+                        backgroundColor: theme.palette.mode === "dark" ? "background.paper" : "#fff8f4",
                       }}
                     >
                       <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -762,7 +884,7 @@ export default function PlaylistManagementView({
                           <Paper
                             key={song.id}
                             variant="outlined"
-                            sx={{ p: 1.25, borderRadius: 0 }}
+                            sx={{ p: 1.25, borderRadius: 1 }}
                           >
                             <Stack
                               direction="row"
@@ -779,15 +901,14 @@ export default function PlaylistManagementView({
                                 <Box sx={{ minWidth: 0 }}>
                                   <Typography
                                     variant="body2"
-                                    sx={{ fontWeight: 700 }}
-                                    noWrap
+                                    sx={{ fontWeight: 700, overflowWrap: "anywhere" }}
                                   >
                                     {song.artist}
                                   </Typography>
                                   <Typography
                                     variant="body2"
                                     color="text.secondary"
-                                    noWrap
+                                    sx={{ overflowWrap: "anywhere" }}
                                   >
                                     {song.title}
                                     {song.year ? ` · ${song.year}` : ""}
@@ -798,6 +919,7 @@ export default function PlaylistManagementView({
                                 <IconButton
                                   size="small"
                                   color="error"
+                                  aria-label={`Quitar ${song.title} de la playlist`}
                                   onClick={() => removeSong(song.id)}
                                   disabled={saving}
                                 >
@@ -824,124 +946,89 @@ export default function PlaylistManagementView({
   }
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={2.5}>
       <Paper
         elevation={0}
         sx={{
-          p: 2,
-          borderRadius: 0,
+          p: { xs: 1.5, md: 2 },
+          borderRadius: 2,
           border: "1px solid",
-          borderColor: scopeMeta.border,
-          backgroundColor: scopeMeta.accent,
+          borderColor: "divider",
+          backgroundColor: "background.paper",
         }}
       >
-        <Stack spacing={1}>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Chip
-              label={scopeMeta.shortLabel}
-              size="small"
-              color={scopeMeta.chipColor}
-              variant="filled"
-            />
-            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              {scopeMeta.title}
+        <Stack
+          direction={{ xs: "column", lg: "row" }}
+          spacing={1.5}
+          alignItems={{ xs: "stretch", lg: "center" }}
+          justifyContent="space-between"
+        >
+          <Tabs
+            value={scope}
+            onChange={(_, value: "public" | "personal") => setScope(value)}
+            aria-label="Ámbito de playlists"
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ minHeight: 44, "& .MuiTab-root": { minHeight: 44, fontWeight: 700 } }}
+          >
+            <Tab value="public" label="Públicas" disabled={loading || saving} />
+            <Tab value="personal" label="Personales" disabled={loading || saving} />
+          </Tabs>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "stretch", sm: "center" }}
+          >
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: { xs: "left", sm: "right" }, mr: { sm: 0.5 } }}>
+              {playlists.length} {playlists.length === 1 ? "playlist" : "playlists"}
             </Typography>
+            <Tooltip title="Actualizar lista">
+              <span>
+                <IconButton
+                  aria-label="Actualizar playlists"
+                  onClick={() => void loadData()}
+                  disabled={loading || saving}
+                  sx={{ alignSelf: { xs: "flex-end", sm: "auto" }, border: "1px solid", borderColor: "divider", borderRadius: 1.5 }}
+                >
+                  <RefreshIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={beginCreate}
+              disabled={saving}
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              Nueva playlist
+            </Button>
           </Stack>
-          <Typography variant="body2" color="text.secondary">
-            {scopeMeta.summary}
-          </Typography>
         </Stack>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, px: { sm: 1 } }}>
+          {scopeMeta.description}
+        </Typography>
       </Paper>
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        spacing={2}
-        justifyContent="space-between"
-        alignItems={{ xs: "stretch", md: "center" }}
-      >
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {scope === "personal" ? "Mis playlists" : "Playlists públicas"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {scopeMeta.description}
-            </Typography>
-          </Box>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <Button
-              variant={scope === "public" ? "contained" : "outlined"}
-              onClick={() => setScope("public")}
-              disabled={loading || saving}
-            >
-              Públicas
-            </Button>
-            <Button
-              variant={scope === "personal" ? "contained" : "outlined"}
-              onClick={() => setScope("personal")}
-              disabled={loading || saving}
-            >
-              Personales
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => void loadData()}
-            disabled={loading || saving}
-          >
-            Recargar
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={beginCreate}
-            disabled={saving}
-          >
-            Nueva playlist
-          </Button>
-        </Stack>
-      </Stack>
 
       {error ? <Alert severity="error">{error}</Alert> : null}
 
       {loading ? (
-        <Box sx={{ py: 6, display: "flex", justifyContent: "center" }}>
-          <CircularProgress />
-        </Box>
+        <Paper variant="outlined" sx={{ p: 6, borderRadius: 2, textAlign: "center" }}>
+          <CircularProgress size={28} />
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+            Cargando playlists…
+          </Typography>
+        </Paper>
       ) : (
-        <Stack spacing={2}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2,
-              borderRadius: 0,
-              border: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <Stack spacing={1.5}>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                justifyContent="space-between"
-                alignItems={{ xs: "flex-start", sm: "center" }}
-                spacing={1}
-              >
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  Playlists existentes
-                </Typography>
-                <Chip
-                  label={`${playlists.length}`}
-                  size="small"
-                  variant="outlined"
-                />
-              </Stack>
-              <Typography variant="body2" color="text.secondary">
-                {scopeMeta.summary}
-              </Typography>
-            </Stack>
-          </Paper>
+        <>
           {playlists.length ? (
             <Box
               sx={{
                 display: "grid",
                 gap: 2,
+                width: "100%",
+                maxWidth: 1760,
+                mx: "auto",
                 gridTemplateColumns: {
                   xs: "1fr",
                   md: "repeat(2, minmax(0, 1fr))",
@@ -955,60 +1042,58 @@ export default function PlaylistManagementView({
               elevation={0}
               sx={{
                 p: 4,
-                borderRadius: 0,
+                borderRadius: 2,
                 border: "1px dashed",
                 borderColor: "divider",
                 textAlign: "center",
               }}
             >
-              <Typography variant="body2" color="text.secondary">
-                {scopeMeta.emptyState}
-              </Typography>
+              <Stack spacing={1.25} alignItems="center">
+                <Avatar sx={{ width: 48, height: 48, bgcolor: "action.hover", color: "text.secondary" }}>
+                  <AddIcon />
+                </Avatar>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  {scopeMeta.emptyState}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420 }}>
+                  {scopeMeta.summary}
+                </Typography>
+                <Button variant="contained" startIcon={<AddIcon />} onClick={beginCreate} disabled={saving} sx={{ mt: 0.5 }}>
+                  Crear playlist
+                </Button>
+              </Stack>
             </Paper>
           )}
-        </Stack>
+        </>
       )}
 
-      {deleteTarget ? (
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2,
-            borderRadius: 0,
-            border: "1px solid",
-            borderColor: "error.main",
-            backgroundColor: "#fff5f5",
-          }}
-        >
-          <Stack
-            direction={{ xs: "column", md: "row" }}
-            spacing={1.5}
-            justifyContent="space-between"
-            alignItems={{ xs: "stretch", md: "center" }}
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onClose={() => !deleteLoading && setDeleteTarget(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Eliminar playlist</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Quieres eliminar “{deleteTarget?.name}”? Esta acción no se puede deshacer.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setDeleteTarget(null)} disabled={deleteLoading}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => void handleDelete()}
+            color="error"
+            variant="contained"
+            disabled={deleteLoading}
+            startIcon={deleteLoading ? <CircularProgress size={16} color="inherit" /> : <DeleteIcon />}
           >
-            <Typography>
-              ¿Seguro que deseas eliminar
-              {deleteTarget ? ` "${deleteTarget.name}"` : ""}?
-            </Typography>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <Button
-                onClick={() => setDeleteTarget(null)}
-                disabled={deleteLoading}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={() => void handleDelete()}
-                color="error"
-                variant="contained"
-                disabled={deleteLoading}
-              >
-                Eliminar
-              </Button>
-            </Stack>
-          </Stack>
-        </Paper>
-      ) : null}
+            Eliminar playlist
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

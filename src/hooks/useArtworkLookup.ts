@@ -4,6 +4,7 @@ import type { Song } from "../types";
 
 export interface ArtworkLookupOptions {
   fetcher?: typeof fetch;
+  enabled?: boolean;
 }
 
 export interface ArtworkLookupState {
@@ -18,7 +19,7 @@ const DEFAULT_ERROR_MESSAGE = "No se pudo cargar la portada de la canción.";
 
 export function useArtworkLookup(
   song: Song | null,
-  { fetcher = fetch }: ArtworkLookupOptions = {}
+  { fetcher = fetch, enabled = true }: ArtworkLookupOptions = {}
 ): ArtworkLookupState {
   const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,7 +37,7 @@ export function useArtworkLookup(
       return;
     }
 
-    if (!song) {
+    if (!song || !enabled) {
       setArtworkUrl(null);
       setLoading(false);
       setError(null);
@@ -110,7 +111,7 @@ export function useArtworkLookup(
       cancelled = true;
       abortController.abort();
     };
-  }, [song, fetcher, retryToken]);
+  }, [song, enabled, fetcher, retryToken]);
 
   return { artworkUrl, loading, error, confidenceScore, refetch };
 }

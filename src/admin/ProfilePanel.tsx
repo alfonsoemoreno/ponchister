@@ -4,6 +4,7 @@ import {
   Avatar,
   Box,
   Button,
+  CircularProgress,
   Paper,
   Stack,
   TextField,
@@ -21,7 +22,8 @@ interface ProfilePanelProps {
   }) => void;
 }
 
-const MAX_AVATAR_SIZE = 700_000;
+const MAX_AVATAR_SIZE = 500_000;
+const ACCEPTED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export default function ProfilePanel({
   currentUser,
@@ -30,6 +32,8 @@ export default function ProfilePanel({
 }: ProfilePanelProps) {
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [savedDisplayName, setSavedDisplayName] = useState("");
+  const [savedAvatarUrl, setSavedAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +49,8 @@ export default function ProfilePanel({
         if (cancelled) return;
         setDisplayName(profile.display_name ?? "");
         setAvatarUrl(profile.avatar_url ?? null);
+        setSavedDisplayName(profile.display_name ?? "");
+        setSavedAvatarUrl(profile.avatar_url ?? null);
         onProfileUpdated(profile);
       } catch (err) {
         if (cancelled) return;
@@ -72,20 +78,22 @@ export default function ProfilePanel({
 
     if (!file) return;
 
+    if (!ACCEPTED_AVATAR_TYPES.includes(file.type)) {
+      onFeedback({ severity: "error", message: "Usa una imagen JPG, PNG o WebP." });
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_SIZE) {
+      onFeedback({ severity: "error", message: "El avatar no puede superar los 500 KB." });
+      return;
+    }
+
     const reader = new FileReader();
     const result = await new Promise<string>((resolve, reject) => {
       reader.onload = () => resolve(String(reader.result ?? ""));
       reader.onerror = () => reject(new Error("No se pudo leer el avatar."));
       reader.readAsDataURL(file);
     });
-
-    if (result.length > MAX_AVATAR_SIZE) {
-      onFeedback({
-        severity: "error",
-        message: "El avatar es demasiado grande. Usa una imagen más liviana.",
-      });
-      return;
-    }
 
     setAvatarUrl(result);
   };
@@ -99,6 +107,8 @@ export default function ProfilePanel({
         avatar_url: avatarUrl,
       });
       onProfileUpdated(updated);
+      setSavedDisplayName(updated.display_name ?? "");
+      setSavedAvatarUrl(updated.avatar_url ?? null);
       onFeedback({
         severity: "success",
         message: "Perfil actualizado correctamente.",
@@ -113,14 +123,20 @@ export default function ProfilePanel({
     }
   };
 
+  const hasUnsavedChanges =
+    displayName.trim() !== savedDisplayName || avatarUrl !== savedAvatarUrl;
+
   return (
     <Stack spacing={3}>
       {error ? <Alert severity="error">{error}</Alert> : null}
       <Paper
         elevation={0}
         sx={{
+          width: "100%",
+          maxWidth: 1040,
+          mx: "auto",
           p: { xs: 2, sm: 3 },
-          borderRadius: 0,
+          borderRadius: 1,
           border: "1px solid",
           borderColor: "divider",
         }}
@@ -138,7 +154,7 @@ export default function ProfilePanel({
           <Stack direction={{ xs: "column", md: "row" }} spacing={3} alignItems="center">
             <Avatar
               src={avatarUrl ?? undefined}
-              sx={{ width: 88, height: 88, bgcolor: "#0f172a" }}
+              sx={{ width: 88, height: 88, bgcolor: "primary.main" }}
             >
               {(displayName || currentUser?.email || "U").charAt(0).toUpperCase()}
             </Avatar>
@@ -153,7 +169,7 @@ export default function ProfilePanel({
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                 <Button component="label" variant="outlined" disabled={loading || saving}>
                   Subir avatar
-                  <input hidden accept="image/*" type="file" onChange={handleAvatarChange} />
+                <input hidden accept="image/jpeg,image/png,image/webp" type="file" onChange={handleAvatarChange} />
                 </Button>
                 <Button
                   variant="text"
@@ -164,10 +180,13 @@ export default function ProfilePanel({
                   Quitar avatar
                 </Button>
               </Stack>
+              <Typography variant="caption" color="text.secondary">
+                JPG, PNG o WebP · máximo 500 KB.
+              </Typography>
             </Stack>
           </Stack>
 
-          <Stack spacing={1}>
+          <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
             <TextField
               label="Email"
               value={currentUser?.email ?? ""}
@@ -180,11 +199,16 @@ export default function ProfilePanel({
               disabled
               fullWidth
             />
-          </Stack>
+          </Box>
 
           <Box>
-            <Button variant="contained" onClick={handleSave} disabled={loading || saving}>
-              {saving ? "Guardando..." : "Guardar perfil"}
+            <Button
+              variant="contained"
+              onClick={handleSave}
+              disabled={loading || saving || !hasUnsavedChanges}
+              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : undefined}
+            >
+              {saving ? "Guardando…" : "Guardar perfil"}
             </Button>
           </Box>
         </Stack>

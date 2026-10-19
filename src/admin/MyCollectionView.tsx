@@ -6,6 +6,7 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -32,6 +33,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import ClearIcon from "@mui/icons-material/Clear";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -40,6 +42,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PublishIcon from "@mui/icons-material/Publish";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import SearchIcon from "@mui/icons-material/Search";
 import StopIcon from "@mui/icons-material/Stop";
 import type { Song, SongInput, SongYoutubeValidationPayload, YoutubeValidationResult } from "./types";
 import SongFormDialog from "./SongFormDialog";
@@ -67,6 +70,7 @@ import {
   type SongTagDefinition,
   type SongTag,
 } from "../lib/songTags";
+import { isValidSongYear, MIN_SONG_YEAR } from "../lib/songYear";
 
 interface MyCollectionViewProps {
   onFeedback: (payload: {
@@ -123,7 +127,7 @@ const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
 
 export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) {
   const [songs, setSongs] = useState<Song[]>([]);
-  const [total, setTotal] = useState(0);
+  const [hasMoreSongs, setHasMoreSongs] = useState(false);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -143,6 +147,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
   const [selectedFilterTags, setSelectedFilterTags] = useState<SongTag[]>([]);
   const [specialModeFilter, setSpecialModeFilter] = useState<SpecialModeFilter>("all");
   const [sortOption, setSortOption] = useState<SortOption>(DEFAULT_SORT_OPTION);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [songMenuAnchorEl, setSongMenuAnchorEl] = useState<null | HTMLElement>(null);
   const [songMenuSong, setSongMenuSong] = useState<Song | null>(null);
   const [audioPreview, setAudioPreview] = useState<AudioPreviewState | null>(null);
@@ -162,11 +167,6 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
 
   const filteredSongs = songs;
 
-  const pageSpanishCount = useMemo(
-    () => filteredSongs.filter((song) => song.isspanish).length,
-    [filteredSongs]
-  );
-
   const sortConfig = useMemo<{
     sortBy: "id" | "artist" | "title" | "year";
     direction: "asc" | "desc";
@@ -185,7 +185,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
     specialModeFilter !== "all" ||
     sortOption !== DEFAULT_SORT_OPTION;
 
-  const loadSongs = useCallback(async () => {
+  const loadSongs = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     try {
       const data = await listMySongs({
@@ -197,17 +197,20 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
         specialMode: specialModeFilter,
         sortBy: sortConfig.sortBy,
         sortDirection: sortConfig.direction,
+        signal,
+        includeTotal: false,
       });
       setSongs(data.songs);
-      setTotal(data.total);
+      setHasMoreSongs(data.hasMore);
     } catch (err) {
+      if (signal?.aborted) return;
       onFeedback({
         severity: "error",
         message:
           err instanceof Error ? err.message : "No se pudo cargar tu colección.",
       });
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [
     onFeedback,
@@ -220,7 +223,9 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
   ]);
 
   useEffect(() => {
-    void loadSongs();
+    const controller = new AbortController();
+    void loadSongs(controller.signal);
+    return () => controller.abort();
   }, [loadSongs]);
 
   useEffect(() => {
@@ -262,8 +267,15 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
         setYearFilter(null);
         return;
       }
-      const parsed = Number.parseInt(trimmed, 10);
-      if (!Number.isNaN(parsed)) setYearFilter(parsed);
+      const parsed = Number(trimmed);
+      if (!/^\d{4}$/.test(trimmed) || !isValidSongYear(parsed)) {
+        setYearFilter(null);
+        return;
+      }
+      setYearFilter((prev) => {
+        if (prev !== parsed) setPage(0);
+        return parsed;
+      });
     }, 300);
     return () => window.clearTimeout(handler);
   }, [yearInput]);
@@ -696,12 +708,13 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
   };
 
   const renderDesktopTable = () => (
-    <TableContainer sx={{ display: { xs: "none", lg: "block" }, maxWidth: "100%" }}>
+    <TableContainer sx={{ display: { xs: "none", lg: "block" }, maxWidth: "100%", maxHeight: "min(68vh, 760px)" }}>
       <Table
         size="medium"
         sx={{
           width: "100%",
           tableLayout: "fixed",
+          "& thead th": { position: "sticky", top: 0, zIndex: 1, backgroundColor: "background.paper" },
           "& th": {
             textTransform: "none",
             letterSpacing: 0.2,
@@ -716,57 +729,37 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
       >
         <TableHead>
           <TableRow>
-            <TableCell width={32}>ID</TableCell>
+            <TableCell width={56}>ID</TableCell>
             <TableCell colSpan={2}>Canción</TableCell>
-            <TableCell width={32}>Año</TableCell>
+            <TableCell width={64}>Año</TableCell>
             <TableCell align="center">YouTube</TableCell>
             <TableCell align="center">Etiquetas</TableCell>
             <TableCell align="right">Acciones</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {filteredSongs.map((song, index) => {
+          {filteredSongs.map((song) => {
             const youtubeStatus = getYoutubeStatusChipProps(song);
             const isPlaying = audioPreview?.songId === song.id;
 
             return (
-              <TableRow
-                key={song.id}
-                hover
-                sx={{
-                  animation: "admin-row-in 360ms ease",
-                  animationDelay: `${Math.min(index * 20, 240)}ms`,
-                  animationFillMode: "both",
-                }}
-              >
-                <TableCell width={32}>{song.id}</TableCell>
-                <TableCell colSpan={2} sx={{ minWidth: 0, overflow: "hidden" }}>
-                  <Tooltip title={song.title} disableInteractive>
-                    <Typography variant="body2" fontWeight={600} noWrap>
+              <TableRow key={song.id} hover>
+                <TableCell width={56}>{song.id}</TableCell>
+                <TableCell colSpan={2} sx={{ minWidth: 0, whiteSpace: "normal", overflowWrap: "anywhere" }}>
+                  <Typography variant="body2" fontWeight={600} sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>
                       {song.title}
-                    </Typography>
-                  </Tooltip>
-                  <Tooltip title={song.artist} disableInteractive>
-                    <Typography
+                  </Typography>
+                  <Typography
                       variant="caption"
                       color="text.secondary"
-                      noWrap
                       display="block"
+                      sx={{ whiteSpace: "normal", overflowWrap: "anywhere" }}
                     >
                       {song.artist}
-                    </Typography>
-                  </Tooltip>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    noWrap
-                    display="block"
-                  >
-                    Mi colección
                   </Typography>
                 </TableCell>
-                <TableCell width={32}>{song.year ?? "-"}</TableCell>
-                <TableCell width={116} align="center">
+                <TableCell width={64}>{song.year ?? "-"}</TableCell>
+                <TableCell width={100} align="center">
                   <Tooltip title={youtubeStatus.tooltip} disableInteractive>
                     <Chip
                       label={youtubeStatus.label}
@@ -776,7 +769,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                     />
                   </Tooltip>
                 </TableCell>
-                <TableCell width={152} align="center">
+                <TableCell width={132} align="center">
                   <Stack
                     direction="row"
                     spacing={0.75}
@@ -800,7 +793,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                     )}
                   </Stack>
                 </TableCell>
-                <TableCell align="right" width={104}>
+                  <TableCell align="right" width={96}>
                   <Stack
                     direction="row"
                     spacing={0.5}
@@ -851,7 +844,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
         py: 1,
       }}
     >
-      {filteredSongs.map((song, index) => {
+      {filteredSongs.map((song) => {
         const yearLabel = song.year ? song.year.toString() : "Sin año";
         const youtubeStatus = getYoutubeStatusChipProps(song);
         const isPlaying = audioPreview?.songId === song.id;
@@ -863,14 +856,11 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
             sx={{
               position: "relative",
               overflow: "hidden",
-              borderRadius: 0,
+              borderRadius: 1,
               backgroundColor: "background.paper",
               border: "1px solid",
               borderColor: "divider",
               boxShadow: "none",
-              animation: "admin-card-in 420ms ease",
-              animationDelay: `${Math.min(index * 60, 360)}ms`,
-              animationFillMode: "both",
             }}
           >
             <Stack spacing={2.2} sx={{ position: "relative", zIndex: 1, p: 2.5 }}>
@@ -895,11 +885,11 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                     label={yearLabel}
                     size="small"
                     sx={{
-                      backgroundColor: "#f1f5f9",
+                      backgroundColor: "background.default",
                       fontWeight: 600,
                       letterSpacing: 0.4,
                       textTransform: "uppercase",
-                      borderRadius: 0,
+                      borderRadius: 1,
                     }}
                   />
                   <Tooltip title={youtubeStatus.tooltip} disableInteractive>
@@ -908,23 +898,16 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                       size="small"
                       color={youtubeStatus.color}
                       variant={youtubeStatus.variant}
-                      sx={{ borderRadius: 0, fontWeight: 600 }}
+                      sx={{ borderRadius: 1, fontWeight: 600 }}
                     />
                   </Tooltip>
-                  <Chip
-                    label="Mi colección"
-                    size="small"
-                    color="info"
-                    variant="outlined"
-                    sx={{ borderRadius: 0, fontWeight: 600 }}
-                  />
                   <IconButton
                     aria-label="Opciones de canción"
                     onClick={(event) => handleSongMenuOpen(event, song)}
                     sx={{
                       border: "1px solid",
                       borderColor: "divider",
-                      borderRadius: 0,
+                      borderRadius: 1,
                     }}
                   >
                     <MoreVertIcon fontSize="small" />
@@ -969,9 +952,6 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
                     sx={{ fontWeight: 600, lineHeight: 1.25, overflowWrap: "anywhere" }}
                   >
                     {song.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Biblioteca privada
                   </Typography>
                 </Box>
               </Stack>
@@ -1026,42 +1006,15 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
 
   return (
     <Stack spacing={3}>
-      <Paper
-        elevation={0}
-        sx={{
-          p: 2,
-          borderRadius: 0,
-          border: "1px solid",
-          borderColor: "#bfdbfe",
-          backgroundColor: "#eff6ff",
-        }}
-      >
-        <Stack spacing={1}>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Chip label="Personal" size="small" color="info" />
-            <Typography variant="subtitle1" fontWeight={700}>
-              Biblioteca privada
-            </Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary">
-            Estas canciones son tuyas, no requieren aprobación y solo se usan en
-            tu catálogo o en tus playlists personales.
-          </Typography>
-        </Stack>
-      </Paper>
-
       <Stack
         direction={{ xs: "column", md: "row" }}
-        spacing={2}
+        spacing={1.5}
         justifyContent="space-between"
         alignItems={{ xs: "flex-start", md: "center" }}
       >
         <Box>
-          <Typography variant="h6" fontWeight={700}>
-            Mi colección
-          </Typography>
           <Typography variant="body2" color="text.secondary">
-            Gestiona tus canciones privadas y postúlalas al catálogo público cuando quieras.
+            Canciones privadas · {songs.length} cargadas{hasMoreSongs ? " · hay más resultados" : ""}
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
@@ -1069,74 +1022,14 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
         </Button>
       </Stack>
 
-      <Box
-        sx={{
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(3, 1fr)",
-          },
-        }}
-      >
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2,
-            borderRadius: 0,
-            border: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            Canciones totales
-          </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            {total}
-          </Typography>
-        </Paper>
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2,
-            borderRadius: 0,
-            border: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            Resultados visibles
-          </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            {filteredSongs.length}
-          </Typography>
-        </Paper>
-        <Paper
-          elevation={0}
-          sx={{
-            p: 2,
-            borderRadius: 0,
-            border: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            En español
-          </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            {pageSpanishCount}
-          </Typography>
-        </Paper>
-      </Box>
-
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 2, md: 2.5 },
-          borderRadius: 0,
+          p: { xs: 1.5, md: 2 },
+          borderRadius: 1,
           border: "1px solid",
           borderColor: "divider",
-          backgroundColor: "#fbfcfe",
+          backgroundColor: "background.paper",
         }}
       >
         <Stack
@@ -1148,15 +1041,17 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
           <TextField
             label="Buscar canciones"
             placeholder="Busca por artista, canción o enlace"
+            aria-label="Buscar por artista, canción o enlace"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             fullWidth
             size="small"
             sx={{
-              width: { xs: "100%", md: 320 },
+              width: { xs: "100%", md: 440 },
               flexShrink: 0,
             }}
             InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" color="action" /></InputAdornment>,
               endAdornment: searchInput ? (
                 <InputAdornment position="end">
                   <IconButton
@@ -1171,30 +1066,27 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
               ) : undefined,
             }}
           />
-          <Tooltip title="Recargar lista" disableInteractive>
-            <Box component="span" sx={{ display: "inline-flex" }}>
-              <IconButton
-                onClick={() => void loadSongs()}
-                disabled={loading}
-                aria-label="Recargar lista"
-                sx={{
-                  border: "1px solid",
-                  borderColor: "divider",
-                  color: "text.primary",
-                  backgroundColor: "background.paper",
-                  borderRadius: 0,
-                }}
-              >
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </Box>
-          </Tooltip>
+          <Stack direction="row" spacing={1} justifyContent="flex-end">
+            <Button
+              variant={filtersExpanded ? "contained" : "outlined"}
+              color={filtersActive ? "primary" : "inherit"}
+              startIcon={<FilterListIcon />}
+              onClick={() => setFiltersExpanded((expanded) => !expanded)}
+              aria-expanded={filtersExpanded}
+            >
+              Filtros{filtersActive ? ` · ${Number(yearFilter !== null) + selectedFilterTags.length + Number(specialModeFilter !== "all") + Number(sortOption !== DEFAULT_SORT_OPTION)}` : ""}
+            </Button>
+            <Tooltip title="Recargar lista" disableInteractive>
+              <span><IconButton onClick={() => void loadSongs()} disabled={loading} aria-label="Recargar lista" sx={{ border: "1px solid", borderColor: "divider", color: "text.primary", borderRadius: 1 }}><RefreshIcon fontSize="small" /></IconButton></span>
+            </Tooltip>
+          </Stack>
         </Stack>
+        <Collapse in={filtersExpanded} timeout="auto" unmountOnExit>
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={2}
           alignItems={{ xs: "stretch", md: "center" }}
-          sx={{ mt: 2 }}
+          sx={{ mt: 2, pt: 2, borderTop: "1px solid", borderColor: "divider" }}
         >
           <TextField
             label="Filtrar por año"
@@ -1203,7 +1095,9 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
             onChange={(event) => setYearInput(event.target.value)}
             placeholder="Ej: 1994"
             InputLabelProps={{ shrink: true }}
-            inputProps={{ min: 0 }}
+            error={Boolean(yearInput.trim() && (!/^\d{4}$/.test(yearInput.trim()) || !isValidSongYear(Number(yearInput))))}
+            helperText={yearInput.trim() && (!/^\d{4}$/.test(yearInput.trim()) || !isValidSongYear(Number(yearInput))) ? `Ingresa un año entre ${MIN_SONG_YEAR} y ${new Date().getFullYear()}` : " "}
+            inputProps={{ min: MIN_SONG_YEAR, max: new Date().getFullYear(), step: 1 }}
             size="small"
             sx={{ width: { xs: "100%", md: 180 } }}
           />
@@ -1273,6 +1167,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
             );
           })}
         </Stack>
+        </Collapse>
       </Paper>
 
       {loading ? (
@@ -1290,7 +1185,7 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
           elevation={0}
           sx={{
             overflow: "hidden",
-            borderRadius: 0,
+            borderRadius: 1,
             backgroundColor: "background.paper",
             border: "1px solid",
             borderColor: "divider",
@@ -1301,13 +1196,26 @@ export default function MyCollectionView({ onFeedback }: MyCollectionViewProps) 
           {renderDesktopTable()}
           <TablePagination
             component="div"
-            count={total}
+            count={-1}
             page={page}
             rowsPerPage={PAGE_SIZE}
             rowsPerPageOptions={[PAGE_SIZE]}
             onPageChange={(_event, nextPage) => setPage(nextPage)}
             labelRowsPerPage="Canciones por página"
-            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+            labelDisplayedRows={() => {
+              const from = page * PAGE_SIZE + 1;
+              const to = page * PAGE_SIZE + songs.length;
+              return hasMoreSongs
+                ? `${from}-${to} · hay más resultados`
+                : `${from}-${to} · fin de resultados`;
+            }}
+            slotProps={{
+              actions: {
+                previousButton: { disabled: loading || page === 0 },
+                nextButton: { disabled: loading || !hasMoreSongs },
+              },
+            }}
+            disabled={loading}
             sx={{ borderTop: "1px solid", borderColor: "divider" }}
           />
         </Paper>

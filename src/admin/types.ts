@@ -119,15 +119,9 @@ export interface SongStatistics {
   tararearCount: number;
   karaokeCount: number;
   triviaCount: number;
-  yearsMostCommon: StatEntry[];
-  yearsLeastCommon: StatEntry[];
-  decadesLeastCommon: StatEntry[];
+  songsByDecade: StatEntry[];
   artistsMostCommon: StatEntry[];
   tagsMostCommon: StatEntry[];
-  mimicaSongs: StatEntry[];
-  tararearSongs: StatEntry[];
-  karaokeSongs: StatEntry[];
-  triviaSongs: StatEntry[];
 }
 
 export interface SongStatisticsGroup {
@@ -146,7 +140,9 @@ export interface GameSessionStatistics {
   currentYearCount: number;
   daily: GameSessionSeriesEntry[];
   monthly: GameSessionSeriesEntry[];
-  yearly: GameSessionSeriesEntry[];
+  countries: { countryCode: string; count: number }[];
+  locationPeriodMonths: number;
+  locationDetectionAvailable: boolean;
 }
 
 export type AdminRole = "superadmin" | "editor";

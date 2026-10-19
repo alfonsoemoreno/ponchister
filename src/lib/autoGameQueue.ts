@@ -19,7 +19,9 @@ export function shuffleSongs<T>(entries: T[]): T[] {
   return copy;
 }
 
-function songYearKey(song: Song): string {
+type QueueSong = Pick<Song, "id" | "artist" | "title" | "year" | "youtube_url">;
+
+function songYearKey(song: Pick<Song, "year">): string {
   return typeof song.year === "number" ? String(song.year) : UNKNOWN_YEAR_KEY;
 }
 
@@ -27,12 +29,10 @@ export function getSongArtistKey(artist: string): string {
   return artist.trim().replace(/\s+/g, " ").toLocaleLowerCase();
 }
 
-type YearBucket = Song[];
-
-function takeNextSong(
-  bucket: Song[],
+function takeNextSong<T extends Pick<Song, "artist">>(
+  bucket: T[],
   usedArtists: Set<string>
-): Song | undefined {
+): T | undefined {
   for (let index = bucket.length - 1; index >= 0; index -= 1) {
     const artistKey = getSongArtistKey(bucket[index]?.artist ?? "");
     if (usedArtists.has(artistKey)) {
@@ -46,12 +46,14 @@ function takeNextSong(
   return undefined;
 }
 
-export function buildBalancedQueue(songs: Song[]): Song[] {
+export function buildBalancedQueue<T extends Pick<Song, "artist" | "year">>(
+  songs: T[],
+): T[] {
   if (!songs.length) {
     return [];
   }
 
-  const buckets = new Map<string, YearBucket>();
+  const buckets = new Map<string, T[]>();
 
   songs.forEach((song) => {
     const key = songYearKey(song);
@@ -66,7 +68,7 @@ export function buildBalancedQueue(songs: Song[]): Song[] {
 
   const usage = new Map<string, number>();
   const usedArtists = new Set<string>();
-  const queue: Song[] = [];
+  const queue: T[] = [];
 
   while (true) {
     const activeEntries = Array.from(buckets.entries()).filter(
@@ -117,8 +119,8 @@ export function buildBalancedQueue(songs: Song[]): Song[] {
   return queue;
 }
 
-export function dedupePlayableSongs(songs: Song[]): Song[] {
-  const uniquePlayable = new Map<string, Song>();
+export function dedupePlayableSongs<T extends QueueSong>(songs: T[]): T[] {
+  const uniquePlayable = new Map<string, T>();
 
   songs.forEach((song) => {
     const trimmedUrl = song.youtube_url.trim();

@@ -15,6 +15,7 @@ import {
   Button,
   Checkbox,
   CircularProgress,
+  Collapse,
   Container,
   Dialog,
   DialogActions,
@@ -30,7 +31,6 @@ import {
   ListItemText,
   Paper,
   Chip,
-  Fab,
   Snackbar,
   Stack,
   Tab,
@@ -47,7 +47,6 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
-  Zoom,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -68,6 +67,10 @@ import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ClearIcon from "@mui/icons-material/Clear";
+import FilterListIcon from "@mui/icons-material/FilterList";
+import SearchIcon from "@mui/icons-material/Search";
+import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 
 import AdminUsersPanel from "./AdminUsersPanel";
 import PlaylistManagementView from "./PlaylistManagementView";
@@ -79,9 +82,11 @@ import GameSessionStatisticsView from "./GameSessionStatisticsView";
 import {
   createSong,
   deleteSong,
+  getSong,
   listSongs,
   approveSong,
   bulkApproveSongs,
+  bulkUpdateSongs,
   fetchSongStatistics,
   findSongDuplicates,
   updateSongYoutubeValidation,
@@ -89,6 +94,7 @@ import {
 } from "./services/songService";
 import { createSongTag, listSongTags } from "./services/songTagService";
 import { copyPublicSongToMyCollection } from "./services/mySongService";
+import { isValidSongYear, MIN_SONG_YEAR } from "../lib/songYear";
 import { fetchGameSessionStatistics } from "./services/gameSessionService";
 import {
   createUncheckedYoutubeValidation,
@@ -111,7 +117,6 @@ import {
   DEFAULT_SONG_TAG_DEFINITIONS,
   formatSongTags,
   getSongTagLabel,
-  isSpanishTagSelected,
   normalizeSongTags,
   type SongTagDefinition,
   type SongTag,
@@ -167,6 +172,21 @@ type SortOption =
 const DEFAULT_SORT_OPTION: SortOption = "id_asc";
 type CatalogStatusFilter = "all" | "pending" | "approved";
 type SpecialModeFilter = "all" | "mimica" | "tararear" | "karaoke" | "trivia";
+interface CatalogFilters {
+  year: number | null;
+  tags: SongTag[];
+  catalogStatus: CatalogStatusFilter;
+  specialMode: SpecialModeFilter;
+  sortOption: SortOption;
+}
+
+const DEFAULT_CATALOG_FILTERS: CatalogFilters = {
+  year: null,
+  tags: [],
+  catalogStatus: "all",
+  specialMode: "all",
+  sortOption: DEFAULT_SORT_OPTION,
+};
 
 const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
   { value: "id_asc", label: "ID ascendente" },
@@ -186,6 +206,8 @@ interface AdminDashboardProps {
   userEmail?: string | null;
   userRole?: "superadmin" | "editor";
   onSessionRefresh?: () => Promise<void>;
+  colorMode: "light" | "dark";
+  onToggleColorMode: () => void;
 }
 
 export default function AdminDashboard({
@@ -195,22 +217,27 @@ export default function AdminDashboard({
   userEmail,
   userRole,
   onSessionRefresh,
+  colorMode,
+  onToggleColorMode,
 }: AdminDashboardProps) {
   const dataReady = true;
   const [songs, setSongs] = useState<Song[]>([]);
-  const [total, setTotal] = useState(0);
+  const [hasMoreSongs, setHasMoreSongs] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_PAGE_SIZE);
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [yearInput, setYearInput] = useState("");
-  const [yearFilter, setYearFilter] = useState<number | null>(null);
   const [selectedFilterTags, setSelectedFilterTags] = useState<SongTag[]>([]);
   const [catalogStatusFilter, setCatalogStatusFilter] =
     useState<CatalogStatusFilter>("all");
   const [specialModeFilter, setSpecialModeFilter] =
     useState<SpecialModeFilter>("all");
   const [sortOption, setSortOption] = useState<SortOption>(DEFAULT_SORT_OPTION);
+  const [appliedFilters, setAppliedFilters] = useState<CatalogFilters>(
+    DEFAULT_CATALOG_FILTERS
+  );
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
@@ -218,6 +245,7 @@ export default function AdminDashboard({
     DEFAULT_SONG_TAG_DEFINITIONS
   );
   const [songTagsLoading, setSongTagsLoading] = useState(false);
+  const [songTagsManagementOpen, setSongTagsManagementOpen] = useState(false);
   const [newSongTagLabel, setNewSongTagLabel] = useState("");
   const [newSongTagSaving, setNewSongTagSaving] = useState(false);
 
@@ -264,6 +292,7 @@ export default function AdminDashboard({
   );
   const [gameStatistics, setGameStatistics] =
     useState<GameSessionStatistics | null>(null);
+  const statsLoadedReloadToken = useRef<number | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [songMenuAnchorEl, setSongMenuAnchorEl] =
     useState<null | HTMLElement>(null);
@@ -281,14 +310,12 @@ export default function AdminDashboard({
 
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
-  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const isSuperAdmin = userRole === "superadmin";
   const youtubeValidationQueueRef = useRef<YoutubeProbeRequest[]>([]);
   const activeYoutubeProbeRef = useRef<YoutubeProbeRequest | null>(null);
   const youtubeProbeTimeoutRef = useRef<number | null>(null);
   const youtubeProbeSuccessTimeoutRef = useRef<number | null>(null);
   const youtubeProbeRequestIdRef = useRef(0);
-  const autoValidatedUncheckedRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     setSessionUser(currentUser ?? null);
@@ -333,8 +360,8 @@ export default function AdminDashboard({
       },
       {
         value: "stats" as const,
-        label: "Estadisticas",
-        description: "Analitica y tendencias del catalogo.",
+        label: "Estadísticas",
+        description: "Analítica y tendencias del catálogo.",
         icon: <BarChartOutlinedIcon fontSize="small" />,
       },
       {
@@ -363,11 +390,6 @@ export default function AdminDashboard({
   const visibleTabs = isSuperAdmin
     ? tabConfig
     : tabConfig.filter((tab) => tab.value !== "users");
-
-  const pageSpanishCount = useMemo(
-    () => songs.filter((song) => song.isspanish).length,
-    [songs]
-  );
 
   const toPersistedYoutubeValidation = useCallback(
     (result: YoutubeValidationResult): SongYoutubeValidationPayload | null => {
@@ -574,6 +596,7 @@ export default function AdminDashboard({
   const getYoutubeStatusChipProps = useCallback(
     (song: Song) => {
       const state = getYoutubeStatusState(song);
+      const tooltip = `Estado de YouTube: ${getYoutubeStatusLabel(state.status)}`;
 
       switch (state.status) {
         case "operational":
@@ -581,14 +604,14 @@ export default function AdminDashboard({
             label: getYoutubeStatusLabel(state.status),
             color: "success" as const,
             variant: "filled" as const,
-            tooltip: state.message,
+            tooltip,
           };
         case "restricted":
           return {
             label: getYoutubeStatusLabel(state.status),
             color: "warning" as const,
             variant: "filled" as const,
-            tooltip: state.message,
+            tooltip,
           };
         case "unavailable":
         case "invalid":
@@ -596,14 +619,14 @@ export default function AdminDashboard({
             label: getYoutubeStatusLabel(state.status),
             color: "error" as const,
             variant: "filled" as const,
-            tooltip: state.message,
+            tooltip,
           };
         default:
           return {
             label: getYoutubeStatusLabel(state.status),
             color: "default" as const,
             variant: "outlined" as const,
-            tooltip: state.message,
+            tooltip,
           };
       }
     },
@@ -614,7 +637,7 @@ export default function AdminDashboard({
     sortBy: "id" | "artist" | "title" | "year";
     direction: "asc" | "desc";
   }>(() => {
-    switch (sortOption) {
+    switch (appliedFilters.sortOption) {
       case "id_desc":
         return { sortBy: "id", direction: "desc" };
       case "artist_asc":
@@ -632,25 +655,35 @@ export default function AdminDashboard({
       default:
         return { sortBy: "id", direction: "asc" };
     }
-  }, [sortOption]);
+  }, [appliedFilters.sortOption]);
 
-  const filtersActive = useMemo(
-    () =>
-      yearFilter !== null ||
-      selectedFilterTags.length > 0 ||
-      catalogStatusFilter !== "all" ||
-      specialModeFilter !== "all" ||
-      sortOption !== DEFAULT_SORT_OPTION ||
-      yearInput.trim() !== "",
-    [
-      catalogStatusFilter,
-      selectedFilterTags.length,
-      sortOption,
-      specialModeFilter,
-      yearFilter,
-      yearInput,
-    ]
-  );
+  const trimmedYearInput = yearInput.trim();
+  const parsedYearInput = trimmedYearInput ? Number(trimmedYearInput) : null;
+  const yearInputInvalid =
+    trimmedYearInput !== "" &&
+    (!/^\d{4}$/.test(trimmedYearInput) ||
+      parsedYearInput === null ||
+      !isValidSongYear(parsedYearInput));
+  const draftYearFilter = yearInputInvalid ? null : parsedYearInput;
+  const filtersActive =
+    trimmedYearInput !== "" ||
+    selectedFilterTags.length > 0 ||
+    catalogStatusFilter !== "all" ||
+    specialModeFilter !== "all" ||
+    sortOption !== DEFAULT_SORT_OPTION;
+  const activeFilterCount =
+    (draftYearFilter !== null ? 1 : 0) +
+    selectedFilterTags.length +
+    (catalogStatusFilter !== "all" ? 1 : 0) +
+    (specialModeFilter !== "all" ? 1 : 0) +
+    (sortOption !== DEFAULT_SORT_OPTION ? 1 : 0);
+  const filtersDirty =
+    appliedFilters.year !== draftYearFilter ||
+    appliedFilters.catalogStatus !== catalogStatusFilter ||
+    appliedFilters.specialMode !== specialModeFilter ||
+    appliedFilters.sortOption !== sortOption ||
+    appliedFilters.tags.length !== selectedFilterTags.length ||
+    appliedFilters.tags.some((tag) => !selectedFilterTags.includes(tag));
 
   useEffect(() => {
     const handler = window.setTimeout(() => {
@@ -662,58 +695,31 @@ export default function AdminDashboard({
   }, [searchInput]);
 
   useEffect(() => {
-    const handler = window.setTimeout(() => {
-      const trimmed = yearInput.trim();
-
-      if (trimmed === "") {
-        setYearFilter((prev) => {
-          if (prev !== null) {
-            setPage(0);
-          }
-          return null;
-        });
-        return;
-      }
-      const parsed = Number.parseInt(trimmed, 10);
-      if (Number.isNaN(parsed)) {
-        return;
-      }
-
-      setYearFilter((prev) => {
-        if (prev !== parsed) {
-          setPage(0);
-          return parsed;
-        }
-        return prev;
-      });
-    }, 400);
-
-    return () => window.clearTimeout(handler);
-  }, [yearInput]);
-
-  useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
 
     const run = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const { songs: fetchedSongs, total: fetchedTotal } = await listSongs({
+        const { songs: fetchedSongs, hasMore } = await listSongs({
           page,
           pageSize: rowsPerPage,
           search: searchTerm || undefined,
-          year: yearFilter,
-          tags: selectedFilterTags,
-          catalogStatus: catalogStatusFilter,
-          specialMode: specialModeFilter,
+          year: appliedFilters.year,
+          tags: appliedFilters.tags,
+          catalogStatus: appliedFilters.catalogStatus,
+          specialMode: appliedFilters.specialMode,
           sortBy: sortConfig.sortBy,
           sortDirection: sortConfig.direction,
+          signal: controller.signal,
+          includeTotal: false,
         });
 
         if (!cancelled) {
           setSongs(fetchedSongs);
-          setTotal(fetchedTotal);
+          setHasMoreSongs(hasMore);
         }
       } catch (err) {
         if (!cancelled) {
@@ -723,7 +729,7 @@ export default function AdminDashboard({
               : "No se pudieron cargar las canciones.";
           setError(message);
           setSongs([]);
-          setTotal(0);
+          setHasMoreSongs(false);
         }
       } finally {
         if (!cancelled) {
@@ -738,22 +744,15 @@ export default function AdminDashboard({
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [
-    page,
-    rowsPerPage,
-    searchTerm,
-    sortConfig,
-    selectedFilterTags,
-    catalogStatusFilter,
-    specialModeFilter,
-    yearFilter,
-    reloadToken,
-    dataReady,
-  ]);
+  }, [page, rowsPerPage, searchTerm, sortConfig, appliedFilters, reloadToken, dataReady]);
 
   useEffect(() => {
     if (activeTab !== "stats") {
+      return;
+    }
+    if (statsLoadedReloadToken.current === reloadToken) {
       return;
     }
 
@@ -770,6 +769,7 @@ export default function AdminDashboard({
         if (!cancelled) {
           setSongStatistics(songData);
           setGameStatistics(gameData);
+          statsLoadedReloadToken.current = reloadToken;
         }
       } catch (err) {
         if (!cancelled) {
@@ -827,37 +827,28 @@ export default function AdminDashboard({
       return;
     }
     setSortOption(value);
+  };
+
+  const handleApplyFilters = () => {
+    if (yearInputInvalid || !filtersDirty) return;
     setPage(0);
+    setAppliedFilters({
+      year: draftYearFilter,
+      tags: selectedFilterTags,
+      catalogStatus: catalogStatusFilter,
+      specialMode: specialModeFilter,
+      sortOption,
+    });
   };
 
   const handleClearFilters = () => {
-    const hadYear = yearFilter !== null || yearInput.trim() !== "";
-    const hadSort = sortOption !== DEFAULT_SORT_OPTION;
-    const hadTags = selectedFilterTags.length > 0;
-    const hadStatus = catalogStatusFilter !== "all";
-    const hadSpecialMode = specialModeFilter !== "all";
-
-    if (hadYear) {
-      setYearFilter(null);
-      setYearInput("");
-    }
-    if (hadTags) {
-      setSelectedFilterTags([]);
-    }
-    if (hadStatus) {
-      setCatalogStatusFilter("all");
-    }
-    if (hadSpecialMode) {
-      setSpecialModeFilter("all");
-    }
-
-    if (hadSort) {
-      setSortOption(DEFAULT_SORT_OPTION);
-    }
-
-    if (hadYear || hadSort || hadTags || hadStatus || hadSpecialMode) {
-      setPage(0);
-    }
+    setYearInput("");
+    setSelectedFilterTags([]);
+    setCatalogStatusFilter("all");
+    setSpecialModeFilter("all");
+    setSortOption(DEFAULT_SORT_OPTION);
+    setPage(0);
+    setAppliedFilters(DEFAULT_CATALOG_FILTERS);
   };
 
   const handleToggleFilterTag = useCallback((tag: SongTag) => {
@@ -866,7 +857,6 @@ export default function AdminDashboard({
         ? prev.filter((item) => item !== tag)
         : normalizeSongTags([...prev, tag])
     );
-    setPage(0);
   }, []);
 
   const handleRefresh = () => {
@@ -874,7 +864,7 @@ export default function AdminDashboard({
   };
 
   const handleValidateSongLink = useCallback(
-    async (song: Song, options?: { showFeedback?: boolean }) => {
+    async (song: Song) => {
       const result = await enqueueYoutubeValidation(song.youtube_url, {
         songId: song.id,
         priority: "high",
@@ -897,10 +887,6 @@ export default function AdminDashboard({
         }
       }
 
-      if (options?.showFeedback === false) {
-        return result;
-      }
-
       setFeedback({
         severity: result.status === "operational" ? "success" : "error",
         message:
@@ -915,32 +901,30 @@ export default function AdminDashboard({
     [editingSong, enqueueYoutubeValidation, toPersistedYoutubeValidation]
   );
 
-  useEffect(() => {
-    const uncheckedSongs = songs.filter(
-      (song) => song.youtube_status === null || song.youtube_status === "unchecked"
-    );
-
-    uncheckedSongs.forEach((song) => {
-      const key = `${song.id}:${song.youtube_url.trim()}`;
-      if (autoValidatedUncheckedRef.current[key]) {
-        return;
-      }
-
-      autoValidatedUncheckedRef.current[key] = true;
-      void handleValidateSongLink(song, { showFeedback: false });
-    });
-  }, [handleValidateSongLink, songs]);
-
   const openCreateForm = () => {
     setFormMode("create");
     setEditingSong(null);
     setFormOpen(true);
   };
 
-  const openEditForm = (song: Song) => {
+  const openEditForm = async (song: Song) => {
     setFormMode("edit");
     setEditingSong(song);
     setFormOpen(true);
+    setFormLoading(true);
+    try {
+      setEditingSong(await getSong(song.id));
+    } catch (error) {
+      setFormOpen(false);
+      setEditingSong(null);
+      setFeedback({
+        severity: "error",
+        message: error instanceof Error ? error.message : "No se pudo cargar la canción.",
+      });
+      setSnackbarOpen(true);
+    } finally {
+      setFormLoading(false);
+    }
   };
 
   const closeForm = () => {
@@ -1256,39 +1240,13 @@ export default function AdminDashboard({
       return;
     }
 
-    const selectedSongs = songs.filter((song) => selectedSongIds.includes(song.id));
-    if (!selectedSongs.length) {
-      return;
-    }
-
     setBulkTagSaving(true);
     try {
-      await Promise.all(
-        selectedSongs.map((song) => {
-          const nextTags = normalizeSongTags([...song.tags, ...bulkTagSelection]);
-          return updateSong(song.id, {
-            artist: song.artist,
-            title: song.title,
-            youtube_url: song.youtube_url,
-            year: song.year,
-            play_start_seconds: song.play_start_seconds,
-            tags: nextTags,
-            isspanish: isSpanishTagSelected(nextTags),
-            mimica: song.mimica,
-            tararear: song.tararear,
-            karaoke: song.karaoke,
-            karaoke_pause_seconds: song.karaoke_pause_seconds,
-            karaoke_lyric: song.karaoke_lyric,
-            trivia: song.trivia,
-            trivia_question: song.trivia_question,
-            trivia_answer: song.trivia_answer,
-          });
-        })
-      );
+      await bulkUpdateSongs({ operation: "add-tags", songIds: selectedSongIds, tags: bulkTagSelection });
 
       setFeedback({
         severity: "success",
-        message: `Se agregaron etiquetas a ${selectedSongs.length} canción(es).`,
+        message: `Se agregaron etiquetas a ${selectedSongIds.length} canción(es).`,
       });
       setSnackbarOpen(true);
       setBulkTagDialogOpen(false);
@@ -1304,7 +1262,7 @@ export default function AdminDashboard({
     } finally {
       setBulkTagSaving(false);
     }
-  }, [bulkTagSelection, selectedSongIds, songs]);
+  }, [bulkTagSelection, selectedSongIds]);
 
   const handleBulkAssignMode = useCallback(
     async (mode: "mimica" | "tararear") => {
@@ -1312,38 +1270,13 @@ export default function AdminDashboard({
         return;
       }
 
-      const selectedSongs = songs.filter((song) => selectedSongIds.includes(song.id));
-      if (!selectedSongs.length) {
-        return;
-      }
-
       setBulkModeSaving(mode);
       try {
-        await Promise.all(
-          selectedSongs.map((song) =>
-            updateSong(song.id, {
-              artist: song.artist,
-              title: song.title,
-              youtube_url: song.youtube_url,
-              year: song.year,
-              play_start_seconds: song.play_start_seconds,
-              tags: song.tags,
-              isspanish: song.isspanish,
-              mimica: mode === "mimica",
-              tararear: mode === "tararear",
-              karaoke: song.karaoke,
-              karaoke_pause_seconds: song.karaoke_pause_seconds,
-              karaoke_lyric: song.karaoke_lyric,
-              trivia: song.trivia,
-              trivia_question: song.trivia_question,
-              trivia_answer: song.trivia_answer,
-            })
-          )
-        );
+        await bulkUpdateSongs({ operation: "set-mode", songIds: selectedSongIds, mode });
 
         setFeedback({
           severity: "success",
-          message: `${selectedSongs.length} canción(es) asignadas a ${
+          message: `${selectedSongIds.length} canción(es) asignadas a ${
             mode === "mimica" ? "Mímica" : "Tarareo"
           }.`,
         });
@@ -1360,7 +1293,7 @@ export default function AdminDashboard({
         setBulkModeSaving(null);
       }
     },
-    [selectedSongIds, songs]
+    [selectedSongIds]
   );
 
   const handleCreateSongTag = useCallback(async () => {
@@ -1396,9 +1329,7 @@ export default function AdminDashboard({
     value: "songs" | "playlists" | "stats" | "users" | "profile" | "my-collection"
   ) => {
     setActiveTab(value);
-    if (!isDesktop) {
-      setNavOpen(false);
-    }
+    setNavOpen(false);
   };
 
   const handleSongMenuOpen = (
@@ -1453,14 +1384,6 @@ export default function AdminDashboard({
     setAudioPreview(null);
   }, []);
 
-  const getSongOwnerLabel = useCallback((song: Song) => {
-    return (
-      song.created_by_user?.display_name ||
-      song.created_by_user?.email ||
-      "Sin registro"
-    );
-  }, []);
-
   const getCatalogChipProps = useCallback((song: Song) => {
     if (song.catalog_status === "approved") {
       return {
@@ -1510,25 +1433,23 @@ export default function AdminDashboard({
       );
     }
 
-    return songs.map((song, index) => (
-      (() => {
-        const youtubeStatus = getYoutubeStatusChipProps(song);
-        const isPlaying = audioPreview?.songId === song.id;
-        const catalogChip = getCatalogChipProps(song);
-        const isSelected = selectedSongIds.includes(song.id);
-        const isSelectable = isSuperAdmin;
+    return songs.map((song) => {
+      const youtubeStatus = getYoutubeStatusChipProps(song);
+      const isPlaying = audioPreview?.songId === song.id;
+      const catalogChip = getCatalogChipProps(song);
+      const isSelected = selectedSongIds.includes(song.id);
+      const isSelectable = isSuperAdmin;
 
-        return (
+      return (
           <TableRow
             key={song.id}
             hover
             sx={{
-              animation: "admin-row-in 360ms ease",
-              animationDelay: `${Math.min(index * 20, 240)}ms`,
-              animationFillMode: "both",
+              "&:hover": { backgroundColor: "action.hover" },
+              "& td": { borderColor: "divider" },
             }}
           >
-            <TableCell padding="checkbox" width={56}>
+            <TableCell padding="checkbox" width={48}>
               {isSuperAdmin ? (
                 <Checkbox
                   checked={isSelected}
@@ -1538,34 +1459,29 @@ export default function AdminDashboard({
                 />
               ) : null}
             </TableCell>
-            <TableCell width={40}>{song.id}</TableCell>
-            <TableCell colSpan={2} sx={{ minWidth: 0, overflow: "hidden" }}>
-              <Tooltip title={song.title} disableInteractive>
-                <Typography variant="body2" fontWeight={600} noWrap>
-                  {song.title}
-                </Typography>
-              </Tooltip>
-              <Tooltip title={song.artist} disableInteractive>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  noWrap
-                  display="block"
-                >
-                  {song.artist}
-                </Typography>
-              </Tooltip>
+            <TableCell width={56} sx={{ color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>{song.id}</TableCell>
+            <TableCell
+              colSpan={2}
+              sx={{ minWidth: 0, whiteSpace: "normal", overflowWrap: "anywhere" }}
+            >
+              <Typography
+                variant="body2"
+                fontWeight={600}
+                sx={{ whiteSpace: "normal", overflowWrap: "anywhere", lineHeight: 1.35 }}
+              >
+                {song.title}
+              </Typography>
               <Typography
                 variant="caption"
                 color="text.secondary"
-                noWrap
                 display="block"
+                sx={{ whiteSpace: "normal", overflowWrap: "anywhere", lineHeight: 1.35 }}
               >
-                Alta: {getSongOwnerLabel(song)}
+                {song.artist}
               </Typography>
             </TableCell>
-            <TableCell width={32}>{song.year ?? "-"}</TableCell>
-            <TableCell width={104} align="center">
+            <TableCell width={64} sx={{ color: "text.secondary", fontVariantNumeric: "tabular-nums" }}>{song.year ?? "—"}</TableCell>
+            <TableCell width={100} align="center">
               <Chip
                 label={catalogChip.label}
                 color={catalogChip.color}
@@ -1583,7 +1499,7 @@ export default function AdminDashboard({
                 />
               </Tooltip>
             </TableCell>
-            <TableCell width={152} align="center">
+            <TableCell width={160} align="center">
               <Stack
                 direction="row"
                 spacing={0.75}
@@ -1607,7 +1523,7 @@ export default function AdminDashboard({
                 )}
               </Stack>
             </TableCell>
-            <TableCell align="right" width={104}>
+            <TableCell align="right" width={96}>
               <Stack
                 direction="row"
                 spacing={0.5}
@@ -1642,9 +1558,8 @@ export default function AdminDashboard({
               </Stack>
             </TableCell>
           </TableRow>
-        );
-      })()
-    ));
+      );
+    });
   };
 
   const renderMobileSongCards = () => {
@@ -1683,7 +1598,7 @@ export default function AdminDashboard({
           sx={{
             position: "relative",
             overflow: "hidden",
-            borderRadius: 0,
+            borderRadius: 1,
             backgroundColor: "background.paper",
             border: "1px solid",
             borderColor: "divider",
@@ -1723,11 +1638,11 @@ export default function AdminDashboard({
                   label={yearLabel}
                   size="small"
                   sx={{
-                    backgroundColor: "#f1f5f9",
+                    backgroundColor: theme.palette.mode === "dark" ? "background.paper" : "#fff8f4",
                     fontWeight: 600,
                     letterSpacing: 0.4,
                     textTransform: "uppercase",
-                    borderRadius: 0,
+                    borderRadius: 1,
                   }}
                 />
                 <Tooltip title={youtubeStatus.tooltip} disableInteractive>
@@ -1736,7 +1651,7 @@ export default function AdminDashboard({
                     size="small"
                     color={youtubeStatus.color}
                     variant={youtubeStatus.variant}
-                    sx={{ borderRadius: 0, fontWeight: 600 }}
+                    sx={{ borderRadius: 1, fontWeight: 600 }}
                   />
                 </Tooltip>
                 <Chip
@@ -1744,7 +1659,7 @@ export default function AdminDashboard({
                   size="small"
                   color={catalogChip.color}
                   variant={catalogChip.variant}
-                  sx={{ borderRadius: 0, fontWeight: 600 }}
+                  sx={{ borderRadius: 1, fontWeight: 600 }}
                 />
                 <IconButton
                   aria-label="Opciones de canción"
@@ -1752,7 +1667,7 @@ export default function AdminDashboard({
                   sx={{
                     border: "1px solid",
                     borderColor: "divider",
-                    borderRadius: 0,
+                    borderRadius: 1,
                   }}
                 >
                   <MoreVertIcon fontSize="small" />
@@ -1805,9 +1720,6 @@ export default function AdminDashboard({
                   }}
                 >
                   {song.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Alta: {getSongOwnerLabel(song)}
                 </Typography>
               </Box>
             </Stack>
@@ -1870,17 +1782,14 @@ export default function AdminDashboard({
   return (
     <>
       <div className="admin-ocean-background" />
-      <div className="admin-ocean-blur" />
       <Box
         sx={{
           position: "relative",
           minHeight: "100vh",
           width: "100%",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "flex-start",
-          py: { xs: 3, sm: 4, md: 8 },
-          px: { xs: 0, sm: 2, md: 4 },
+          display: "block",
+          py: { xs: 1.5, sm: 2, md: 3 },
+          px: { xs: 1, sm: 2, md: 2.5 },
           overflowX: "hidden",
           boxSizing: "border-box",
         }}
@@ -1891,17 +1800,17 @@ export default function AdminDashboard({
           sx={{
             position: "relative",
             zIndex: 1,
-            px: { xs: 0, sm: 2, md: 3 },
-            maxWidth: { md: "1200px", lg: "1400px" },
-            mx: { md: "auto" },
+            width: "100%",
+            maxWidth: "100%",
+            px: 0,
             boxSizing: "border-box",
           }}
         >
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "240px 1fr" },
-              gap: { xs: 2, md: 3 },
+              gridTemplateColumns: "minmax(0, 1fr)",
+              gap: 0,
               width: "100%",
               boxSizing: "border-box",
               animation: "admin-fade-in 520ms ease",
@@ -1911,174 +1820,20 @@ export default function AdminDashboard({
               },
             }}
           >
-            <Paper
-              elevation={0}
-              sx={{
-                p: { xs: 2, md: 2.5 },
-                borderRadius: 0,
-                position: { xs: "relative", md: "sticky" },
-                top: { md: 24 },
-                height: "fit-content",
-                backgroundColor: "background.paper",
-                display: { xs: "none", md: "block" },
-              }}
-            >
-              <Stack spacing={2.5}>
-                <Box>
-                  <Typography variant="overline" color="text.secondary">
-                    Panel administrativo
-                  </Typography>
-                  <Box
-                    component="img"
-                    src="/ponchister_logo.png"
-                    alt="Ponchister"
-                    sx={{
-                      width: "100%",
-                      maxWidth: 120,
-                      height: "auto",
-                      display: "block",
-                      mt: 1,
-                      mb: 0.5,
-                    }}
-                  />
-                  <Typography variant="body2" color="text.secondary">
-                    {userEmail
-                      ? `Sesion activa: ${userEmail}`
-                      : "Acceso seguro al catalogo."}
-                  </Typography>
-                </Box>
-
-                <Tabs
-                  value={activeTab}
-                  onChange={handleTabChange}
-                  orientation="vertical"
-                  variant="standard"
-                  textColor="primary"
-                  indicatorColor="primary"
-                  sx={{
-                    minHeight: "auto",
-                    "& .MuiTabs-flexContainer": {
-                      gap: 0.5,
-                    },
-                    "& .MuiTab-root": {
-                      justifyContent: "flex-start",
-                      minHeight: 42,
-                      gap: 1,
-                      px: 1.5,
-                      borderRadius: 0,
-                      alignItems: "center",
-                      "&.Mui-selected": {
-                        backgroundColor: "#f1f5f9",
-                      },
-                    },
-                    "& .MuiTabs-indicator": {
-                      display: "none",
-                    },
-                  }}
-                >
-                  {visibleTabs.map((tab) =>
-                    tab.value === "stats" && !dataReady ? (
-                      <Tab
-                        key={tab.value}
-                        value={tab.value}
-                        label={tab.label}
-                        icon={tab.icon}
-                        iconPosition="start"
-                        disabled
-                      />
-                    ) : (
-                      <Tab
-                        key={tab.value}
-                        value={tab.value}
-                        label={tab.label}
-                        icon={tab.icon}
-                        iconPosition="start"
-                      />
-                    )
-                  )}
-                </Tabs>
-
-                {activeTab === "songs" ? (
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      borderRadius: 0,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      backgroundColor: "#f8fafc",
-                    }}
-                  >
-                    <Stack spacing={1}>
-                      <Typography variant="caption" color="text.secondary">
-                        Resumen rapido
-                      </Typography>
-                      <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                        {total}
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap">
-                        <Chip
-                          label={
-                            filtersActive ? "Filtros activos" : "Sin filtros"
-                          }
-                          size="small"
-                          sx={{ backgroundColor: "#e2e8f0", fontWeight: 600 }}
-                        />
-                        <Chip
-                          label={`Pagina ${page + 1}`}
-                          size="small"
-                          sx={{ backgroundColor: "#e2e8f0", fontWeight: 600 }}
-                        />
-                      </Stack>
-                    </Stack>
-                  </Paper>
-                ) : null}
-                <Divider />
-                <Stack spacing={1}>
-                  <Button
-                    variant="outlined"
-                    startIcon={<ArrowBackIcon />}
-                    onClick={onExit}
-                    sx={{
-                      borderRadius: 0,
-                      borderColor: "divider",
-                      color: "text.primary",
-                      backgroundColor: "background.paper",
-                      "&:hover": {
-                        borderColor: "rgba(100,116,139,0.65)",
-                        backgroundColor: "#f8fafc",
-                      },
-                    }}
-                  >
-                    Volver al inicio
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color="error"
-                    startIcon={<LogoutIcon />}
-                    onClick={onSignOut}
-                    sx={{ borderRadius: 0 }}
-                  >
-                    Cerrar sesión
-                  </Button>
-                </Stack>
-              </Stack>
-            </Paper>
-
             <Drawer
               anchor="left"
               open={navOpen}
               onClose={() => setNavOpen(false)}
               PaperProps={{
                 sx: {
-                  width: 280,
-                  borderRadius: 0,
+                  width: { xs: "min(300px, calc(100vw - 48px))", sm: 320 },
+                  borderRadius: 1,
                   backgroundColor: "background.paper",
                   height: "100%",
                   overflowY: "auto",
                 },
               }}
-              sx={{ display: { xs: "block", md: "none" } }}
+              sx={{ display: "block" }}
             >
               <Box
                 sx={{
@@ -2097,10 +1852,10 @@ export default function AdminDashboard({
                   justifyContent="space-between"
                 >
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    Menu
+                    Menú
                   </Typography>
                   <IconButton
-                    aria-label="Cerrar menu"
+                    aria-label="Cerrar menú"
                     onClick={() => setNavOpen(false)}
                   >
                     <CloseIcon />
@@ -2126,8 +1881,8 @@ export default function AdminDashboard({
                   />
                   <Typography variant="body2" color="text.secondary">
                     {userEmail
-                      ? `Sesion activa: ${userEmail}`
-                      : "Acceso seguro al catalogo."}
+                      ? `Sesión activa: ${userEmail}`
+                      : "Acceso seguro al catálogo."}
                   </Typography>
                 </Stack>
 
@@ -2148,10 +1903,12 @@ export default function AdminDashboard({
                       minHeight: 42,
                       gap: 1,
                       px: 1.5,
-                      borderRadius: 0,
+                      borderRadius: 1,
                       alignItems: "center",
                       "&.Mui-selected": {
-                        backgroundColor: "#f1f5f9",
+                        backgroundColor: theme.palette.mode === "dark" ? "background.paper" : "#fff2ec",
+                        color: "primary.main",
+                        "& .MuiTab-iconWrapper": { color: "primary.main" },
                       },
                     },
                     "& .MuiTabs-indicator": {
@@ -2181,41 +1938,6 @@ export default function AdminDashboard({
                   )}
                 </Tabs>
 
-                {activeTab === "songs" ? (
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      borderRadius: 0,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      backgroundColor: "#f8fafc",
-                    }}
-                  >
-                    <Stack spacing={1}>
-                      <Typography variant="caption" color="text.secondary">
-                        Resumen rapido
-                      </Typography>
-                      <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                        {total}
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap">
-                        <Chip
-                          label={
-                            filtersActive ? "Filtros activos" : "Sin filtros"
-                          }
-                          size="small"
-                          sx={{ backgroundColor: "#e2e8f0", fontWeight: 600 }}
-                        />
-                        <Chip
-                          label={`Pagina ${page + 1}`}
-                          size="small"
-                          sx={{ backgroundColor: "#e2e8f0", fontWeight: 600 }}
-                        />
-                      </Stack>
-                    </Stack>
-                  </Paper>
-                ) : null}
                 <Divider />
                 <Stack spacing={1} sx={{ mt: "auto" }}>
                   <Button
@@ -2223,13 +1945,13 @@ export default function AdminDashboard({
                     startIcon={<ArrowBackIcon />}
                     onClick={onExit}
                     sx={{
-                      borderRadius: 0,
+                      borderRadius: 1,
                       borderColor: "divider",
                       color: "text.primary",
                       backgroundColor: "background.paper",
                       "&:hover": {
                         borderColor: "rgba(100,116,139,0.65)",
-                        backgroundColor: "#f8fafc",
+                        backgroundColor: theme.palette.mode === "dark" ? "background.paper" : "#fff8f4",
                       },
                     }}
                   >
@@ -2240,7 +1962,7 @@ export default function AdminDashboard({
                     color="error"
                     startIcon={<LogoutIcon />}
                     onClick={onSignOut}
-                    sx={{ borderRadius: 0 }}
+                    sx={{ borderRadius: 1 }}
                   >
                     Cerrar sesión
                   </Button>
@@ -2252,9 +1974,10 @@ export default function AdminDashboard({
             <Paper
               elevation={0}
               sx={{
-                p: { xs: 2, sm: 3, md: 4 },
+                p: 0,
+                border: "none",
                 borderRadius: 0,
-                backgroundColor: "background.paper",
+                backgroundColor: "transparent",
                 boxShadow: "none",
                 width: "100%",
                 mx: { xs: 0, sm: "auto" },
@@ -2277,25 +2000,41 @@ export default function AdminDashboard({
                       aria-label="Abrir menu"
                       onClick={() => setNavOpen(true)}
                       sx={{
-                        display: { xs: "inline-flex", md: "none" },
+                        display: "inline-flex",
                         border: "1px solid",
                         borderColor: "divider",
-                        borderRadius: 0,
+                        borderRadius: 1,
                       }}
                     >
                       <MenuIcon />
                     </IconButton>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {activeTabMeta?.label ?? "Administracion"}
-                      </Typography>
-                      <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                        {activeTabMeta?.label ?? "Panel"}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {activeTabMeta?.description ??
-                          "Gestion y control de contenidos."}
-                      </Typography>
+                    <Box sx={{ display: "flex", gap: 1.25, alignItems: "center" }}>
+                      <Box
+                        sx={{
+                          display: "grid",
+                          placeItems: "center",
+                          width: 38,
+                          height: 38,
+                          borderRadius: 2,
+                          bgcolor: theme.palette.mode === "dark" ? "background.paper" : "#fff2ec",
+                          color: "primary.main",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {activeTabMeta?.icon}
+                      </Box>
+                      <Box>
+                        <Typography variant="overline" color="primary.main" sx={{ lineHeight: 1.2, fontWeight: 700 }}>
+                          Administración
+                        </Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                          {activeTabMeta?.label ?? "Panel"}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {activeTabMeta?.description ??
+                            "Gestion y control de contenidos."}
+                        </Typography>
+                      </Box>
                     </Box>
                   </Stack>
                   <Stack
@@ -2303,6 +2042,21 @@ export default function AdminDashboard({
                     spacing={1}
                     alignItems={{ xs: "stretch", sm: "center" }}
                   >
+                    <Tooltip title={colorMode === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}>
+                      <Button
+                        aria-label={colorMode === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+                        onClick={onToggleColorMode}
+                        variant="outlined"
+                        size="small"
+                        startIcon={colorMode === "dark" ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+                        sx={{
+                          alignSelf: { xs: "flex-end", sm: "center" },
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {colorMode === "dark" ? "Modo claro" : "Modo oscuro"}
+                      </Button>
+                    </Tooltip>
                     {sessionUser ? (
                       <Stack
                         direction="row"
@@ -2313,12 +2067,12 @@ export default function AdminDashboard({
                           py: 0.8,
                           border: "1px solid",
                           borderColor: "divider",
-                          backgroundColor: "#f8fafc",
+                          backgroundColor: theme.palette.mode === "dark" ? "background.paper" : "#fff8f4",
                         }}
                       >
                         <Avatar
                           src={sessionUser.avatar_url ?? undefined}
-                          sx={{ width: 34, height: 34, bgcolor: "#0f172a" }}
+                          sx={{ width: 34, height: 34, bgcolor: "primary.main" }}
                         >
                           {(sessionUser.display_name || sessionUser.email || "U")
                             .charAt(0)
@@ -2345,75 +2099,15 @@ export default function AdminDashboard({
                       </Alert>
                     )}
 
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gap: 2,
-                        gridTemplateColumns: {
-                          xs: "1fr",
-                          sm: "repeat(3, 1fr)",
-                        },
-                      }}
-                    >
+                    {isSuperAdmin && selectedSongIds.length > 0 ? (
                       <Paper
                         elevation={0}
                         sx={{
                           p: 2,
-                          borderRadius: 0,
+                          borderRadius: 1,
                           border: "1px solid",
                           borderColor: "divider",
-                        }}
-                      >
-                        <Typography variant="caption" color="text.secondary">
-                          Resultados totales
-                        </Typography>
-                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                          {total}
-                        </Typography>
-                      </Paper>
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 2,
-                          borderRadius: 0,
-                          border: "1px solid",
-                          borderColor: "divider",
-                        }}
-                      >
-                        <Typography variant="caption" color="text.secondary">
-                          Resultados visibles
-                        </Typography>
-                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                          {songs.length}
-                        </Typography>
-                      </Paper>
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 2,
-                          borderRadius: 0,
-                          border: "1px solid",
-                          borderColor: "divider",
-                        }}
-                      >
-                        <Typography variant="caption" color="text.secondary">
-                          En espanol (pagina)
-                        </Typography>
-                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                          {pageSpanishCount}
-                        </Typography>
-                      </Paper>
-                    </Box>
-
-                    {isSuperAdmin ? (
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 2,
-                          borderRadius: 0,
-                          border: "1px solid",
-                          borderColor: "divider",
-                          backgroundColor: "#f8fafc",
+                          backgroundColor: theme.palette.mode === "dark" ? "background.paper" : "#fff8f4",
                         }}
                       >
                         <Stack
@@ -2422,10 +2116,8 @@ export default function AdminDashboard({
                           alignItems={{ xs: "stretch", md: "center" }}
                           justifyContent="space-between"
                         >
-                          <Typography variant="body2" color="text.secondary">
-                            {selectedSongIds.length > 0
-                              ? `${selectedSongIds.length} canción(es) seleccionadas.`
-                              : "Selecciona canciones para aplicar acciones en bloque."}
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {selectedSongIds.length} canción(es) seleccionadas
                           </Typography>
                           <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                             <Button
@@ -2502,60 +2194,70 @@ export default function AdminDashboard({
                       <Paper
                         elevation={0}
                         sx={{
-                          p: 2,
-                          borderRadius: 0,
+                          p: 1.5,
+                          borderRadius: 1,
                           border: "1px solid",
                           borderColor: "divider",
-                          backgroundColor: "#fbfcfe",
+                          backgroundColor: "background.paper",
                         }}
                       >
-                        <Stack spacing={2}>
+                        <Stack spacing={1.5}>
                           <Stack
                             direction={{ xs: "column", md: "row" }}
-                            spacing={2}
+                            spacing={1.5}
                             justifyContent="space-between"
                             alignItems={{ xs: "stretch", md: "center" }}
                           >
-                            <Box>
-                              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                                Etiquetas del catálogo
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                Etiquetas
                               </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                Crea nuevas etiquetas para que queden disponibles en canciones y filtros del juego.
-                              </Typography>
-                            </Box>
-                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                              <TextField
-                                label="Nueva etiqueta"
-                                value={newSongTagLabel}
-                                onChange={(event) => setNewSongTagLabel(event.target.value)}
-                                size="small"
-                                disabled={newSongTagSaving}
-                              />
-                              <Button
-                                variant="contained"
-                                onClick={() => void handleCreateSongTag()}
-                                disabled={!newSongTagLabel.trim() || newSongTagSaving}
-                              >
-                                {newSongTagSaving ? "Guardando..." : "Agregar etiqueta"}
-                              </Button>
+                              <Chip label={availableSongTags.length} size="small" variant="outlined" />
                             </Stack>
+                            <Button
+                              size="small"
+                              variant={songTagsManagementOpen ? "contained" : "outlined"}
+                              onClick={() => setSongTagsManagementOpen((open) => !open)}
+                              aria-expanded={songTagsManagementOpen}
+                            >
+                              {songTagsManagementOpen ? "Cerrar gestión" : "Gestionar etiquetas"}
+                            </Button>
                           </Stack>
-                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                            {availableSongTags.map((tag) => (
-                              <Chip
-                                key={tag.slug}
-                                label={tag.label}
-                                variant="outlined"
-                                color="default"
-                              />
-                            ))}
-                            {songTagsLoading ? (
-                              <Typography variant="body2" color="text.secondary">
-                                Cargando etiquetas...
-                              </Typography>
-                            ) : null}
-                          </Stack>
+                          <Collapse in={songTagsManagementOpen} timeout="auto">
+                            <Stack spacing={2}>
+                              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                                <TextField
+                                  label="Nueva etiqueta"
+                                  value={newSongTagLabel}
+                                  onChange={(event) => setNewSongTagLabel(event.target.value)}
+                                  size="small"
+                                  disabled={newSongTagSaving}
+                                />
+                                <Button
+                                  variant="contained"
+                                  onClick={() => void handleCreateSongTag()}
+                                  disabled={!newSongTagLabel.trim() || newSongTagSaving}
+                                >
+                                  {newSongTagSaving ? "Guardando..." : "Agregar etiqueta"}
+                                </Button>
+                              </Stack>
+                              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                                {availableSongTags.map((tag) => (
+                                  <Chip
+                                    key={tag.slug}
+                                    label={tag.label}
+                                    variant="outlined"
+                                    color="default"
+                                  />
+                                ))}
+                                {songTagsLoading ? (
+                                  <Typography variant="body2" color="text.secondary">
+                                    Cargando etiquetas...
+                                  </Typography>
+                                ) : null}
+                              </Stack>
+                            </Stack>
+                          </Collapse>
                         </Stack>
                       </Paper>
                     ) : null}
@@ -2563,11 +2265,11 @@ export default function AdminDashboard({
                     <Paper
                       elevation={0}
                       sx={{
-                        p: { xs: 2, md: 2.5 },
-                        borderRadius: 0,
+                        p: { xs: 1.5, md: 2 },
+                        borderRadius: 1,
                         border: "1px solid",
                         borderColor: "divider",
-                        backgroundColor: "#fbfcfe",
+                        backgroundColor: "background.paper",
                       }}
                     >
                       <Stack spacing={2}>
@@ -2579,7 +2281,7 @@ export default function AdminDashboard({
                         >
                           <TextField
                             label="Buscar canciones"
-                            placeholder="Busca por artista, cancion o enlace"
+                            placeholder="Artista, canción o enlace"
                             value={searchInput}
                             onChange={(event) =>
                               setSearchInput(event.target.value)
@@ -2588,14 +2290,19 @@ export default function AdminDashboard({
                             disabled={!dataReady}
                             size="small"
                             sx={{
-                              width: { xs: "100%", md: 320 },
-                              flexShrink: 0,
+                              flex: 1,
+                              minWidth: { xs: "100%", md: 280 },
                             }}
                             InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <SearchIcon fontSize="small" color="action" />
+                                </InputAdornment>
+                              ),
                               endAdornment: searchInput ? (
                                 <InputAdornment position="end">
                                   <IconButton
-                                    aria-label="Limpiar busqueda"
+                                    aria-label="Limpiar búsqueda"
                                     onClick={() => setSearchInput("")}
                                     edge="end"
                                     size="small"
@@ -2616,6 +2323,27 @@ export default function AdminDashboard({
                               gap: { xs: 1, md: 0 },
                             }}
                           >
+                            <Button
+                              size="small"
+                              variant={filtersExpanded || activeFilterCount > 0 ? "contained" : "outlined"}
+                              startIcon={<FilterListIcon fontSize="small" />}
+                              onClick={() => setFiltersExpanded((expanded) => !expanded)}
+                              aria-expanded={filtersExpanded}
+                              aria-controls="catalog-advanced-filters"
+                              disabled={!dataReady}
+                              sx={{ whiteSpace: "nowrap" }}
+                            >
+                              {filtersExpanded ? "Ocultar filtros" : `Filtros${activeFilterCount ? ` · ${activeFilterCount}` : ""}`}
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<AddIcon fontSize="small" />}
+                              onClick={openCreateForm}
+                              sx={{ whiteSpace: "nowrap" }}
+                            >
+                              Agregar canción
+                            </Button>
                           <Tooltip title="Recargar lista" disableInteractive>
                             <Box
                               component="span"
@@ -2630,10 +2358,10 @@ export default function AdminDashboard({
                                   borderColor: "divider",
                                   color: "text.primary",
                                   backgroundColor: "background.paper",
-                                  borderRadius: 0,
+                                  borderRadius: 1,
                                   "&:hover": {
                                     borderColor: "rgba(100,116,139,0.55)",
-                                    backgroundColor: "#f8fafc",
+                                    backgroundColor: theme.palette.mode === "dark" ? "background.paper" : "#fff8f4",
                                   },
                                   "&.Mui-disabled": {
                                     opacity: 0.5,
@@ -2647,6 +2375,8 @@ export default function AdminDashboard({
                           </Stack>
                         </Stack>
 
+                        <Collapse in={filtersExpanded} timeout="auto">
+                        <Stack id="catalog-advanced-filters" spacing={2}>
                         <Stack
                           direction={{ xs: "column", md: "row" }}
                           spacing={2}
@@ -2659,7 +2389,9 @@ export default function AdminDashboard({
                             onChange={handleYearInputChange}
                             placeholder="Ej: 1994"
                             InputLabelProps={{ shrink: true }}
-                            inputProps={{ min: 0 }}
+                            error={yearInputInvalid}
+                            helperText={yearInputInvalid ? `Ingresa un año entre ${MIN_SONG_YEAR} y ${new Date().getFullYear()}` : " "}
+                            inputProps={{ min: MIN_SONG_YEAR, max: new Date().getFullYear(), step: 1 }}
                             sx={{
                               width: { xs: "100%", md: "auto" },
                               maxWidth: { md: 220 },
@@ -2675,7 +2407,6 @@ export default function AdminDashboard({
                               setCatalogStatusFilter(
                                 event.target.value as CatalogStatusFilter
                               );
-                              setPage(0);
                             }}
                             sx={{
                               width: { xs: "100%", md: "auto" },
@@ -2696,7 +2427,6 @@ export default function AdminDashboard({
                               setSpecialModeFilter(
                                 event.target.value as SpecialModeFilter
                               );
-                              setPage(0);
                             }}
                             sx={{
                               width: { xs: "100%", md: "auto" },
@@ -2733,17 +2463,6 @@ export default function AdminDashboard({
                               </MenuItem>
                             ))}
                           </TextField>
-                          <Button
-                            variant="outlined"
-                            onClick={handleClearFilters}
-                            disabled={!filtersActive || !dataReady}
-                            fullWidth={isSmallScreen}
-                            sx={{
-                              alignSelf: { xs: "stretch", md: "flex-start" },
-                            }}
-                          >
-                            Limpiar filtros
-                          </Button>
                         </Stack>
                         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                           {availableSongTags.map((tag) => {
@@ -2761,6 +2480,33 @@ export default function AdminDashboard({
                             );
                           })}
                         </Stack>
+                        {filtersDirty ? (
+                          <Typography variant="caption" color="text.secondary">
+                            Estos cambios aún no se aplican a la lista.
+                          </Typography>
+                        ) : null}
+                        <Stack
+                          direction={{ xs: "column-reverse", sm: "row" }}
+                          spacing={1}
+                          justifyContent="flex-end"
+                        >
+                          <Button
+                            variant="outlined"
+                            onClick={handleClearFilters}
+                            disabled={(!filtersActive && !filtersDirty) || !dataReady}
+                          >
+                            Limpiar filtros
+                          </Button>
+                          <Button
+                            variant="contained"
+                            onClick={handleApplyFilters}
+                            disabled={!filtersDirty || yearInputInvalid || !dataReady}
+                          >
+                            Aplicar filtros
+                          </Button>
+                        </Stack>
+                        </Stack>
+                        </Collapse>
                       </Stack>
                     </Paper>
 
@@ -2768,13 +2514,29 @@ export default function AdminDashboard({
                       elevation={0}
                       sx={{
                         overflow: "hidden",
-                        borderRadius: { xs: 0, md: 0 },
+                        borderRadius: { xs: 1, md: 1 },
                         backgroundColor: "background.paper",
                         border: "1px solid",
                         borderColor: "divider",
                         boxShadow: "none",
                       }}
                     >
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={0.75}
+                        justifyContent="space-between"
+                        alignItems={{ xs: "flex-start", sm: "center" }}
+                        sx={{ px: { xs: 2, md: 2.5 }, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}
+                      >
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                          Canciones del catálogo
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" aria-live="polite">
+                          {loading
+                            ? "Actualizando lista…"
+                            : `${songs.length} ${songs.length === 1 ? "canción" : "canciones"} en esta página`}
+                        </Typography>
+                      </Stack>
                       <Box
                         sx={{
                           display: { xs: "flex", lg: "none" },
@@ -2786,28 +2548,37 @@ export default function AdminDashboard({
                         {renderMobileSongCards()}
                       </Box>
                       <TableContainer
-                        sx={{ display: { xs: "none", lg: "block" }, maxWidth: "100%" }}
+                        sx={{
+                          display: { xs: "none", lg: "block" },
+                          maxWidth: "100%",
+                          maxHeight: "min(70vh, 760px)",
+                        }}
                       >
                         <Table
+                          stickyHeader
                           size="medium"
                           sx={{
                             width: "100%",
+                            minWidth: 1040,
                             tableLayout: "fixed",
                             "& th": {
                               textTransform: "none",
-                              letterSpacing: 0.2,
-                              fontWeight: 600,
-                              fontSize: 12,
+                              letterSpacing: 0,
+                              fontWeight: 700,
+                              fontSize: 11,
                               color: "text.secondary",
+                              backgroundColor: theme.palette.mode === "dark" ? "background.paper" : "#fff8f4",
+                              borderColor: "divider",
                             },
                             "& tbody td": {
                               fontWeight: 500,
+                              py: 1.25,
                             },
                           }}
                         >
                           <TableHead>
                             <TableRow>
-                              <TableCell padding="checkbox">
+                              <TableCell padding="checkbox" width={48}>
                                 {isSuperAdmin ? (
                                   <Checkbox
                                     checked={allSelectableSelected}
@@ -2819,13 +2590,13 @@ export default function AdminDashboard({
                                   />
                                 ) : null}
                               </TableCell>
-                              <TableCell width={40}>ID</TableCell>
+                              <TableCell width={56}>ID</TableCell>
                               <TableCell colSpan={2}>Canción</TableCell>
-                              <TableCell width={32}>Año</TableCell>
-                              <TableCell align="center">Catálogo</TableCell>
-                              <TableCell align="center">YouTube</TableCell>
-                              <TableCell align="center">Etiquetas</TableCell>
-                              <TableCell align="right">Acciones</TableCell>
+                              <TableCell width={64}>Año</TableCell>
+                              <TableCell width={100} align="center">Estado</TableCell>
+                              <TableCell width={116} align="center">YouTube</TableCell>
+                              <TableCell width={160} align="center">Etiquetas</TableCell>
+                              <TableCell width={96} align="right">Acciones</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>{renderTableBody()}</TableBody>
@@ -2833,29 +2604,45 @@ export default function AdminDashboard({
                       </TableContainer>
                     <TablePagination
                       component="div"
-                      count={total}
+                      count={-1}
                       page={page}
                       rowsPerPage={rowsPerPage}
                       onPageChange={handleChangePage}
-                        onRowsPerPageChange={handleChangeRowsPerPage}
-                        rowsPerPageOptions={PAGE_SIZE_OPTIONS}
-                        labelRowsPerPage="Registros por página"
-                        labelDisplayedRows={({ from, to, count }) =>
-                          `${from}-${to} de ${
-                            count !== -1 ? count : `más de ${to}`
-                          }`
-                        }
-                        disabled={!dataReady}
-                        sx={{
-                          display: { xs: "flex", md: "block" },
-                          flexDirection: { xs: "column", md: "row" },
-                          alignItems: { xs: "stretch", md: "center" },
-                          gap: { xs: 1, md: 0 },
-                          px: { xs: 1, md: 0 },
-                          backgroundColor: {
-                            xs: "#f8fafc",
-                            md: "transparent",
+                      onRowsPerPageChange={handleChangeRowsPerPage}
+                      rowsPerPageOptions={PAGE_SIZE_OPTIONS}
+                      labelRowsPerPage="Registros por página"
+                      labelDisplayedRows={({ page: currentPage }) => {
+                        if (!songs.length) return "Sin resultados";
+                        const from = currentPage * rowsPerPage + 1;
+                        const to = currentPage * rowsPerPage + songs.length;
+                        return hasMoreSongs
+                          ? `${from}-${to} · hay más resultados`
+                          : `${from}-${to} · fin de resultados`;
+                      }}
+                      getItemAriaLabel={(type) =>
+                        type === "next" ? "Siguiente página" : "Página anterior"
+                      }
+                      disabled={!dataReady || loading}
+                      slotProps={{
+                        actions: {
+                          previousButton: {
+                            disabled: !dataReady || loading || page === 0,
                           },
+                          nextButton: {
+                            disabled: !dataReady || loading || !hasMoreSongs,
+                          },
+                        },
+                      }}
+                      sx={{
+                        display: { xs: "flex", md: "block" },
+                        flexDirection: { xs: "column", md: "row" },
+                        alignItems: { xs: "stretch", md: "center" },
+                        gap: { xs: 1, md: 0 },
+                        px: { xs: 1, md: 0 },
+                        backgroundColor: {
+                          xs: theme.palette.mode === "dark" ? "background.paper" : "#fff8f4",
+                          md: "transparent",
+                        },
                         borderTop: "1px solid",
                         borderColor: "divider",
                       }}
@@ -3002,7 +2789,7 @@ export default function AdminDashboard({
                       spacing={1.5}
                     >
                       <Typography variant="body2" color="text.secondary">
-                        Indicadores clave del catalogo.
+                        Analítica del catálogo y actividad de partidas.
                       </Typography>
                       <Button
                         variant="outlined"
@@ -3026,7 +2813,7 @@ export default function AdminDashboard({
                         <CircularProgress />
                       </Stack>
                     ) : statsError ? (
-                      <Alert severity="error" sx={{ borderRadius: 0 }}>
+                      <Alert severity="error" sx={{ borderRadius: 1 }}>
                         {statsError}
                       </Alert>
                     ) : (
@@ -3060,27 +2847,6 @@ export default function AdminDashboard({
           </Box>
         </Container>
       </Box>
-
-      <Zoom in={activeTab === "songs"} unmountOnExit>
-        <Fab
-          color="primary"
-          onClick={openCreateForm}
-          aria-label="Agregar canción"
-          sx={{
-            position: "fixed",
-            bottom: { xs: 88, sm: 32 },
-            right: { xs: 24, sm: 32 },
-            zIndex: 1300,
-            backgroundColor: "text.primary",
-            borderRadius: "50%",
-            "&:hover": {
-              backgroundColor: "#0f172a",
-            },
-          }}
-        >
-          <AddIcon />
-        </Fab>
-      </Zoom>
 
       {activeYoutubeProbe ? (
         <Box
@@ -3254,7 +3020,7 @@ export default function AdminDashboard({
               <Paper
                 key={match.id}
                 variant="outlined"
-                sx={{ p: 2, borderRadius: 0 }}
+                sx={{ p: 2, borderRadius: 1 }}
               >
                 <Stack spacing={1}>
                   <Stack

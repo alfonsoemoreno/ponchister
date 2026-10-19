@@ -3,22 +3,41 @@ import { sql } from "drizzle-orm";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
 
-type SeriesRow = {
-  label: string;
-  count: number;
+type StatisticsRow = {
+  kind: string;
+  label: string | null;
+  country_code?: string | null;
+  count: number | string;
+  today_count?: number | string;
+  month_count?: number | string;
+  year_count?: number | string;
 };
 
 function normalizeCount(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.trunc(value);
-  }
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? Math.trunc(parsed) : 0;
+}
 
-  if (typeof value === "string") {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isNaN(parsed) ? 0 : parsed;
-  }
+function hasCountryDetection(req: NextApiRequest): boolean {
+  const value = req.headers["x-vercel-ip-country"];
+  const countryCode = (Array.isArray(value) ? value[0] : value)?.trim().toUpperCase();
+  return Boolean(countryCode && /^[A-Z]{2}$/.test(countryCode));
+}
 
-  return 0;
+function hasMissingColumnError(error: unknown, columnName: string): boolean {
+  let candidate: unknown = error;
+  while (candidate && typeof candidate === "object") {
+    const current = candidate as { code?: unknown; message?: unknown; cause?: unknown };
+    if (
+      current.code === "42703" &&
+      typeof current.message === "string" &&
+      current.message.toLowerCase().includes(`column "${columnName.toLowerCase()}"`)
+    ) {
+      return true;
+    }
+    candidate = current.cause;
+  }
+  return false;
 }
 
 export default async function handler(
@@ -29,121 +48,152 @@ export default async function handler(
   if (!user) return;
 
   if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
     res.status(405).end("Método no permitido.");
     return;
   }
 
   try {
-    const [totalsResult, dailyResult, monthlyResult, yearlyResult] =
-      await Promise.all([
-        db.execute(sql`
-          select
-            count(*) filter (where created_at >= date_trunc('day', now())) as today_count,
-            count(*) filter (where created_at >= date_trunc('month', now())) as month_count,
-            count(*) filter (where created_at >= date_trunc('year', now())) as year_count
-          from game_sessions
-        `),
-        db.execute(sql`
-          with days as (
-            select generate_series(
-              date_trunc('day', now()) - interval '29 day',
-              date_trunc('day', now()),
-              interval '1 day'
-            ) as bucket
-          )
-          select
-            to_char(days.bucket, 'YYYY-MM-DD') as label,
-            coalesce(count(gs.id), 0)::int as count
-          from days
-          left join game_sessions gs
-            on gs.created_at >= days.bucket
-           and gs.created_at < days.bucket + interval '1 day'
-          group by days.bucket
-          order by days.bucket asc
-        `),
-        db.execute(sql`
-          with months as (
-            select generate_series(
-              date_trunc('month', now()) - interval '11 month',
-              date_trunc('month', now()),
-              interval '1 month'
-            ) as bucket
-          )
-          select
-            to_char(months.bucket, 'YYYY-MM') as label,
-            coalesce(count(gs.id), 0)::int as count
-          from months
-          left join game_sessions gs
-            on gs.created_at >= months.bucket
-           and gs.created_at < months.bucket + interval '1 month'
-          group by months.bucket
-          order by months.bucket asc
-        `),
-        db.execute(sql`
-          with bounds as (
-            select
-              date_trunc('year', min(created_at)) as min_year,
-              date_trunc('year', max(created_at)) as max_year
-            from game_sessions
-          ),
-          years as (
-            select generate_series(min_year, max_year, interval '1 year') as bucket
-            from bounds
-            where min_year is not null
-          )
-          select
-            to_char(years.bucket, 'YYYY') as label,
-            coalesce(count(gs.id), 0)::int as count
-          from years
-          left join game_sessions gs
-            on gs.created_at >= years.bucket
-           and gs.created_at < years.bucket + interval '1 year'
-          group by years.bucket
-          order by years.bucket asc
-        `),
-      ]);
+    // Materialize the bounded date range once, then derive all metrics from it.
+    // The admin UI only displays the last 30 days and 12 months.
+    const result = await db.execute<StatisticsRow>(sql`
+      with recent_sessions as materialized (
+        select created_at, country_code
+        from game_sessions
+        where created_at >= date_trunc('month', now()) - interval '11 months'
+      ),
+      totals as (
+        select
+          count(*) filter (where created_at >= date_trunc('day', now()))::int as today_count,
+          count(*) filter (where created_at >= date_trunc('month', now()))::int as month_count,
+          count(*) filter (where created_at >= date_trunc('year', now()))::int as year_count
+        from recent_sessions
+      ),
+      daily as (
+        select date_trunc('day', created_at) as bucket, count(*)::int as count
+        from recent_sessions
+        where created_at >= date_trunc('day', now()) - interval '29 days'
+        group by 1
+      ),
+      daily_series as (
+        select generate_series(
+          date_trunc('day', now()) - interval '29 days',
+          date_trunc('day', now()), interval '1 day'
+        ) as bucket
+      ),
+      monthly as (
+        select date_trunc('month', created_at) as bucket, count(*)::int as count
+        from recent_sessions
+        group by 1
+      ),
+      monthly_series as (
+        select generate_series(
+          date_trunc('month', now()) - interval '11 months',
+          date_trunc('month', now()), interval '1 month'
+        ) as bucket
+      ),
+      countries as (
+        select country_code, count(*)::int as count
+        from recent_sessions
+        where country_code is not null
+        group by country_code
+      ),
+      output as (
+        select 'totals'::text as kind, null::text as label,
+          0::int as count, today_count, month_count, year_count from totals
+        union all
+        select 'daily', to_char(series.bucket, 'YYYY-MM-DD'), coalesce(daily.count, 0), null::int, null::int, null::int
+        from daily_series series left join daily using (bucket)
+        union all
+        select 'monthly', to_char(series.bucket, 'YYYY-MM'), coalesce(monthly.count, 0), null::int, null::int, null::int
+        from monthly_series series left join monthly using (bucket)
+        union all
+        select 'country', country_code, count, null::int, null::int, null::int
+        from countries
+      )
+      select * from output order by kind, label nulls first
+    `);
 
-    const totalsRow = (totalsResult.rows[0] ?? {}) as Record<string, unknown>;
-
-    const toSeries = (rows: unknown[]): SeriesRow[] =>
-      rows.map((row) => {
-        const safeRow = row as Record<string, unknown>;
-        return {
-          label: String(safeRow.label ?? ""),
-          count: normalizeCount(safeRow.count),
-        };
-      });
+    const rows = result.rows as StatisticsRow[];
+    const totals = rows.find((row) => row.kind === "totals");
+    const toSeries = (kind: "daily" | "monthly") =>
+      rows
+        .filter((row) => row.kind === kind)
+        .map((row) => ({ label: row.label ?? "", count: normalizeCount(row.count) }));
+    const countries = rows
+      .filter((row) => row.kind === "country" && row.label)
+      .map((row) => ({ countryCode: row.label as string, count: normalizeCount(row.count) }))
+      .sort((a, b) => b.count - a.count);
 
     res.status(200).json({
-      todayCount: normalizeCount(totalsRow.today_count),
-      currentMonthCount: normalizeCount(totalsRow.month_count),
-      currentYearCount: normalizeCount(totalsRow.year_count),
-      daily: toSeries(dailyResult.rows),
-      monthly: toSeries(monthlyResult.rows),
-      yearly: toSeries(yearlyResult.rows),
+      todayCount: normalizeCount(totals?.today_count),
+      currentMonthCount: normalizeCount(totals?.month_count),
+      currentYearCount: normalizeCount(totals?.year_count),
+      daily: toSeries("daily"),
+      monthly: toSeries("monthly"),
+      countries,
+      locationPeriodMonths: 12,
+      locationDetectionAvailable: hasCountryDetection(req),
     });
   } catch (error) {
-    const code =
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      typeof (error as { code?: unknown }).code === "string"
-        ? (error as { code: string }).code
-        : null;
-
-    if (code === "42P01") {
+    if (hasMissingColumnError(error, "country_code")) {
+      // Keep existing installations usable until migration 0008 is applied.
+      const legacyResult = await db.execute<StatisticsRow>(sql`
+        with recent_sessions as materialized (
+          select created_at
+          from game_sessions
+          where created_at >= date_trunc('month', now()) - interval '11 months'
+        ),
+        totals as (
+          select
+            count(*) filter (where created_at >= date_trunc('day', now()))::int as today_count,
+            count(*) filter (where created_at >= date_trunc('month', now()))::int as month_count,
+            count(*) filter (where created_at >= date_trunc('year', now()))::int as year_count
+          from recent_sessions
+        ),
+        daily as (
+          select date_trunc('day', created_at) as bucket, count(*)::int as count
+          from recent_sessions
+          where created_at >= date_trunc('day', now()) - interval '29 days'
+          group by 1
+        ),
+        daily_series as (
+          select generate_series(date_trunc('day', now()) - interval '29 days', date_trunc('day', now()), interval '1 day') as bucket
+        ),
+        monthly as (
+          select date_trunc('month', created_at) as bucket, count(*)::int as count
+          from recent_sessions group by 1
+        ),
+        monthly_series as (
+          select generate_series(date_trunc('month', now()) - interval '11 months', date_trunc('month', now()), interval '1 month') as bucket
+        ),
+        output as (
+          select 'totals'::text as kind, null::text as label, 0::int as count, today_count, month_count, year_count from totals
+          union all
+          select 'daily', to_char(series.bucket, 'YYYY-MM-DD'), coalesce(daily.count, 0), null::int, null::int, null::int from daily_series series left join daily using (bucket)
+          union all
+          select 'monthly', to_char(series.bucket, 'YYYY-MM'), coalesce(monthly.count, 0), null::int, null::int, null::int from monthly_series series left join monthly using (bucket)
+        )
+        select * from output order by kind, label nulls first
+      `);
+      const legacyRows = legacyResult.rows as StatisticsRow[];
+      const legacyTotals = legacyRows.find((row) => row.kind === "totals");
+      const legacySeries = (kind: "daily" | "monthly") => legacyRows
+        .filter((row) => row.kind === kind)
+        .map((row) => ({ label: row.label ?? "", count: normalizeCount(row.count) }));
       res.status(200).json({
-        todayCount: 0,
-        currentMonthCount: 0,
-        currentYearCount: 0,
-        daily: [],
-        monthly: [],
-        yearly: [],
+        todayCount: normalizeCount(legacyTotals?.today_count),
+        currentMonthCount: normalizeCount(legacyTotals?.month_count),
+        currentYearCount: normalizeCount(legacyTotals?.year_count),
+        daily: legacySeries("daily"),
+        monthly: legacySeries("monthly"),
+        countries: [],
+        locationPeriodMonths: 12,
+        locationDetectionAvailable: hasCountryDetection(req),
       });
       return;
     }
-
-    console.error("Failed to load game session stats:", error);
-    res.status(500).end("No se pudieron obtener las estadísticas de partidas.");
+    console.error("Failed to load game session statistics", error);
+    res.status(500).json({ error: "No se pudieron cargar las estadísticas de partidas." });
   }
 }

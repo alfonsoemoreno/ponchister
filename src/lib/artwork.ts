@@ -93,11 +93,22 @@ export interface ArtworkSelectionResult {
   candidates: ArtworkCandidate[];
 }
 
+const ARTWORK_RESULT_CACHE_LIMIT = 100;
+const artworkResultCache = new Map<number, ArtworkSelectionResult>();
+
 export async function selectBestArtworkCandidate(
   song: Song,
   fetcher: typeof fetch,
   abortSignal: AbortSignal
 ): Promise<ArtworkSelectionResult> {
+  const cached = artworkResultCache.get(song.id);
+  if (cached) {
+    // Refresh insertion order so recently used results stay in the small cache.
+    artworkResultCache.delete(song.id);
+    artworkResultCache.set(song.id, cached);
+    return cached;
+  }
+
   const searchTerms = [`${song.artist} ${song.title}`, song.artist];
 
   const entities = ["album", "musicTrack"] as const;
@@ -185,12 +196,14 @@ export async function selectBestArtworkCandidate(
   );
 
   const MIN_CONFIDENCE_SCORE = titleTokens.length ? 7 : 5.5;
+  let selected: ArtworkCandidate | null = null;
 
   for (const candidate of candidates) {
     try {
       await preloadImage(candidate.url);
       if (candidate.score >= MIN_CONFIDENCE_SCORE) {
-        return { selected: candidate, candidates };
+        selected = candidate;
+        break;
       }
     } catch {
       console.info(
@@ -199,5 +212,11 @@ export async function selectBestArtworkCandidate(
     }
   }
 
-  return { selected: null, candidates };
+  const result = { selected, candidates };
+  artworkResultCache.set(song.id, result);
+  if (artworkResultCache.size > ARTWORK_RESULT_CACHE_LIMIT) {
+    const oldestSongId = artworkResultCache.keys().next().value;
+    if (oldestSongId !== undefined) artworkResultCache.delete(oldestSongId);
+  }
+  return result;
 }

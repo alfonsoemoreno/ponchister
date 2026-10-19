@@ -62,6 +62,18 @@ export async function fetchGameSessionStatistics(): Promise<GameSessionStatistic
     currentYearCount: normalizeCount(data.currentYearCount),
     daily: normalizeSeries(data.daily),
     monthly: normalizeSeries(data.monthly),
-    yearly: normalizeSeries(data.yearly),
+    countries: Array.isArray(data.countries)
+      ? data.countries.map((entry) => {
+          const item = entry && typeof entry === "object"
+            ? (entry as Record<string, unknown>)
+            : {};
+          return {
+            countryCode: String(item.countryCode ?? "").toUpperCase(),
+            count: normalizeCount(item.count),
+          };
+        }).filter((entry) => /^[A-Z]{2}$/.test(entry.countryCode))
+      : [],
+    locationPeriodMonths: normalizeCount(data.locationPeriodMonths) || 12,
+    locationDetectionAvailable: data.locationDetectionAvailable === true,
   };
 }

@@ -415,52 +415,7 @@ button:focus-visible {
   height: 100%;
   overflow: hidden;
   z-index: -4;
-  background: radial-gradient(
-      circle at 20% 10%,
-      rgba(148, 163, 184, 0.18) 0%,
-      transparent 48%
-    ),
-    radial-gradient(
-      circle at 80% 20%,
-      rgba(100, 116, 139, 0.16) 0%,
-      transparent 52%
-    ),
-    linear-gradient(180deg, #f8fafc 0%, #eef2f7 60%, #e7ecf3 100%);
-}
-
-.admin-ocean-background::after {
-  content: "";
-  position: absolute;
-  inset: -20% -40% 0 -40%;
-  background: repeating-linear-gradient(
-      90deg,
-      rgba(148, 163, 184, 0.08) 0,
-      rgba(148, 163, 184, 0.08) 1px,
-      transparent 1px,
-      transparent 140px
-    ),
-    repeating-linear-gradient(
-      0deg,
-      rgba(148, 163, 184, 0.08) 0,
-      rgba(148, 163, 184, 0.08) 1px,
-      transparent 1px,
-      transparent 140px
-    );
-  opacity: 0.55;
-  pointer-events: none;
-}
-
-.admin-ocean-blur {
-  position: fixed;
-  inset: 0;
-  z-index: -3;
-  backdrop-filter: blur(18px) saturate(120%);
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.4) 0%,
-    rgba(236, 242, 249, 0.6) 65%,
-    rgba(232, 238, 246, 0.8) 100%
-  );
+  background: #ffffff;
 }
 
 @keyframes admin-card-in {
@@ -503,4 +458,36 @@ button:focus-visible {
   opacity: 0.55;
   filter: blur(2px);
   mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .neon-lines {
+    display: none !important;
+  }
+
+  .year-spotlight,
+  .year-spotlight__label,
+  .year-spotlight__value {
+    animation: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+
+  html[data-view-transitions="enabled"]
+    ::view-transition-group(*),
+  html[data-view-transitions="enabled"]
+    ::view-transition-old(*),
+  html[data-view-transitions="enabled"]
+    ::view-transition-new(*) {
+    animation: none !important;
+  }
 }

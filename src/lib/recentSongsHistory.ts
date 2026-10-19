@@ -1,4 +1,5 @@
 const RECENT_SONG_HISTORY_KEY = "ponchister_recent_song_ids_v1";
+export const MAX_RECENT_SONG_IDS = 300;
 
 function isBrowserReady(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -22,7 +23,7 @@ function normalizeIds(candidates: unknown[]): number[] {
     normalized.push(parsed);
   }
 
-  return normalized;
+  return normalized.slice(0, MAX_RECENT_SONG_IDS);
 }
 
 export function loadRecentSongIds(): number[] {
@@ -33,7 +34,14 @@ export function loadRecentSongIds(): number[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return normalizeIds(parsed);
+    const normalized = normalizeIds(parsed);
+    if (parsed.length > MAX_RECENT_SONG_IDS) {
+      window.localStorage.setItem(
+        RECENT_SONG_HISTORY_KEY,
+        JSON.stringify(normalized)
+      );
+    }
+    return normalized;
   } catch {
     return [];
   }

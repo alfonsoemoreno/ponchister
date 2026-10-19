@@ -69,10 +69,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       typeof body.password === "string" ? body.password.trim() : "";
     const role =
       body.role === "superadmin" || body.role === "editor" ? body.role : null;
+    const active = typeof body.active === "boolean" ? body.active : true;
 
-    if (!email || !password || !role) {
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      password.length < 8 ||
+      !role
+    ) {
       res.statusCode = 400;
-      res.end("Datos inválidos.");
+      res.end("Ingresa un email válido, una contraseña de al menos 8 caracteres y un rol.");
       return;
     }
 
@@ -96,7 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         email,
         passwordHash,
         role,
-        active: true,
+        active,
         updatedAt: new Date(),
       })
       .returning({

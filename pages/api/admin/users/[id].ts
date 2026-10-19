@@ -44,6 +44,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const password =
       typeof body.password === "string" ? body.password.trim() : "";
 
+    if (password && password.length < 8) {
+      res.statusCode = 400;
+      res.end("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
     const updates: Record<string, unknown> = {
       updatedAt: new Date(),
     };

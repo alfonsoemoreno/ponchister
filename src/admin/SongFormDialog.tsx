@@ -16,6 +16,7 @@ import {
   useTheme,
 } from "@mui/material";
 import type { SongInput, Song } from "./types";
+import { isValidSongYear, MIN_SONG_YEAR } from "../lib/songYear";
 import {
   getSongTagLabel,
   isSpanishTagSelected,
@@ -156,10 +157,43 @@ export default function SongFormDialog({
     }));
   };
 
+  const gameModes = [
+    {
+      key: "mimica",
+      label: "Mímica",
+      checked: values.mimica,
+      onChange: handleMimicaChange,
+      description: "Usa un QR y otro dispositivo para revelar la canción.",
+    },
+    {
+      key: "tararear",
+      label: "Tararear",
+      checked: values.tararear,
+      onChange: handleTararearChange,
+      description: "Reproduce la canción al 30% mientras se mantiene pulsado.",
+    },
+    {
+      key: "karaoke",
+      label: "Karaoke",
+      checked: values.karaoke,
+      onChange: handleKaraokeChange,
+      description: "Pausa el video para que continúen la letra.",
+    },
+    {
+      key: "trivia",
+      label: "Trivia",
+      checked: values.trivia,
+      onChange: handleTriviaChange,
+      description: "Presenta una pregunta y revela la respuesta con la canción.",
+    },
+  ];
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const nextErrors: Partial<Record<keyof FormState, string>> = {};
+    const parsedYear = values.year.trim();
+    const yearValue = parsedYear === "" ? null : Number(parsedYear);
     if (!values.artist.trim()) {
       nextErrors.artist = "El artista es obligatorio";
     }
@@ -169,29 +203,30 @@ export default function SongFormDialog({
     if (!values.youtube_url.trim()) {
       nextErrors.youtube_url = "El enlace de YouTube es obligatorio";
     }
+    if (
+      parsedYear !== "" &&
+      (!/^\d{4}$/.test(parsedYear) || !isValidSongYear(yearValue as number))
+    ) {
+      nextErrors.year = `Ingresa un año entre ${MIN_SONG_YEAR} y ${new Date().getFullYear()}`;
+    }
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
     }
 
-    const parsedYear = values.year.trim();
-    const yearValue =
-      parsedYear === "" ? null : Number.parseInt(parsedYear, 10);
     const parsedPlayStartSeconds = values.play_start_seconds.trim();
-    const playStartSecondsValue =
-      parsedPlayStartSeconds === ""
-        ? 0
-        : Number.parseInt(parsedPlayStartSeconds, 10);
+    const playStartSecondsValue = parsedPlayStartSeconds === "" ? 0 : Number(parsedPlayStartSeconds);
     const parsedKaraokePauseSeconds = values.karaoke_pause_seconds.trim();
-    const karaokePauseSecondsValue =
-      parsedKaraokePauseSeconds === ""
-        ? 0
-        : Number.parseInt(parsedKaraokePauseSeconds, 10);
+    const karaokePauseSecondsValue = parsedKaraokePauseSeconds === "" ? 0 : Number(parsedKaraokePauseSeconds);
+
+    if ((parsedPlayStartSeconds !== "" && !/^\d+$/.test(parsedPlayStartSeconds)) || !Number.isSafeInteger(playStartSecondsValue)) {
+      nextErrors.play_start_seconds = "Indica un segundo entero igual o mayor que cero.";
+    }
 
     if (values.karaoke) {
-      if (Number.isNaN(karaokePauseSecondsValue) || karaokePauseSecondsValue < 0) {
-        nextErrors.karaoke_pause_seconds = "Indica un segundo de pausa válido";
+      if ((parsedKaraokePauseSeconds !== "" && !/^\d+$/.test(parsedKaraokePauseSeconds)) || !Number.isSafeInteger(karaokePauseSecondsValue)) {
+        nextErrors.karaoke_pause_seconds = "Indica un segundo entero igual o mayor que cero.";
       }
       if (!values.karaoke_lyric.trim()) {
         nextErrors.karaoke_lyric = "Debes agregar la letra del karaoke";
@@ -217,17 +252,15 @@ export default function SongFormDialog({
       artist: values.artist.trim(),
       title: values.title.trim(),
       youtube_url: values.youtube_url.trim(),
-      year: Number.isNaN(yearValue) ? null : yearValue,
-      play_start_seconds: Number.isNaN(playStartSecondsValue)
-        ? 0
-        : Math.max(0, playStartSecondsValue),
+      year: yearValue,
+      play_start_seconds: Math.max(0, playStartSecondsValue),
       tags,
       isspanish: isSpanishTagSelected(tags),
       mimica: values.mimica,
       tararear: values.tararear,
       karaoke: values.karaoke,
       karaoke_pause_seconds:
-        values.karaoke && !Number.isNaN(karaokePauseSecondsValue)
+        values.karaoke
           ? Math.max(0, karaokePauseSecondsValue)
           : 0,
       karaoke_lyric: values.karaoke ? values.karaoke_lyric.trim() : null,
@@ -257,7 +290,7 @@ export default function SongFormDialog({
         onSubmit: handleSubmit,
         sx: {
           m: 0,
-          borderRadius: 0,
+          borderRadius: 1,
         },
       }}
     >
@@ -298,8 +331,10 @@ export default function SongFormDialog({
               label="Año"
               value={values.year}
               onChange={handleChange("year")}
-              type="number"
-              inputProps={{ inputMode: "numeric" }}
+              type="text"
+              error={Boolean(errors.year)}
+              helperText={errors.year || `Opcional · ${MIN_SONG_YEAR}–${new Date().getFullYear()}`}
+              inputProps={{ inputMode: "numeric", maxLength: 4, pattern: "[0-9]{4}" }}
               fullWidth
               disabled={loading}
             />
@@ -309,7 +344,8 @@ export default function SongFormDialog({
               onChange={handleChange("play_start_seconds")}
               type="number"
               inputProps={{ inputMode: "numeric", min: 0, step: 1 }}
-              helperText="Desde qué segundo debe arrancar en el juego."
+              error={Boolean(errors.play_start_seconds)}
+              helperText={errors.play_start_seconds || "Desde qué segundo debe arrancar en el juego."}
               fullWidth
               disabled={loading}
             />
@@ -326,60 +362,35 @@ export default function SongFormDialog({
             />
           </Stack>
           <Box>
-            <Stack spacing={1.2} sx={{ mb: 1.5 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={values.mimica}
-                    onChange={handleMimicaChange}
-                    disabled={loading}
-                  />
-                }
-                label="Modo mímica"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={values.tararear}
-                    onChange={handleTararearChange}
-                    disabled={loading}
-                  />
-                }
-                label="Modo tararear"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={values.karaoke}
-                    onChange={handleKaraokeChange}
-                    disabled={loading}
-                  />
-                }
-                label="Modo karaoke"
-              />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={values.trivia}
-                    onChange={handleTriviaChange}
-                    disabled={loading}
-                  />
-                }
-                label="Modo trivia"
-              />
+            <Stack spacing={0.5} sx={{ mb: 1.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Modos de juego</Typography>
+              <Typography variant="caption" color="text.secondary">Activa solo los modos compatibles con esta canción.</Typography>
             </Stack>
-            <Typography variant="body2" sx={{ mb: 0.75, color: "text.secondary" }}>
-              Mímica: QR y control remoto para revelar la canción en otro dispositivo.
-            </Typography>
-            <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              Tararear: igual que mímica, pero además la canción suena al 30% en el celular mientras se mantiene el botón apretado.
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
-              Karaoke: la canción se pausa en el segundo configurado para que continúen la letra antes de seguir reproduciendo.
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
-              Trivia: permite abrir una pregunta en grande y revelar su respuesta junto con la canción.
-            </Typography>
+            <Box sx={{ display: "grid", gap: 1, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))" } }}>
+              {gameModes.map((gameMode) => (
+                <Box
+                  key={gameMode.key}
+                  sx={{
+                    p: 1.25,
+                    border: "1px solid",
+                    borderColor: gameMode.checked ? "primary.light" : "divider",
+                    borderRadius: 1,
+                    backgroundColor: gameMode.checked ? "primary.50" : "background.paper",
+                  }}
+                >
+                  <FormControlLabel
+                    sx={{ m: 0, fontWeight: 600 }}
+                    control={<Checkbox checked={gameMode.checked} onChange={gameMode.onChange} disabled={loading} />}
+                    label={gameMode.label}
+                  />
+                  {gameMode.checked ? (
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ pl: 4.5 }}>
+                      {gameMode.description}
+                    </Typography>
+                  ) : null}
+                </Box>
+              ))}
+            </Box>
           </Box>
           {values.karaoke ? (
             <Stack spacing={2}>

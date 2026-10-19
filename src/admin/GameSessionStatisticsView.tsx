@@ -1,8 +1,10 @@
 import { Box, Paper, Stack, Typography } from "@mui/material";
 import { BarChart, LineChart } from "@mui/x-charts";
 import { type ReactNode } from "react";
+import { useTheme } from "@mui/material/styles";
 
 import type { GameSessionStatistics } from "./types";
+import GameSessionWorldMap from "./GameSessionWorldMap";
 
 interface GameSessionStatisticsViewProps {
   stats: GameSessionStatistics | null;
@@ -12,27 +14,33 @@ function MetricCard({
   label,
   value,
   helper,
+  accent,
 }: {
   label: string;
   value: number;
   helper: string;
+  accent: string;
 }) {
+  const theme = useTheme();
+  const formattedValue = new Intl.NumberFormat("es-CL").format(value);
   return (
     <Paper
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 0,
+        borderRadius: 1,
         border: "1px solid",
         borderColor: "divider",
+        borderTop: `3px solid ${accent}`,
+        background: `linear-gradient(135deg, ${accent}0c 0%, ${theme.palette.background.paper} 58%)`,
       }}
     >
       <Stack spacing={0.5}>
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" sx={{ color: accent, fontWeight: 700 }}>
           {label}
         </Typography>
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          {value}
+        <Typography variant="h4" sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
+          {formattedValue}
         </Typography>
         <Typography variant="body2" color="text.secondary">
           {helper}
@@ -58,7 +66,7 @@ function ChartCard({
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 0,
+        borderRadius: 1,
         border: "1px solid",
         borderColor: "divider",
         minHeight: 320,
@@ -83,14 +91,26 @@ function ChartCard({
 export default function GameSessionStatisticsView({
   stats,
 }: GameSessionStatisticsViewProps) {
+  const theme = useTheme();
   const dailySeries = stats?.daily ?? [];
   const monthlySeries = stats?.monthly ?? [];
 
-  const dailyLabels = dailySeries.map((item) => item.label.slice(5));
+  const dailyLabels = dailySeries.map((item) => {
+    const [, month, day] = item.label.split("-").map(Number);
+    return Number.isFinite(month) && Number.isFinite(day)
+      ? `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`
+      : item.label;
+  });
+  const monthlyLabels = monthlySeries.map((item) => {
+    const [year, month] = item.label.split("-").map(Number);
+    if (!Number.isFinite(month) || !Number.isFinite(year)) return item.label;
+    return new Intl.DateTimeFormat("es-CL", { month: "short", year: "2-digit", timeZone: "UTC" })
+      .format(new Date(Date.UTC(year, month - 1, 1)));
+  });
 
   if (!stats) {
     return (
-      <Paper elevation={0} sx={{ p: 4, textAlign: "center", borderRadius: 0 }}>
+      <Paper elevation={0} sx={{ p: 4, textAlign: "center", borderRadius: 1 }}>
         <Typography variant="body1" color="text.secondary">
           No hay partidas registradas todavía.
         </Typography>
@@ -107,6 +127,9 @@ export default function GameSessionStatisticsView({
       <Box
         sx={{
           display: "grid",
+          width: "100%",
+          maxWidth: 1080,
+          mx: "auto",
           gap: 2,
           gridTemplateColumns: {
             xs: "1fr",
@@ -118,22 +141,36 @@ export default function GameSessionStatisticsView({
           label="Partidas hoy"
           value={stats.todayCount}
           helper="Desde las 00:00"
+          accent={theme.palette.secondary.main}
         />
         <MetricCard
           label="Partidas este mes"
           value={stats.currentMonthCount}
           helper="Mes calendario actual"
+          accent={theme.palette.primary.main}
         />
         <MetricCard
           label="Partidas este año"
           value={stats.currentYearCount}
           helper="Año calendario actual"
+          accent={theme.palette.success.main}
+        />
+      </Box>
+
+      <Box sx={{ width: "100%", maxWidth: 1480, mx: "auto" }}>
+        <GameSessionWorldMap
+          countries={stats.countries}
+          periodMonths={stats.locationPeriodMonths}
+          locationDetectionAvailable={stats.locationDetectionAvailable}
         />
       </Box>
 
       <Box
         sx={{
           display: "grid",
+          width: "100%",
+          maxWidth: 1480,
+          mx: "auto",
           gap: 3,
           gridTemplateColumns: {
             xs: "1fr",
@@ -149,7 +186,7 @@ export default function GameSessionStatisticsView({
         >
           <LineChart
             height={240}
-            series={[{ data: dailySeries.map((item) => item.count) }]}
+            series={[{ data: dailySeries.map((item) => item.count), color: theme.palette.secondary.main }]}
             xAxis={[
               {
                 data: dailyLabels,
@@ -167,10 +204,10 @@ export default function GameSessionStatisticsView({
         >
           <BarChart
             height={240}
-            series={[{ data: monthlySeries.map((item) => item.count) }]}
+            series={[{ data: monthlySeries.map((item) => item.count), color: theme.palette.primary.main }]}
             xAxis={[
               {
-                data: monthlySeries.map((item) => item.label),
+                data: monthlyLabels,
                 scaleType: "band",
               },
             ]}

@@ -12,8 +12,9 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import { BarChart, LineChart, PieChart } from "@mui/x-charts";
+import { BarChart, PieChart } from "@mui/x-charts";
 import { useMemo, useState, type ReactNode } from "react";
+import { useTheme } from "@mui/material/styles";
 
 import type { SongStatistics, SongStatisticsGroup, StatEntry } from "./types";
 import type { SongTagDefinition } from "../lib/songTags";
@@ -48,7 +49,7 @@ function StatisticsList({
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 0,
+        borderRadius: 1,
         border: "1px solid",
         borderColor: "divider",
         boxShadow: "none",
@@ -92,10 +93,6 @@ function StatisticsList({
   );
 }
 
-function formatModeTitle(title: string, count: number) {
-  return `${title} (${count})`;
-}
-
 function MetricCard({
   label,
   value,
@@ -105,12 +102,15 @@ function MetricCard({
   value: number | string;
   helper?: string;
 }) {
+  const formattedValue = typeof value === "number"
+    ? new Intl.NumberFormat("es-CL").format(value)
+    : value;
   return (
     <Paper
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 0,
+        borderRadius: 1,
         border: "1px solid",
         borderColor: "divider",
       }}
@@ -120,7 +120,7 @@ function MetricCard({
           {label}
         </Typography>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          {value}
+          {formattedValue}
         </Typography>
         {helper ? (
           <Typography variant="body2" color="text.secondary">
@@ -134,10 +134,12 @@ function MetricCard({
 
 function ChartCard({
   title,
+  description,
   isEmpty,
   children,
 }: {
   title: string;
+  description?: string;
   isEmpty: boolean;
   children: ReactNode;
 }) {
@@ -146,7 +148,7 @@ function ChartCard({
       elevation={0}
       sx={{
         p: 2.5,
-        borderRadius: 0,
+        borderRadius: 1,
         border: "1px solid",
         borderColor: "divider",
         minHeight: 320,
@@ -156,6 +158,11 @@ function ChartCard({
         <Typography variant="h6" sx={{ fontWeight: 600 }}>
           {title}
         </Typography>
+        {description ? (
+          <Typography variant="body2" color="text.secondary">
+            {description}
+          </Typography>
+        ) : null}
         {isEmpty ? (
           <Typography variant="body2" color="text.secondary">
             Sin datos para mostrar.
@@ -174,6 +181,7 @@ export default function SongStatisticsView({
   stats,
   availableSongTags,
 }: SongStatisticsViewProps) {
+  const theme = useTheme();
   const [scope, setScope] = useState<"overall" | "spanish">("overall");
 
   const selectedStats = useMemo<SongStatistics | null>(() => {
@@ -181,21 +189,21 @@ export default function SongStatisticsView({
     return scope === "overall" ? stats.overall : stats.spanish;
   }, [stats, scope]);
 
-  const yearSeries = useMemo(
-    () =>
-      (selectedStats?.yearsMostCommon ?? []).slice(0, 6).map((item) => ({
-        label: item.label,
-        value: item.count,
-      })),
-    [selectedStats]
-  );
-
   const decadeSeries = useMemo(
-    () =>
-      (selectedStats?.decadesLeastCommon ?? []).slice(0, 6).map((item) => ({
-        label: item.label,
-        value: item.count,
-      })),
+    () => {
+      const decades = selectedStats?.songsByDecade ?? [];
+      const pre1900 = decades
+        .filter((item) => Number.parseInt(item.label, 10) < 1900)
+        .reduce((total, item) => total + item.count, 0);
+      const modernDecades = decades
+        .filter((item) => Number.parseInt(item.label, 10) >= 1900)
+        .sort((a, b) => Number.parseInt(a.label, 10) - Number.parseInt(b.label, 10))
+        .map((item) => ({ label: item.label, value: item.count }));
+
+      return pre1900 > 0
+        ? [{ label: "Antes de 1900", value: pre1900 }, ...modernDecades]
+        : modernDecades;
+    },
     [selectedStats]
   );
 
@@ -242,84 +250,57 @@ export default function SongStatisticsView({
   }, [languageTotal]);
 
   const metricCards = useMemo(() => {
-    if (!selectedStats || !stats) return [];
+    if (!selectedStats) return [];
+    const total = selectedStats.totalSongs;
+    const percentOfCatalog = (count: number) =>
+      total > 0 ? `${((count / total) * 100).toFixed(1).replace(/\.0$/, "")}% del catálogo` : "0% del catálogo";
 
     const cards: Array<{ label: string; value: number | string; helper?: string }> = [
       {
         label: "Total canciones",
-        value: selectedStats.totalSongs,
+        value: total,
         helper:
           scope === "overall"
-            ? "Catalogo completo"
+            ? "Catálogo público"
             : "Solo canciones en español",
       },
-    ];
-
-    if (selectedStats.missingYearCount > 0) {
-      cards.push({
-        label: "Sin año registrado",
-        value: selectedStats.missingYearCount,
-        helper: "Registros incompletos",
-      });
-    }
-
-    cards.push(
+      {
+        label: "Con año registrado",
+        value: total - selectedStats.missingYearCount,
+        helper: percentOfCatalog(total - selectedStats.missingYearCount),
+      },
       {
         label: "Con mímica",
         value: selectedStats.mimicaCount,
+        helper: percentOfCatalog(selectedStats.mimicaCount),
       },
       {
         label: "Con tarareo",
         value: selectedStats.tararearCount,
+        helper: percentOfCatalog(selectedStats.tararearCount),
       },
       {
         label: "Con karaoke",
         value: selectedStats.karaokeCount,
+        helper: percentOfCatalog(selectedStats.karaokeCount),
       },
       {
         label: "Con trivia",
         value: selectedStats.triviaCount,
+        helper: percentOfCatalog(selectedStats.triviaCount),
       }
-    );
-
-    if (scope === "overall" && stats.overall.totalSongs > 0) {
-      cards.push({
-        label: "Comparativo idioma",
-        value: `${stats.spanish.totalSongs}/${stats.overall.totalSongs}`,
-        helper: "Español vs total",
-      });
-    }
+    ];
 
     return cards;
-  }, [scope, selectedStats, stats]);
+  }, [scope, selectedStats]);
 
   const visibleCharts = useMemo(() => {
-    const charts: Array<{ key: string; title: string; node: ReactNode }> = [];
-
-    if (yearSeries.length > 0) {
-      charts.push({
-        key: "year-series",
-        title: "Canciones por año",
-        node: (
-          <BarChart
-            height={260}
-            series={[
-              {
-                data: yearSeries.map((item) => item.value),
-                color: "#2563eb",
-              },
-            ]}
-            xAxis={[
-              {
-                data: yearSeries.map((item) => item.label),
-                scaleType: "band",
-              },
-            ]}
-            margin={{ left: 48, right: 12, top: 10, bottom: 32 }}
-          />
-        ),
-      });
-    }
+    const charts: Array<{
+      key: string;
+      title: string;
+      description?: string;
+      node: ReactNode;
+    }> = [];
 
     if (scope === "overall" && languageSeries.some((item) => item.value > 0)) {
       charts.push({
@@ -328,7 +309,7 @@ export default function SongStatisticsView({
         node: (
           <PieChart
             height={260}
-            colors={["#0ea5e9", "#94a3b8"]}
+            colors={[theme.palette.primary.main, theme.palette.secondary.main]}
             series={[
               {
                 data: languageSeries,
@@ -344,23 +325,26 @@ export default function SongStatisticsView({
       });
     }
 
-    if (decadeSeries.length > 1) {
+    if (decadeSeries.length > 0) {
       charts.push({
         key: "decade-series",
-        title: "Décadas con menor presencia",
+        title: "Canciones por década",
+        description: decadeSeries.some((item) => item.label === "Antes de 1900")
+          ? "Las canciones anteriores a 1900 se agrupan para facilitar la lectura."
+          : undefined,
         node: (
-          <LineChart
+          <BarChart
             height={260}
             series={[
               {
                 data: decadeSeries.map((item) => item.value),
-                color: "#f59e0b",
+                color: theme.palette.primary.main,
               },
             ]}
             xAxis={[
               {
                 data: decadeSeries.map((item) => item.label),
-                scaleType: "point",
+                scaleType: "band",
               },
             ]}
             margin={{ left: 48, right: 12, top: 10, bottom: 32 }}
@@ -379,7 +363,7 @@ export default function SongStatisticsView({
             series={[
               {
                 data: tagSeries.map((item) => item.value),
-                color: "#10b981",
+                color: theme.palette.success.main,
               },
             ]}
             xAxis={[
@@ -401,7 +385,9 @@ export default function SongStatisticsView({
     languageSeries,
     scope,
     tagSeries,
-    yearSeries,
+    theme.palette.primary.main,
+    theme.palette.secondary.main,
+    theme.palette.success.main,
   ]);
 
   const visibleLists = useMemo(() => {
@@ -414,33 +400,6 @@ export default function SongStatisticsView({
       highlight?: "top" | "bottom";
       spanTwo?: boolean;
     }> = [];
-
-    if (selectedStats.yearsMostCommon.length > 0) {
-      blocks.push({
-        key: "years-most",
-        title: "Años más frecuentes",
-        items: selectedStats.yearsMostCommon,
-        highlight: "top",
-      });
-    }
-
-    if (selectedStats.yearsLeastCommon.length > 1) {
-      blocks.push({
-        key: "years-least",
-        title: "Años con menor presencia",
-        items: selectedStats.yearsLeastCommon,
-        highlight: "bottom",
-      });
-    }
-
-    if (selectedStats.decadesLeastCommon.length > 1) {
-      blocks.push({
-        key: "decades-least",
-        title: "Décadas con menor presencia",
-        items: selectedStats.decadesLeastCommon,
-        highlight: "bottom",
-      });
-    }
 
     if (selectedStats.artistsMostCommon.length > 0) {
       blocks.push({
@@ -464,48 +423,6 @@ export default function SongStatisticsView({
       });
     }
 
-    if (selectedStats.mimicaSongs.length > 0) {
-      blocks.push({
-        key: "mimica-songs",
-        title: formatModeTitle("Canciones con mímica", selectedStats.mimicaCount),
-        items: selectedStats.mimicaSongs,
-        spanTwo: true,
-      });
-    }
-
-    if (selectedStats.tararearSongs.length > 0) {
-      blocks.push({
-        key: "tararear-songs",
-        title: formatModeTitle(
-          "Canciones con tarareo",
-          selectedStats.tararearCount
-        ),
-        items: selectedStats.tararearSongs,
-        spanTwo: true,
-      });
-    }
-
-    if (selectedStats.karaokeSongs.length > 0) {
-      blocks.push({
-        key: "karaoke-songs",
-        title: formatModeTitle(
-          "Canciones con karaoke",
-          selectedStats.karaokeCount
-        ),
-        items: selectedStats.karaokeSongs,
-        spanTwo: true,
-      });
-    }
-
-    if (selectedStats.triviaSongs.length > 0) {
-      blocks.push({
-        key: "trivia-songs",
-        title: formatModeTitle("Canciones con trivia", selectedStats.triviaCount),
-        items: selectedStats.triviaSongs,
-        spanTwo: true,
-      });
-    }
-
     return blocks;
   }, [availableSongTags, selectedStats]);
 
@@ -519,7 +436,7 @@ export default function SongStatisticsView({
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ borderRadius: 0 }}>
+      <Alert severity="error" sx={{ borderRadius: 1 }}>
         {error}
       </Alert>
     );
@@ -527,7 +444,7 @@ export default function SongStatisticsView({
 
   if (!stats) {
     return (
-      <Paper elevation={0} sx={{ p: 4, textAlign: "center", borderRadius: 0 }}>
+      <Paper elevation={0} sx={{ p: 4, textAlign: "center", borderRadius: 1 }}>
         <Typography variant="body1" color="text.secondary">
           No se encontraron datos para mostrar estadísticas.
         </Typography>
@@ -541,11 +458,8 @@ export default function SongStatisticsView({
         direction={{ xs: "column", sm: "row" }}
         spacing={1.5}
         alignItems={{ xs: "stretch", sm: "center" }}
-        justifyContent="space-between"
+        justifyContent="flex-end"
       >
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          Vista de estadísticas
-        </Typography>
         <ToggleButtonGroup
           value={scope}
           exclusive
@@ -554,9 +468,10 @@ export default function SongStatisticsView({
           color="primary"
           sx={{
             alignSelf: { xs: "flex-start", sm: "center" },
-            backgroundColor: "#fff",
-            border: "1px solid rgba(148,163,184,0.25)",
-            borderRadius: 0,
+            backgroundColor: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 1,
           }}
         >
           <ToggleButton value="overall">Todas las canciones</ToggleButton>
@@ -568,6 +483,9 @@ export default function SongStatisticsView({
         <Box
           sx={{
             display: "grid",
+            width: "100%",
+            maxWidth: 1080,
+            mx: "auto",
             gap: 2,
             gridTemplateColumns: {
               xs: "1fr",
@@ -591,6 +509,9 @@ export default function SongStatisticsView({
         <Box
           sx={{
             display: "grid",
+            width: "100%",
+            maxWidth: 1600,
+            mx: "auto",
             gap: 3,
             gridTemplateColumns: {
               xs: "1fr",
@@ -601,7 +522,12 @@ export default function SongStatisticsView({
           }}
         >
           {visibleCharts.map((chart) => (
-            <ChartCard key={chart.key} title={chart.title} isEmpty={false}>
+            <ChartCard
+              key={chart.key}
+              title={chart.title}
+              description={chart.description}
+              isEmpty={false}
+            >
               {chart.node}
             </ChartCard>
           ))}
@@ -612,6 +538,9 @@ export default function SongStatisticsView({
         <Box
           sx={{
             display: "grid",
+            width: "100%",
+            maxWidth: 1600,
+            mx: "auto",
             gap: 3,
             gridTemplateColumns: {
               xs: "1fr",
@@ -640,7 +569,7 @@ export default function SongStatisticsView({
           elevation={0}
           sx={{
             p: 3,
-            borderRadius: 0,
+            borderRadius: 1,
             border: "1px solid",
             borderColor: "divider",
           }}

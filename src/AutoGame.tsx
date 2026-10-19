@@ -3,6 +3,9 @@ import type { ChangeEvent, SyntheticEvent } from "react";
 import YouTube from "react-youtube";
 import type { YouTubeProps } from "react-youtube";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Chip,
   Box,
@@ -27,8 +30,10 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CampaignIcon from "@mui/icons-material/Campaign";
 import MicIcon from "@mui/icons-material/Mic";
 import QuizIcon from "@mui/icons-material/Quiz";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 import {
+  fetchEligibleSongCount,
   fetchMyCollectionQueue,
   fetchMyPlaylistSongs,
   fetchSongQueue,
@@ -234,8 +239,11 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const [gameState, setGameState] = useState<GameState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [mainPlayerReady, setMainPlayerReady] = useState(false);
+  const [sadTromboneReady, setSadTromboneReady] = useState(false);
   const mainPlayerApiRef = useRef<InternalPlayer | null>(null);
   const sadTrombonePlayerRef = useRef<PlayerRef>(null);
+  const [sadTromboneMounted, setSadTromboneMounted] = useState(false);
   const [spotlightVisible, setSpotlightVisible] = useState(false);
   const [spotlightValue, setSpotlightValue] = useState<string | number | null>(
     null,
@@ -251,6 +259,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const [timerStarted, setTimerStarted] = useState(false);
   const timerIntervalRef = useRef<number | null>(null);
   const [localRange, setLocalRange] = useState<YearRange>(yearRange);
+  const [eligibleRange, setEligibleRange] = useState<YearRange>(yearRange);
   const [localSelectedTags, setLocalSelectedTags] =
     useState<SongTag[]>(selectedSongTags);
   const [localTagMatchMode, setLocalTagMatchMode] =
@@ -263,6 +272,10 @@ const AutoGame: React.FC<AutoGameProps> = ({
     useState<boolean>(tararearEnabled);
   const [specialTimerRunning, setSpecialTimerRunning] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [gameOptionsExpanded, setGameOptionsExpanded] = useState(false);
+  const [eligibleSongCount, setEligibleSongCount] = useState<number | null>(null);
+  const [eligibleCountLoading, setEligibleCountLoading] = useState(false);
+  const [eligibleCountError, setEligibleCountError] = useState(false);
   const [karaokeEnabledForSong, setKaraokeEnabledForSong] = useState(false);
   const [karaokePaused, setKaraokePaused] = useState(false);
   const [karaokeCompleted, setKaraokeCompleted] = useState(false);
@@ -280,6 +293,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
   useEffect(() => {
     setLocalRange(yearRange);
+    setEligibleRange(yearRange);
   }, [yearRange]);
 
   useEffect(() => {
@@ -301,6 +315,69 @@ const AutoGame: React.FC<AutoGameProps> = ({
   useEffect(() => {
     setLocalTararearEnabled(tararearEnabled);
   }, [tararearEnabled]);
+
+  useEffect(() => {
+    if (!gameOptionsExpanded || sessionStarted) return;
+    let active = true;
+    setEligibleCountLoading(true);
+    setEligibleCountError(false);
+    const timer = window.setTimeout(() => {
+      void fetchEligibleSongCount({
+        source: gameSource,
+        minYear: eligibleRange.min,
+        maxYear: eligibleRange.max,
+        playlistId: playlist?.id ?? null,
+        selectedTags: localSelectedTags,
+        tagMatchMode: localTagMatchMode,
+      })
+        .then((count) => {
+          if (active) setEligibleSongCount(count);
+        })
+        .catch(() => {
+          if (active) setEligibleCountError(true);
+        })
+        .finally(() => {
+          if (active) setEligibleCountLoading(false);
+        });
+    }, 180);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [
+    gameOptionsExpanded,
+    gameSource,
+    eligibleRange.max,
+    eligibleRange.min,
+    localSelectedTags,
+    localTagMatchMode,
+    playlist,
+    sessionStarted,
+  ]);
+
+  useEffect(() => {
+    if (!sessionStarted || typeof navigator === "undefined") {
+      return;
+    }
+
+    const mediaSession = navigator.mediaSession;
+    if (!mediaSession || typeof MediaMetadata === "undefined") {
+      return;
+    }
+
+    // YouTube's embedded player can publish the video's title to connected
+    // Bluetooth devices. Keep the browser's active media metadata generic for
+    // the full game session so the answer is not exposed between rounds.
+    mediaSession.metadata = new MediaMetadata({
+      title: "Ponchister",
+      artist: "",
+      album: "",
+    });
+
+    return () => {
+      mediaSession.metadata = null;
+    };
+  }, [sessionStarted]);
 
   const sliderMarks = useMemo(() => {
     const marks: { value: number; label: string }[] = [
@@ -332,13 +409,44 @@ const AutoGame: React.FC<AutoGameProps> = ({
     const [min, max] = value;
     const next = { min, max };
     setLocalRange(next);
+    setEligibleRange(next);
     onYearRangeChange(next);
   };
 
   const handleResetRange = () => {
     setLocalRange(availableRange);
+    setEligibleRange(availableRange);
     onYearRangeChange(availableRange);
   };
+
+  const handleResetGameOptions = () => {
+    setLocalRange(availableRange);
+    setEligibleRange(availableRange);
+    onYearRangeChange(availableRange);
+    setLocalSelectedTags([]);
+    onSongTagsChange([]);
+    setLocalTagMatchMode("any");
+    onSongTagMatchModeChange("any");
+    setLocalTimerEnabled(false);
+    onTimerModeChange(false);
+    setLocalMimicaEnabled(true);
+    onMimicaModeChange(true);
+    setLocalTararearEnabled(true);
+    onTararearModeChange(true);
+  };
+
+  const rememberedOptionsSummary = [
+    playlist
+      ? playlist.name
+      : `Catálogo ${localRange.min}–${localRange.max}`,
+    localSelectedTags.length
+      ? `${localSelectedTags.length} ${localSelectedTags.length === 1 ? "etiqueta" : "etiquetas"}`
+      : "sin etiquetas",
+    localTimerEnabled ? "60 s por canción" : "sin temporizador",
+    [localMimicaEnabled && "mímica", localTararearEnabled && "tarareo"]
+      .filter(Boolean)
+      .join(" y ") || "sin modos especiales",
+  ].join(" · ");
 
   const handleTagToggle = (tag: SongTag) => {
     const nextTags = localSelectedTags.includes(tag)
@@ -429,7 +537,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     artworkUrl,
     loading: artworkLoading,
     error: artworkError,
-  } = useArtworkLookup(currentSong);
+  } = useArtworkLookup(currentSong, { enabled: gameState === "revealed" });
   const { palette: artworkPalette } = useArtworkPalette(artworkUrl);
 
   const runViewTransition = useViewTransition();
@@ -650,6 +758,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
     if (!currentSong) {
       return;
     }
+    mainPlayerApiRef.current = null;
+    setMainPlayerReady(false);
     void runViewTransition(() => {
       setIsPlaying(false);
       setGameState("playing");
@@ -828,36 +938,36 @@ const AutoGame: React.FC<AutoGameProps> = ({
   );
 
   const advanceToNextSong = useCallback(() => {
-    void runViewTransition(async () => {
-      setErrorMessage(null);
-      setGameState("loading");
-      setIsPlaying(false);
-      clearKaraokePauseWatch();
-      stopPlayback();
-      stopSadTrombone();
-      clearYearSpotlightTimeout();
-      resetTimerState();
-      await advanceQueue();
-    });
+    setErrorMessage(null);
+    setGameState("loading");
+    setIsPlaying(false);
+    clearKaraokePauseWatch();
+    stopPlayback();
+    stopSadTrombone();
+    clearYearSpotlightTimeout();
+    resetTimerState();
+    void advanceQueue();
   }, [
     advanceQueue,
     clearKaraokePauseWatch,
     clearYearSpotlightTimeout,
     resetTimerState,
-    runViewTransition,
     stopPlayback,
     stopSadTrombone,
   ]);
 
   const handleStart = useCallback(() => {
-    void runViewTransition(async () => {
-      setSessionStarted(true);
-      setErrorMessage(null);
-      setGameState("loading");
-      setIsPlaying(false);
-      stopPlayback();
-      clearYearSpotlightTimeout();
-      resetTimerState();
+    setSessionStarted(true);
+    setSadTromboneMounted(true);
+    setSadTromboneReady(false);
+    setErrorMessage(null);
+    setGameState("loading");
+    setIsPlaying(false);
+    stopPlayback();
+    clearYearSpotlightTimeout();
+    resetTimerState();
+
+    void (async () => {
       const started = await startQueue();
       if (!started) {
         return;
@@ -879,14 +989,13 @@ const AutoGame: React.FC<AutoGameProps> = ({
           err instanceof Error ? err.message : err,
         );
       }
-    });
+    })();
   }, [
     clearYearSpotlightTimeout,
     localSelectedTags,
     localTagMatchMode,
     playlist,
     resetTimerState,
-    runViewTransition,
     startQueue,
     stopPlayback,
     timerEnabled,
@@ -1023,6 +1132,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const handleExit = useCallback(() => {
     exitingRef.current = true;
     setSessionStarted(false);
+    setSadTromboneMounted(false);
+    setMainPlayerReady(false);
+    setSadTromboneReady(false);
     clearKaraokePauseWatch();
     clearYearSpotlightTimeout();
     resetTimerState();
@@ -1103,7 +1215,10 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const handleSadTrombone = useCallback(() => {
     const internalPlayer =
       sadTrombonePlayerRef.current?.getInternalPlayer?.() as unknown as InternalPlayer | null;
-    if (!internalPlayer) return;
+    if (!internalPlayer) {
+      setErrorMessage("El sonido de trompeta todavía se está cargando.");
+      return;
+    }
 
     duckMainPlayerVolume();
     internalPlayer.unMute?.();
@@ -1122,6 +1237,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     );
     mainPlayerApiRef.current =
       (event.target as unknown as InternalPlayer) ?? null;
+    setMainPlayerReady(true);
     setIsPlaying(false);
     applyPlaybackOptimizations(
       (event.target as unknown as InternalPlayer) ?? null,
@@ -1141,6 +1257,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     internalPlayer?.pauseVideo?.();
     internalPlayer?.unMute?.();
     internalPlayer?.setVolume?.(SAD_TROMBONE_VOLUME);
+    setSadTromboneReady(true);
     const iframe = event.target.getIframe?.();
     iframe?.setAttribute("allow", "autoplay; clipboard-write");
   };
@@ -1457,6 +1574,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   sx={{
                     fontWeight: 800,
                     letterSpacing: "-0.015em",
+                    fontSize: { xs: "clamp(1.7rem, 8vw, 2.6rem)", md: "3rem" },
+                    lineHeight: 1.08,
                     textAlign: "left",
                     color: theme.text.primary,
                     textShadow: theme.textShadow,
@@ -1468,6 +1587,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   variant="h4"
                   sx={{
                     fontWeight: 600,
+                    fontSize: { xs: "clamp(1.25rem, 6vw, 1.9rem)", md: "2.125rem" },
+                    lineHeight: 1.15,
                     color: theme.text.secondary,
                     textAlign: "left",
                   }}
@@ -1506,9 +1627,14 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     </Typography>
                     <IconButton
                       aria-label="Reproducir sad trombone"
-                      title="Reproducir sad trombone"
+                      title={
+                        sadTromboneReady
+                          ? "Reproducir sad trombone"
+                          : "Cargando sonido de trompeta"
+                      }
                       onClick={handleSadTrombone}
                       size="small"
+                      disabled={!sadTromboneReady}
                       sx={{
                         color: "inherit",
                         border: "1px solid rgba(255,255,255,0.22)",
@@ -1796,7 +1922,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 <IconButton
                   onClick={handlePlayPause}
                   disabled={
-                    timerEnabled && timerLocked && gameState === "playing"
+                    !mainPlayerReady ||
+                    (timerEnabled && timerLocked && gameState === "playing")
                   }
                   sx={{
                     width: { xs: 72, md: 88 },
@@ -2209,7 +2336,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 lineHeight: { xs: 1.15, sm: 1.15 },
               }}
             >
-              Configura tu juego
+              Listo para jugar
             </Typography>
             <Typography
               variant="body2"
@@ -2221,13 +2348,78 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 px: { xs: 1, sm: 0 },
               }}
             >
-              Ajusta lo esencial y comienza cuando quieras.
+              La partida usará los ajustes actuales. Puedes empezar ahora o personalizarlos.
             </Typography>
+          </Stack>
+          <Accordion
+            expanded={gameOptionsExpanded}
+            onChange={(_, expanded) => setGameOptionsExpanded(expanded)}
+            disableGutters
+            elevation={0}
+            sx={{
+              mt: 1,
+              width: "100%",
+              color: "inherit",
+              backgroundColor: "rgba(5,24,64,0.3)",
+              border: "1px solid rgba(99,216,255,0.2)",
+              borderRadius: "16px !important",
+              "&::before": { display: "none" },
+            }}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon sx={{ color: "#9de8ff" }} />}
+              aria-controls="game-options-content"
+              id="game-options-header"
+              sx={{ px: 2, minHeight: 68, "& .MuiAccordionSummary-content": { my: 1.5 } }}
+            >
+              <Box>
+                <Typography sx={{ fontWeight: 750 }}>Ajustes recordados</Typography>
+                <Typography variant="body2" sx={{ color: "rgba(204,231,255,0.76)" }}>
+                  {rememberedOptionsSummary}
+                  {eligibleSongCount !== null && ` · ${eligibleSongCount} disponibles`}
+                </Typography>
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails id="game-options-content" sx={{ pt: 0, px: { xs: 1.5, sm: 2 } }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+            sx={{ mb: 1.5, px: 0.5 }}
+          >
+            <Stack direction="row" spacing={1} alignItems="center" aria-live="polite">
+              {eligibleCountLoading && <CircularProgress size={16} />}
+              <Typography variant="body2" sx={{ color: "rgba(204,231,255,0.82)" }}>
+                {eligibleCountLoading
+                  ? "Calculando canciones disponibles…"
+                  : eligibleCountError
+                    ? "No se pudo calcular el total. Puedes iniciar la partida igualmente."
+                    : eligibleSongCount === null
+                      ? ""
+                      : `${eligibleSongCount} ${eligibleSongCount === 1 ? "canción disponible" : "canciones disponibles"} con estos filtros.`}
+              </Typography>
+            </Stack>
+            <Button
+              size="small"
+              variant="text"
+              color="inherit"
+              startIcon={<RestartAltIcon />}
+              onClick={handleResetGameOptions}
+              sx={{
+                alignSelf: { xs: "flex-end", sm: "center" },
+                textTransform: "none",
+                color: "rgba(148,216,255,0.94)",
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Restablecer ajustes
+            </Button>
           </Stack>
           <Stack
             spacing={2}
             sx={{
-              mt: 1,
               width: "100%",
               textAlign: "left",
             }}
@@ -2283,7 +2475,14 @@ const AutoGame: React.FC<AutoGameProps> = ({
                       step={1}
                       marks={sliderMarks}
                       valueLabelDisplay="auto"
-                      getAriaLabel={() => "Rango de años"}
+                      getAriaLabel={(index) =>
+                        index === 0 ? "Año mínimo" : "Año máximo"
+                      }
+                      getAriaValueText={(value) => `${value} años`}
+                      valueLabelFormat={(value) => `${value}`}
+                      slotProps={{
+                        input: { "aria-describedby": "year-range-keyboard-help" },
+                      }}
                       sx={{
                         color: "#5eead4",
                         height: 4,
@@ -2308,6 +2507,19 @@ const AutoGame: React.FC<AutoGameProps> = ({
                         },
                       }}
                     />
+                    <Typography
+                      id="year-range-keyboard-help"
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        color: "rgba(204,231,255,0.68)",
+                        px: 1,
+                        mt: -0.5,
+                      }}
+                    >
+                      Usa las flechas para ajustar de a un año; Inicio y Fin
+                      llevan al límite del rango.
+                    </Typography>
                     {(localRange.min !== availableRange.min ||
                       localRange.max !== availableRange.max) && (
                       <Button
@@ -2603,6 +2815,8 @@ const AutoGame: React.FC<AutoGameProps> = ({
               </Stack>
             </Box>
           </Stack>
+            </AccordionDetails>
+          </Accordion>
           <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={2}
@@ -2747,6 +2961,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     }
 
     if (gameState === "error") {
+      const queueExhausted = queueStatus === "exhausted";
       return (
         <Box
           sx={{
@@ -2762,24 +2977,40 @@ const AutoGame: React.FC<AutoGameProps> = ({
             spacing={3}
             alignItems="center"
             sx={{
-              width: "min(520px, 92vw)",
+              width: "min(560px, 92vw)",
             }}
           >
+            {queueExhausted && (
+              <Box sx={{ textAlign: "center" }}>
+                <Typography variant="h4" sx={{ color: theme.text.primary, fontWeight: 800, mb: 1 }}>
+                  ¡Completaste esta selección!
+                </Typography>
+                <Typography variant="body1" sx={{ color: theme.text.body }}>
+                  Ya no quedan más canciones para los filtros de esta partida.
+                  Puedes volver a jugar con los mismos ajustes o cambiarlos.
+                </Typography>
+              </Box>
+            )}
             <Alert
-              severity="error"
+              severity={queueExhausted ? "success" : "error"}
               icon={false}
+              role={queueExhausted ? "status" : "alert"}
               sx={{
                 width: "100%",
-                backgroundColor: theme.alert.background,
+                backgroundColor: queueExhausted
+                  ? "rgba(16,185,129,0.16)"
+                  : theme.alert.background,
                 color: theme.alert.color,
-                border: `1px solid ${theme.alert.border}`,
+                border: `1px solid ${queueExhausted ? "rgba(110,231,183,0.4)" : theme.alert.border}`,
                 backdropFilter: "blur(12px)",
                 fontWeight: 500,
                 textAlign: "left",
               }}
             >
-              {displayedError ??
-                "No pudimos continuar la partida automática. Intenta reiniciarla o vuelve al menú principal."}
+              {queueExhausted
+                ? "La lista de canciones se agotó. No es un error: puedes repetir la partida o regresar al inicio."
+                : displayedError ??
+                  "No pudimos continuar la partida automática. Intenta reiniciarla o vuelve al menú principal."}
             </Alert>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <Button
@@ -2803,7 +3034,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   },
                 }}
               >
-                Reintentar partida
+                {queueExhausted ? "Jugar otra vez" : "Reintentar partida"}
               </Button>
               <Button
                 variant="outlined"
@@ -2825,7 +3056,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   },
                 }}
               >
-                Salir
+                {queueExhausted ? "Volver al inicio" : "Salir"}
               </Button>
             </Stack>
           </Stack>
@@ -2894,6 +3125,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
           }}
         >
           <YouTube
+            key={videoId}
             videoId={videoId}
             opts={playerOptions}
             onReady={handlePlayerReady}
@@ -2902,25 +3134,27 @@ const AutoGame: React.FC<AutoGameProps> = ({
           />
         </Box>
       ) : null}
-      <Box
-        sx={{
-          position: "absolute",
-          width: 1,
-          height: 1,
-          overflow: "hidden",
-          opacity: 0,
-          pointerEvents: "none",
-          zIndex: 0,
-        }}
-      >
-        <YouTube
-          videoId={SAD_TROMBONE_VIDEO_ID}
-          opts={sadTrombonePlayerOptions}
-          ref={sadTrombonePlayerRef}
-          onReady={handleSadTrombonePlayerReady}
-          onStateChange={handleSadTrombonePlayerStateChange}
-        />
-      </Box>
+      {sessionStarted && sadTromboneMounted ? (
+        <Box
+          sx={{
+            position: "absolute",
+            width: 1,
+            height: 1,
+            overflow: "hidden",
+            opacity: 0,
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        >
+          <YouTube
+            videoId={SAD_TROMBONE_VIDEO_ID}
+            opts={sadTrombonePlayerOptions}
+            ref={sadTrombonePlayerRef}
+            onReady={handleSadTrombonePlayerReady}
+            onStateChange={handleSadTrombonePlayerStateChange}
+          />
+        </Box>
+      ) : null}
 
       <Box
         sx={{

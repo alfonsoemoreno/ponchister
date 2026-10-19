@@ -168,6 +168,7 @@ export const gameSessions = pgTable("game_sessions", {
   timerEnabled: boolean("timer_enabled").notNull().default(false),
   playlistId: integer("playlist_id"),
   playlistName: text("playlist_name"),
+  countryCode: text("country_code"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

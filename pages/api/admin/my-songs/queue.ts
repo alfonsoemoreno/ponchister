@@ -12,6 +12,7 @@ import {
   normalizeSongTags,
   songMatchesSelectedTags,
 } from "../../../../src/lib/songTags";
+import { MAX_RECENT_SONG_IDS } from "../../../../src/lib/recentSongsHistory";
 
 const MAX_QUEUE_SIZE = 25;
 
@@ -25,14 +26,14 @@ function toInteger(value: unknown): number | null {
     : null;
 }
 
-function toPositiveIds(value: unknown): number[] {
+function toPositiveIds(value: unknown, limit = 2_000): number[] {
   if (!Array.isArray(value)) return [];
   return Array.from(
     new Set(
       value
         .map(toInteger)
         .filter((id): id is number => id !== null && id > 0)
-        .slice(0, 2_000)
+        .slice(0, limit)
     )
   );
 }
@@ -62,7 +63,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const selectedTags = normalizeSongTags(body.selectedTags);
   const tagMatchMode = body.tagMatchMode === "all" ? "all" : "any";
   const excludedSongIds = new Set(toPositiveIds(body.excludedSongIds));
-  const recentSongIds = new Set(toPositiveIds(body.recentSongIds));
+  const recentSongIds = new Set(
+    toPositiveIds(body.recentSongIds, MAX_RECENT_SONG_IDS)
+  );
   const excludedArtistKeys = new Set(toArtistKeys(body.excludedArtistKeys));
   const requestedSize = toInteger(body.size);
   const size = Math.min(Math.max(requestedSize ?? MAX_QUEUE_SIZE, 1), MAX_QUEUE_SIZE);

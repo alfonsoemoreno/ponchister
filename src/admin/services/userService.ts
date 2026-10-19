@@ -43,6 +43,7 @@ export async function createAdminUser(payload: {
   email: string;
   password: string;
   role: AdminRole;
+  active?: boolean;
 }): Promise<AdminUser> {
   const data = await fetchJson<Record<string, unknown>>(`${API_BASE}/users`, {
     method: "POST",

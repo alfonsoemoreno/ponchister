@@ -3,11 +3,15 @@ import { getSongArtistKey } from "../lib/autoGameQueue";
 import {
   forgetRecentSongIds,
   loadRecentSongIds,
+  MAX_RECENT_SONG_IDS,
   rememberRecentSongIds,
 } from "../lib/recentSongsHistory";
 import type { Song } from "../types";
 
 export type QueueStatus = "idle" | "loading" | "ready" | "exhausted" | "error";
+
+const MAX_EXCLUDED_SONG_IDS = 2_000;
+const MAX_EXCLUDED_ARTIST_KEYS = 100;
 
 export interface AutoGameQueueOptions {
   fetchSongs: (options: {
@@ -58,9 +62,13 @@ export function useAutoGameQueue({
   const loadNextBatch = useCallback(async (): Promise<boolean> => {
     const recentSongIds = loadRecentSongIds();
     const result = await fetchSongs({
-      excludedSongIds: Array.from(seenSongIdsRef.current),
-      excludedArtistKeys: Array.from(seenArtistKeysRef.current),
-      recentSongIds,
+      excludedSongIds: Array.from(seenSongIdsRef.current).slice(
+        -MAX_EXCLUDED_SONG_IDS,
+      ),
+      excludedArtistKeys: Array.from(seenArtistKeysRef.current).slice(
+        -MAX_EXCLUDED_ARTIST_KEYS,
+      ),
+      recentSongIds: recentSongIds.slice(0, MAX_RECENT_SONG_IDS),
     });
 
     if (result.resetRecentHistory) {

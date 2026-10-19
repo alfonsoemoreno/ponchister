@@ -4,11 +4,12 @@ import {
   Avatar,
   Box,
   Button,
+  Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   IconButton,
   MenuItem,
   Paper,
@@ -59,8 +60,10 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [form, setForm] = useState<UserFormState>(INITIAL_FORM);
@@ -89,6 +92,7 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
   const handleOpenCreate = () => {
     setEditing(null);
     setForm(INITIAL_FORM);
+    setDialogError(null);
     setDialogOpen(true);
   };
 
@@ -100,6 +104,7 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
       role: user.role,
       active: user.active,
     });
+    setDialogError(null);
     setDialogOpen(true);
   };
 
@@ -117,8 +122,18 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
     };
 
   const handleSave = async () => {
+    const email = form.email.trim();
+    if (!editing && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setDialogError("Ingresa un email válido.");
+      return;
+    }
+    if ((!editing || form.password) && form.password.trim().length < 8) {
+      setDialogError("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
     setSaving(true);
-    setError(null);
+    setDialogError(null);
     try {
       if (editing) {
         await updateAdminUser(editing.id, {
@@ -128,15 +143,17 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
         });
       } else {
         await createAdminUser({
-          email: form.email.trim(),
+          email,
           password: form.password,
           role: form.role,
+          active: form.active,
         });
       }
       setDialogOpen(false);
+      setNotice(editing ? "Usuario actualizado." : "Usuario creado.");
       await loadUsers();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error inesperado");
+      setDialogError(err instanceof Error ? err.message : "Error inesperado");
     } finally {
       setSaving(false);
     }
@@ -149,6 +166,7 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
     try {
       await deleteAdminUser(deleteTarget.id);
       setDeleteTarget(null);
+      setNotice("Usuario eliminado.");
       await loadUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error inesperado");
@@ -172,29 +190,37 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
           {error}
         </Alert>
       ) : null}
+      {notice ? (
+        <Alert severity="success" onClose={() => setNotice(null)}>
+          {notice}
+        </Alert>
+      ) : null}
       <Stack
         direction={{ xs: "column", sm: "row" }}
-        spacing={2}
+        spacing={1.5}
         justifyContent="space-between"
-        alignItems={{ xs: "flex-start", sm: "center" }}
+        alignItems={{ xs: "stretch", sm: "center" }}
       >
-        <Stack spacing={0.5}>
-          <Typography variant="h6" fontWeight={600}>
-            Usuarios administradores
-          </Typography>
+        <Stack spacing={0.75}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+            <Typography variant="h6" fontWeight={700}>Usuarios administradores</Typography>
+            <Chip label={`${users.length} ${users.length === 1 ? "usuario" : "usuarios"}`} size="small" variant="outlined" />
+          </Stack>
           <Typography variant="body2" color="text.secondary">
-            Gestiona superadmins y editores que pueden modificar el catálogo.
+            Accesos con permisos para administrar el catálogo.
           </Typography>
         </Stack>
-        <Stack direction="row" spacing={1}>
-          <Tooltip title="Actualizar lista">
+        <Stack direction="row" spacing={1} justifyContent="flex-end">
+          <Tooltip title="Actualizar lista" disableInteractive>
             <span>
               <IconButton
                 onClick={loadUsers}
                 disabled={loading}
                 color="inherit"
+                aria-label="Actualizar lista de usuarios"
+                sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}
               >
-                <RefreshIcon />
+                <RefreshIcon fontSize="small" />
               </IconButton>
             </span>
           </Tooltip>
@@ -209,13 +235,11 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
         </Stack>
       </Stack>
 
-      <Divider />
-
       <Paper
         elevation={0}
         sx={{
           p: { xs: 1.5, sm: 2 },
-          borderRadius: 0,
+          borderRadius: 1.5,
           border: "1px solid",
           borderColor: "divider",
         }}
@@ -223,11 +247,12 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
         {isMobile ? (
           <Stack spacing={2}>
             {users.length === 0 ? (
-              <Paper elevation={0} sx={{ p: 2, borderRadius: 0 }}>
+              <Box sx={{ py: 5, display: "flex", justifyContent: "center", alignItems: "center", gap: 1.5 }}>
+                {loading ? <CircularProgress size={20} /> : null}
                 <Typography variant="body2" color="text.secondary">
-                  {loading ? "Cargando..." : "No hay usuarios aún."}
+                  {loading ? "Cargando usuarios…" : "Todavía no hay usuarios administradores."}
                 </Typography>
-              </Paper>
+              </Box>
             ) : (
               users.map((user) => (
                 <Paper
@@ -235,57 +260,44 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
                   elevation={0}
                   sx={{
                     p: 2,
-                    borderRadius: 0,
+                    borderRadius: 1.25,
                     border: "1px solid",
                     borderColor: "divider",
                   }}
                   >
                   <Stack spacing={1.5}>
-                    <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
                       <Avatar
                         src={user.avatar_url ?? undefined}
-                        sx={{ width: 42, height: 42, bgcolor: "#0f172a" }}
+                        sx={{ width: 42, height: 42, bgcolor: "primary.main" }}
                       >
                         {(user.display_name || user.email || "U").charAt(0).toUpperCase()}
                       </Avatar>
-                      <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Email
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                        {user.email}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {user.display_name || "Sin nombre visible"}
-                      </Typography>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="body1" sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>
+                          {user.email}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {user.display_name || "Sin nombre visible"}
+                        </Typography>
                       </Box>
                     </Stack>
-                    <Stack direction="row" justifyContent="space-between">
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Rol
-                        </Typography>
-                        <Typography variant="body2">
-                          {user.role === "superadmin" ? "Superadmin" : "Editor"}
-                        </Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Activo
-                        </Typography>
-                        <Switch checked={user.active} disabled />
-                      </Box>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Chip label={user.role === "superadmin" ? "Superadmin" : "Editor"} size="small" color={user.role === "superadmin" ? "primary" : "default"} variant={user.role === "superadmin" ? "filled" : "outlined"} />
+                      <Chip label={user.active ? "Activo" : "Inactivo"} size="small" color={user.active ? "success" : "default"} variant={user.active ? "filled" : "outlined"} />
                     </Stack>
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
                       <Button
-                        variant="outlined"
+                        variant="contained"
+                        size="small"
                         onClick={() => handleOpenEdit(user)}
                       >
                         Editar
                       </Button>
                       <Button
-                        variant="contained"
+                        variant="text"
                         color="error"
+                        size="small"
                         onClick={() => setDeleteTarget(user)}
                       >
                         Eliminar
@@ -297,8 +309,8 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
             )}
           </Stack>
         ) : (
-          <Box sx={{ overflowX: "auto" }}>
-            <Table size="small">
+          <Box sx={{ overflowX: "auto", maxHeight: "min(68vh, 760px)" }}>
+            <Table size="medium" stickyHeader sx={{ minWidth: 720, "& th": { fontWeight: 700, fontSize: 12, color: "text.secondary", backgroundColor: "background.paper" }, "& tbody td": { py: 1.4 } }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Email</TableCell>
@@ -312,7 +324,7 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
                 {users.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} align="center">
-                      {loading ? "Cargando..." : "No hay usuarios aún."}
+                      {loading ? "Cargando usuarios…" : "Todavía no hay usuarios administradores."}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -322,21 +334,21 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
                         <Stack direction="row" spacing={1.2} alignItems="center">
                           <Avatar
                             src={user.avatar_url ?? undefined}
-                            sx={{ width: 30, height: 30, bgcolor: "#0f172a", fontSize: 13 }}
+                            sx={{ width: 30, height: 30, bgcolor: "primary.main", fontSize: 13 }}
                           >
                             {(user.display_name || user.email || "U")
                               .charAt(0)
                               .toUpperCase()}
                           </Avatar>
-                          <Typography variant="body2">{user.email}</Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>{user.email}</Typography>
                         </Stack>
                       </TableCell>
                       <TableCell>{user.display_name || "-"}</TableCell>
                       <TableCell>
-                        {user.role === "superadmin" ? "Superadmin" : "Editor"}
+                        <Chip label={user.role === "superadmin" ? "Superadmin" : "Editor"} size="small" color={user.role === "superadmin" ? "primary" : "default"} variant={user.role === "superadmin" ? "filled" : "outlined"} />
                       </TableCell>
                       <TableCell>
-                        <Switch checked={user.active} disabled />
+                        <Chip label={user.active ? "Activo" : "Inactivo"} size="small" color={user.active ? "success" : "default"} variant={user.active ? "filled" : "outlined"} />
                       </TableCell>
                       <TableCell align="right">
                         <Stack
@@ -375,17 +387,33 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
         )}
       </Paper>
 
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          component: "form",
+          onSubmit: (event: React.FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            void handleSave();
+          },
+        }}
+      >
         <DialogTitle sx={{ fontWeight: 600 }}>
           {editing ? "Editar usuario" : "Crear usuario"}
         </DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
+            {dialogError ? <Alert severity="error">{dialogError}</Alert> : null}
             <TextField
               label="Email"
+              type="email"
               value={form.email}
               onChange={handleFormChange("email")}
               disabled={Boolean(editing)}
+              required={!editing}
+              autoComplete="email"
               fullWidth
               size="small"
             />
@@ -394,6 +422,10 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
               type="password"
               value={form.password}
               onChange={handleFormChange("password")}
+              required={!editing}
+              autoComplete="new-password"
+              inputProps={{ minLength: 8 }}
+              helperText={editing ? "Déjala vacía para conservar la contraseña actual. Mínimo 8 caracteres si la cambias." : "Mínimo 8 caracteres."}
               fullWidth
               size="small"
             />
@@ -411,6 +443,7 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
               <Switch
                 checked={form.active}
                 onChange={handleFormChange("active")}
+                disabled={saving}
               />
               <Typography variant="body2">
                 {form.active ? "Activo" : "Inactivo"}
@@ -419,13 +452,13 @@ export default function AdminUsersPanel({ isSuperAdmin }: AdminUsersPanelProps) 
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog} disabled={saving} variant="outlined">
+          <Button type="button" onClick={handleCloseDialog} disabled={saving} variant="outlined">
             Cancelar
           </Button>
           <Button
-            onClick={handleSave}
+            type="submit"
             variant="contained"
-            disabled={saving || (!editing && !form.password)}
+            disabled={saving}
           >
             {saving ? "Guardando..." : "Guardar"}
           </Button>

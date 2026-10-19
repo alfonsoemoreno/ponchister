@@ -94,6 +94,26 @@ export async function getSongCount(options?: {
   return cachedSongCount;
 }
 
+export async function fetchEligibleSongCount(options: {
+  source: string;
+  minYear: number;
+  maxYear: number;
+  playlistId?: number | null;
+  selectedTags: string[];
+  tagMatchMode: SongTagMatchMode;
+}): Promise<number> {
+  const personal = options.source === "personal_catalog" || options.source === "personal_playlist";
+  const data = await (personal ? fetchJsonWithCredentials<{ count: number }> : fetchJson<{ count: number }>)(
+    "/api/songs/eligible-count",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(options),
+    },
+  );
+  return Number.isFinite(data.count) ? Math.max(0, Math.trunc(data.count)) : 0;
+}
+
 export function invalidateSongCount(): void {
   cachedSongCount = null;
 }

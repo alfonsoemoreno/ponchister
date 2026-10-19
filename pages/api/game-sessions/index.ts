@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { sql } from "drizzle-orm";
 import { gameSessions } from "../../../src/db/schema";
 import { db } from "../_db";
 import {
@@ -38,19 +37,29 @@ function toFiniteInteger(value: unknown): number | null {
 }
 
 function isMissingColumnError(error: unknown, columnName: string): boolean {
-  if (!error || typeof error !== "object") {
-    return false;
+  let candidate: unknown = error;
+  while (candidate && typeof candidate === "object") {
+    const current = candidate as {
+      code?: unknown;
+      message?: unknown;
+      cause?: unknown;
+    };
+    if (
+      current.code === "42703" &&
+      typeof current.message === "string" &&
+      current.message.toLowerCase().includes(`column "${columnName.toLowerCase()}"`)
+    ) {
+      return true;
+    }
+    candidate = current.cause;
   }
+  return false;
+}
 
-  const candidate = error as { code?: unknown; message?: unknown };
-  const code = typeof candidate.code === "string" ? candidate.code : "";
-  const message =
-    typeof candidate.message === "string" ? candidate.message : "";
-
-  return (
-    code === "42703" &&
-    message.toLowerCase().includes(`column "${columnName.toLowerCase()}"`)
-  );
+function getCountryCode(value: string | string[] | undefined): string | null {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  const countryCode = candidate?.trim().toUpperCase();
+  return countryCode && /^[A-Z]{2}$/.test(countryCode) ? countryCode : null;
 }
 
 export default async function handler(
@@ -75,6 +84,7 @@ export default async function handler(
     typeof body.playlistName === "string" && body.playlistName.trim()
       ? body.playlistName.trim()
       : null;
+  const countryCode = getCountryCode(req.headers["x-vercel-ip-country"]);
 
   if (!mode) {
     res.status(400).end("Datos inválidos.");
@@ -92,38 +102,31 @@ export default async function handler(
       timerEnabled,
       playlistId,
       playlistName,
+      countryCode,
     });
   } catch (error) {
-    if (!isMissingColumnError(error, "tag_match_mode")) {
+    const missingTagMatchMode = isMissingColumnError(error, "tag_match_mode");
+    const missingCountryCode = isMissingColumnError(error, "country_code");
+    if (!missingTagMatchMode && !missingCountryCode) {
       throw error;
     }
 
     console.warn(
-      "[game-session] Missing tag_match_mode column. Falling back to legacy insert."
+      "[game-session] Database schema is missing a session metadata column. Retrying with available columns."
     );
 
-    await db.execute(sql`
-      insert into game_sessions (
-        mode,
-        year_min,
-        year_max,
-        only_spanish,
-        selected_song_attributes,
-        timer_enabled,
-        playlist_id,
-        playlist_name
-      )
-      values (
-        ${mode},
-        ${yearMin},
-        ${yearMax},
-        ${onlySpanish},
-        ${selectedTags},
-        ${timerEnabled},
-        ${playlistId},
-        ${playlistName}
-      )
-    `);
+    await db.insert(gameSessions).values({
+      mode,
+      yearMin,
+      yearMax,
+      onlySpanish,
+      selectedSongAttributes: selectedTags,
+      ...(missingTagMatchMode ? {} : { tagMatchMode }),
+      timerEnabled,
+      playlistId,
+      playlistName,
+      ...(missingCountryCode ? {} : { countryCode }),
+    });
   }
 
   res.status(201).json({ ok: true });

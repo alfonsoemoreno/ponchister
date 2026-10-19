@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -7,24 +7,32 @@ import {
   Fade,
   Snackbar,
 } from "@mui/material";
-import { ThemeProvider } from "@mui/material/styles";
+import { ThemeProvider, useTheme } from "@mui/material/styles";
 import { alpha } from "@mui/material/styles";
 import AdminDashboard from "./AdminDashboard";
 import AdminAccessDialog from "./AdminAccessDialog";
 import { loginAdmin, logoutAdmin } from "./services/adminAuth";
 import { useAdminSession } from "./hooks/useAdminSession";
-import adminTheme from "./adminTheme";
+import { createAdminTheme } from "./adminTheme";
+
+type AdminColorMode = "light" | "dark";
+const ADMIN_THEME_STORAGE_KEY = "ponchister_admin_theme";
 
 interface AdminAppProps {
   onExit: () => void;
 }
 
-function AdminAppContent({ onExit }: AdminAppProps) {
+interface AdminAppContentProps extends AdminAppProps {
+  colorMode: AdminColorMode;
+  onToggleColorMode: () => void;
+}
+
+function AdminAppContent({ onExit, colorMode, onToggleColorMode }: AdminAppContentProps) {
+  const theme = useTheme();
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<string | null>(null);
-
   const { user, loading: authLoading, refresh } = useAdminSession();
 
   useEffect(() => {
@@ -83,6 +91,8 @@ function AdminAppContent({ onExit }: AdminAppProps) {
         width: "100vw",
         position: "relative",
         overflowY: "auto",
+        bgcolor: "background.default",
+        color: "text.primary",
       }}
     >
       {!user ? (
@@ -103,12 +113,12 @@ function AdminAppContent({ onExit }: AdminAppProps) {
             sx={{
               minWidth: { xs: 120, sm: 150 },
               fontWeight: 600,
-              borderColor: alpha("#111827", 0.25),
-              color: "#111827",
-              backgroundColor: alpha("#ffffff", 0.75),
+              borderColor: alpha(theme.palette.primary.main, 0.25),
+              color: theme.palette.primary.main,
+              backgroundColor: alpha(theme.palette.background.paper, 0.75),
               "&:hover": {
-                borderColor: alpha("#111827", 0.45),
-                backgroundColor: alpha("#ffffff", 0.95),
+                borderColor: alpha(theme.palette.primary.main, 0.45),
+                backgroundColor: alpha(theme.palette.background.paper, 0.95),
               },
             }}
           >
@@ -126,11 +136,11 @@ function AdminAppContent({ onExit }: AdminAppProps) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: "rgba(248,250,252,0.65)",
+              backgroundColor: alpha(theme.palette.background.default, 0.65),
               zIndex: 1200,
             }}
           >
-            <CircularProgress color="inherit" sx={{ color: "#111827" }} />
+            <CircularProgress color="primary" />
           </Box>
         </Fade>
       ) : null}
@@ -143,6 +153,8 @@ function AdminAppContent({ onExit }: AdminAppProps) {
           userEmail={user.email}
           userRole={user.role}
           onSessionRefresh={refresh}
+          colorMode={colorMode}
+          onToggleColorMode={onToggleColorMode}
         />
       ) : null}
 
@@ -173,9 +185,29 @@ function AdminAppContent({ onExit }: AdminAppProps) {
 }
 
 export default function AdminApp({ onExit }: AdminAppProps) {
+  const [colorMode, setColorMode] = useState<AdminColorMode>("light");
+  const [colorModeReady, setColorModeReady] = useState(false);
+  const theme = useMemo(() => createAdminTheme(colorMode), [colorMode]);
+
+  useEffect(() => {
+    const savedMode = window.localStorage.getItem(ADMIN_THEME_STORAGE_KEY);
+    if (savedMode === "light" || savedMode === "dark") setColorMode(savedMode);
+    setColorModeReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (colorModeReady) {
+      window.localStorage.setItem(ADMIN_THEME_STORAGE_KEY, colorMode);
+    }
+  }, [colorMode, colorModeReady]);
+
   return (
-    <ThemeProvider theme={adminTheme}>
-      <AdminAppContent onExit={onExit} />
+    <ThemeProvider theme={theme}>
+      <AdminAppContent
+        onExit={onExit}
+        colorMode={colorMode}
+        onToggleColorMode={() => setColorMode((current) => current === "light" ? "dark" : "light")}
+      />
     </ThemeProvider>
   );
 }

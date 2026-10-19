@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import {
+  Alert,
   Avatar,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -30,6 +32,8 @@ interface WelcomeProps {
   yearRange: YearRange;
   playlists: PlaylistSummary[];
   personalPlaylists: PlaylistSummary[];
+  playlistLoadState: "loading" | "ready" | "error";
+  onRetryPlaylists: () => Promise<void>;
   selectedPlaylist: PlaylistSummary | null;
   currentAdminUser: AdminUser | null;
 }
@@ -55,6 +59,8 @@ const Welcome: React.FC<WelcomeProps> = ({
   yearRange,
   playlists,
   personalPlaylists,
+  playlistLoadState,
+  onRetryPlaylists,
   selectedPlaylist,
   currentAdminUser,
 }) => {
@@ -130,10 +136,14 @@ const Welcome: React.FC<WelcomeProps> = ({
     setModeDialogOpen(false);
   };
 
-  const playlistSelection = playlists.find(
+  const playablePlaylists = playlists.filter((playlist) => playlist.songCount > 0);
+  const playablePersonalPlaylists = personalPlaylists.filter(
+    (playlist) => playlist.songCount > 0,
+  );
+  const playlistSelection = playablePlaylists.find(
     (playlist) => String(playlist.id) === playlistDraftId,
   );
-  const personalPlaylistSelection = personalPlaylists.find(
+  const personalPlaylistSelection = playablePersonalPlaylists.find(
     (playlist) => String(playlist.id) === personalPlaylistDraftId,
   );
 
@@ -391,8 +401,8 @@ const Welcome: React.FC<WelcomeProps> = ({
                 px: { xs: 1.5, sm: 0 },
               }}
             >
-              Presiona "Ir al juego" y deja que el sistema elija canciones para
-              todos. Solo escucha, adivina y disfruta.
+              Empieza con el catálogo completo o elige una playlist para una
+              partida temática.
             </Typography>
           </Stack>
           <Box
@@ -424,14 +434,14 @@ const Welcome: React.FC<WelcomeProps> = ({
           >
             <Stack
               direction={{ xs: "column", sm: "row" }}
-              spacing={2}
+              spacing={1.5}
               sx={{
                 alignSelf: "center",
                 justifyContent: "center",
                 alignItems: "center",
                 rowGap: "10px",
                 width: "100%",
-                maxWidth: 520,
+              maxWidth: 600,
                 mx: "auto",
               }}
             >
@@ -439,7 +449,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                 variant="contained"
                 color="inherit"
                 startIcon={<AutoAwesomeIcon />}
-                onClick={handleOpenModeDialog}
+                onClick={() => handleStartAutoMode("classic", null)}
                 sx={{
                   width: { xs: "100%", sm: "auto" },
                   flex: { sm: 1 },
@@ -457,7 +467,31 @@ const Welcome: React.FC<WelcomeProps> = ({
                   },
                 }}
               >
-                Ir al juego
+                Jugar clásico
+              </Button>
+              <Button
+                variant="outlined"
+                color="inherit"
+                startIcon={<AutoAwesomeIcon />}
+                onClick={handleOpenModeDialog}
+                sx={{
+                  width: { xs: "100%", sm: "auto" },
+                  flex: { sm: 1 },
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 3,
+                  py: 1.6,
+                  borderColor: "rgba(255,255,255,0.36)",
+                  color: "rgba(224,239,255,0.92)",
+                  backgroundColor: "rgba(6,24,58,0.4)",
+                  "&:hover": {
+                    borderColor: "rgba(255,255,255,0.6)",
+                    backgroundColor: "rgba(255,255,255,0.08)",
+                  },
+                }}
+              >
+                Más modos
               </Button>
               <Button
                 variant="outlined"
@@ -465,7 +499,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                 onClick={handleOpenRules}
                 sx={{
                   width: { xs: "100%", sm: "auto" },
-                  flex: { sm: 1 },
+                  flex: { sm: 0.8 },
                   textTransform: "none",
                   fontWeight: 700,
                   borderRadius: 999,
@@ -490,12 +524,13 @@ const Welcome: React.FC<WelcomeProps> = ({
         open={modeDialogOpen}
         onClose={handleCloseModeDialog}
         fullWidth
-        maxWidth="sm"
+        maxWidth="md"
         sx={{
           "& .MuiPaper-root": {
             background:
               "linear-gradient(180deg, rgba(7,24,56,0.98) 0%, rgba(3,14,38,0.98) 100%)",
             borderRadius: 4,
+            maxHeight: "calc(100dvh - 32px)",
             border: "1px solid rgba(122,196,255,0.22)",
             boxShadow: "0 28px 80px rgba(0,0,0,0.42)",
             backdropFilter: "blur(22px)",
@@ -509,7 +544,7 @@ const Welcome: React.FC<WelcomeProps> = ({
             pb: 1,
           }}
         >
-          Elige cómo jugar
+          Elige tu modalidad
         </DialogTitle>
         <DialogContent
           dividers
@@ -519,7 +554,7 @@ const Welcome: React.FC<WelcomeProps> = ({
               "linear-gradient(180deg, rgba(255,255,255,0.01) 0%, rgba(255,255,255,0.03) 100%)",
           }}
         >
-          <Stack spacing={2.5}>
+          <Stack spacing={2}>
             <Typography
               variant="body2"
               sx={{
@@ -527,8 +562,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                 lineHeight: 1.7,
               }}
             >
-              Puedes seguir con el juego clásico de siempre o partir con una
-              playlist preparada para una partida temática.
+              Juega con todo el catálogo, una playlist temática o tu propia colección.
             </Typography>
             <Box
               sx={{
@@ -540,36 +574,26 @@ const Welcome: React.FC<WelcomeProps> = ({
                 boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
               }}
             >
-              <Stack spacing={1.25}>
-                <Typography
-                  variant="overline"
-                  sx={{
-                    letterSpacing: 1.8,
-                    fontWeight: 700,
-                    color: "rgba(148,216,255,0.88)",
-                  }}
-                >
-                  Opción 1
-                </Typography>
-                <Typography
-                  variant="h6"
-                  sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}
-                >
-                  Juego clásico
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.65 }}
-                >
-                  Usa todo el catálogo disponible y juega exactamente como hasta
-                  ahora.
-                </Typography>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                alignItems={{ xs: "stretch", sm: "center" }}
+                justifyContent="space-between"
+              >
+                <Box>
+                  <Typography sx={{ fontWeight: 800, color: "#fff", fontSize: "1.1rem" }}>
+                    Juego clásico
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.6 }}>
+                    Todo el catálogo, con tus ajustes habituales.
+                  </Typography>
+                </Box>
                 <Button
                   variant="contained"
                   color="inherit"
                   onClick={() => handleStartAutoMode("classic", null)}
                   sx={{
-                    alignSelf: "flex-start",
+                    alignSelf: { xs: "stretch", sm: "center" },
                     textTransform: "none",
                     fontWeight: 700,
                     borderRadius: 999,
@@ -599,20 +623,10 @@ const Welcome: React.FC<WelcomeProps> = ({
             >
               <Stack spacing={1.35}>
                 <Typography
-                  variant="overline"
-                  sx={{
-                    letterSpacing: 1.8,
-                    fontWeight: 700,
-                    color: "rgba(153,246,228,0.88)",
-                  }}
-                >
-                  Opción 2
-                </Typography>
-                <Typography
                   variant="h6"
                   sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}
                 >
-                  Jugar una playlist
+                  Playlists públicas
                 </Typography>
                 <Typography
                   variant="body2"
@@ -621,109 +635,172 @@ const Welcome: React.FC<WelcomeProps> = ({
                   Elige una selección curada de canciones para una partida
                   temática o especial.
                 </Typography>
-                <TextField
-                  select
-                  label="Playlist"
-                  value={playlistDraftId}
-                  onChange={(event) => setPlaylistDraftId(event.target.value)}
-                  fullWidth
-                  disabled={playlists.length === 0}
-                  helperText={
-                    playlists.length === 0
-                      ? "Aún no hay playlists activas disponibles."
-                      : playlistSelection?.description ||
-                        `${playlistSelection?.songCount ?? 0} canciones disponibles`
-                  }
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      color: "#fff",
-                      backgroundColor: "rgba(3,15,32,0.52)",
-                      "& fieldset": {
-                        borderColor: "rgba(153,246,228,0.26)",
-                      },
-                      "&:hover fieldset": {
-                        borderColor: "rgba(153,246,228,0.46)",
-                      },
-                      "&.Mui-focused fieldset": {
-                        borderColor: "#5eead4",
-                      },
-                    },
-                    "& .MuiInputBase-root": {
-                      color: "#fff",
-                    },
-                    "& .MuiFormLabel-root": {
-                      color: "rgba(219,244,240,0.78)",
-                    },
-                    "& .MuiFormLabel-root.Mui-focused": {
-                      color: "#99f6e4",
-                    },
-                    "& .MuiFormHelperText-root": {
-                      color: "rgba(216,240,236,0.72)",
-                    },
-                  }}
-                >
-                  {playlists.map((playlist) => (
-                    <MenuItem key={playlist.id} value={String(playlist.id)}>
-                      {playlist.name} ({playlist.songCount})
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  onClick={() => {
-                    if (!playlistSelection) {
-                      return;
+                {playlistLoadState === "loading" ? (
+                  <Stack direction="row" spacing={1.25} alignItems="center">
+                    <CircularProgress size={18} sx={{ color: "#5eead4" }} />
+                    <Typography variant="body2" color="rgba(221,238,255,0.84)">
+                      Cargando playlists disponibles…
+                    </Typography>
+                  </Stack>
+                ) : playlistLoadState === "error" ? (
+                  <Alert
+                    severity="error"
+                    variant="outlined"
+                    action={
+                      <Button
+                        color="inherit"
+                        size="small"
+                        onClick={() => void onRetryPlaylists()}
+                      >
+                        Reintentar
+                      </Button>
                     }
-                    handleStartAutoMode("public_playlist", playlistSelection);
-                  }}
-                  disabled={!playlistSelection}
-                  sx={{
-                    alignSelf: "flex-start",
-                    textTransform: "none",
-                    fontWeight: 700,
-                    borderRadius: 999,
-                    px: 2.6,
-                    borderColor: "rgba(94,234,212,0.4)",
-                    color: "#d1fae5",
-                    backgroundColor: "rgba(8,32,37,0.24)",
-                    "&:hover": {
-                      borderColor: "#5eead4",
-                      backgroundColor: "rgba(13,67,72,0.26)",
-                    },
-                  }}
-                >
-                  Jugar esta playlist
-                </Button>
+                    sx={{
+                      color: "#ffe4e6",
+                      borderColor: "rgba(251,113,133,0.36)",
+                      backgroundColor: "rgba(76,20,36,0.24)",
+                    }}
+                  >
+                    No se pudieron cargar las playlists. Puedes reintentar o
+                    jugar en modo clásico.
+                  </Alert>
+                ) : playablePlaylists.length === 0 ? (
+                  <Alert
+                    severity="info"
+                    variant="outlined"
+                    action={
+                      <Button
+                        color="inherit"
+                        size="small"
+                        onClick={() => handleStartAutoMode("classic", null)}
+                      >
+                        Jugar clásico
+                      </Button>
+                    }
+                    sx={{
+                      color: "#dbeafe",
+                      borderColor: "rgba(125,211,252,0.32)",
+                      backgroundColor: "rgba(7,35,68,0.32)",
+                    }}
+                  >
+                    Aún no hay playlists públicas disponibles. Puedes empezar
+                    ahora con el catálogo clásico.
+                  </Alert>
+                ) : (
+                  <>
+                    <TextField
+                      select
+                      label="Playlist"
+                      value={playlistDraftId}
+                      onChange={(event) => setPlaylistDraftId(event.target.value)}
+                      fullWidth
+                      helperText={
+                        playlistSelection
+                          ? `${playlistSelection.songCount} ${playlistSelection.songCount === 1 ? "canción" : "canciones"}${playlistSelection.description ? ` · ${playlistSelection.description}` : " disponibles"}`
+                          : "Selecciona una playlist para ver cuántas canciones tiene."
+                      }
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          color: "#fff",
+                          backgroundColor: "rgba(3,15,32,0.52)",
+                          "& fieldset": {
+                            borderColor: "rgba(153,246,228,0.26)",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: "rgba(153,246,228,0.46)",
+                          },
+                          "&.Mui-focused fieldset": {
+                            borderColor: "#5eead4",
+                          },
+                        },
+                        "& .MuiInputBase-root": {
+                          color: "#fff",
+                        },
+                        "& .MuiFormLabel-root": {
+                          color: "rgba(219,244,240,0.78)",
+                        },
+                        "& .MuiFormLabel-root.Mui-focused": {
+                          color: "#99f6e4",
+                        },
+                        "& .MuiFormHelperText-root": {
+                          color: "rgba(216,240,236,0.72)",
+                        },
+                      }}
+                    >
+                      {playablePlaylists.map((playlist) => (
+                        <MenuItem key={playlist.id} value={String(playlist.id)}>
+                          {playlist.name} ({playlist.songCount})
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      onClick={() => {
+                        if (!playlistSelection) {
+                          return;
+                        }
+                        handleStartAutoMode("public_playlist", playlistSelection);
+                      }}
+                      disabled={!playlistSelection}
+                      aria-describedby={!playlistSelection ? "public-playlist-hint" : undefined}
+                      sx={{
+                        alignSelf: "flex-start",
+                        textTransform: "none",
+                        fontWeight: 700,
+                        borderRadius: 999,
+                        px: 2.6,
+                        borderColor: "rgba(94,234,212,0.4)",
+                        color: "#d1fae5",
+                        backgroundColor: "rgba(8,32,37,0.24)",
+                        "&:hover": {
+                          borderColor: "#5eead4",
+                          backgroundColor: "rgba(13,67,72,0.26)",
+                        },
+                        "&.Mui-disabled": {
+                          color: "rgba(225,244,255,0.72)",
+                          borderColor: "rgba(180,205,224,0.3)",
+                          backgroundColor: "rgba(180,205,224,0.08)",
+                        },
+                      }}
+                    >
+                      Jugar esta playlist
+                    </Button>
+                    {!playlistSelection && (
+                      <Typography id="public-playlist-hint" variant="caption" sx={{ color: "rgba(221,238,255,0.72)" }}>
+                        Selecciona una playlist para habilitar el botón.
+                      </Typography>
+                    )}
+                  </>
+                )}
               </Stack>
             </Box>
             {currentAdminUser ? (
-              <>
+              <Box>
+                <Box sx={{ mb: 1.25 }}>
+                  <Typography variant="subtitle1" sx={{ color: "#fff", fontWeight: 800 }}>
+                    Tu colección
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "rgba(214,234,255,0.72)" }}>
+                    Usa todas tus canciones o elige una de tus playlists personales.
+                  </Typography>
+                </Box>
+                <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
                 <Box
                   sx={{
+                    flex: 1,
                     borderRadius: 3,
-                    border: "1px solid rgba(244,196,122,0.28)",
-                    background:
-                      "linear-gradient(180deg, rgba(89,60,11,0.28) 0%, rgba(41,25,6,0.54) 100%)",
+                    border: "1px solid rgba(148,216,255,0.2)",
+                    background: "rgba(20,59,122,0.2)",
                     p: 2.25,
                   }}
                 >
                   <Stack spacing={1.25}>
                     <Typography
-                      variant="overline"
-                      sx={{
-                        letterSpacing: 1.8,
-                        fontWeight: 700,
-                        color: "rgba(255,221,161,0.88)",
-                      }}
-                    >
-                      Opción 3
-                    </Typography>
-                    <Typography
                       variant="h6"
                       sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}
                     >
-                      Mi catálogo
+                      Catálogo personal
                     </Typography>
                     <Typography
                       variant="body2"
@@ -743,8 +820,8 @@ const Welcome: React.FC<WelcomeProps> = ({
                         fontWeight: 700,
                         borderRadius: 999,
                         px: 2.6,
-                        borderColor: "rgba(255,221,161,0.4)",
-                        color: "#ffe6bf",
+                        borderColor: "rgba(148,216,255,0.42)",
+                        color: "#d9f2ff",
                       }}
                     >
                       Jugar mi catálogo
@@ -753,29 +830,19 @@ const Welcome: React.FC<WelcomeProps> = ({
                 </Box>
                 <Box
                   sx={{
+                    flex: 1,
                     borderRadius: 3,
-                    border: "1px solid rgba(255,173,173,0.28)",
-                    background:
-                      "linear-gradient(180deg, rgba(96,36,36,0.28) 0%, rgba(45,16,16,0.54) 100%)",
+                    border: "1px solid rgba(153,246,228,0.22)",
+                    background: "rgba(8,71,78,0.2)",
                     p: 2.25,
                   }}
                 >
                   <Stack spacing={1.25}>
                     <Typography
-                      variant="overline"
-                      sx={{
-                        letterSpacing: 1.8,
-                        fontWeight: 700,
-                        color: "rgba(255,196,196,0.88)",
-                      }}
-                    >
-                      Opción 4
-                    </Typography>
-                    <Typography
                       variant="h6"
                       sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}
                     >
-                      Mi playlist personal
+                      Playlists personales
                     </Typography>
                     <Typography
                       variant="body2"
@@ -784,49 +851,138 @@ const Welcome: React.FC<WelcomeProps> = ({
                       Elige una playlist armada con canciones de tu colección
                       personal.
                     </Typography>
-                    <TextField
-                      select
-                      label="Playlist personal"
-                      value={personalPlaylistDraftId}
-                      onChange={(event) =>
-                        setPersonalPlaylistDraftId(event.target.value)
-                      }
-                      fullWidth
-                      disabled={personalPlaylists.length === 0}
-                    >
-                      {personalPlaylists.map((playlist) => (
-                        <MenuItem key={playlist.id} value={String(playlist.id)}>
-                          {playlist.name} ({playlist.songCount})
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                    <Button
-                      variant="outlined"
-                      color="inherit"
-                      disabled={!personalPlaylistSelection}
-                      onClick={() =>
-                        personalPlaylistSelection
-                          ? handleStartAutoMode(
-                              "personal_playlist",
-                              personalPlaylistSelection,
-                            )
-                          : undefined
-                      }
-                      sx={{
-                        alignSelf: "flex-start",
-                        textTransform: "none",
-                        fontWeight: 700,
-                        borderRadius: 999,
-                        px: 2.6,
-                        borderColor: "rgba(255,196,196,0.4)",
-                        color: "#ffd1d1",
-                      }}
-                    >
-                      Jugar mi playlist
-                    </Button>
+                    {playlistLoadState === "loading" ? (
+                      <Stack direction="row" spacing={1.25} alignItems="center">
+                        <CircularProgress size={18} sx={{ color: "#ffd1d1" }} />
+                        <Typography
+                          variant="body2"
+                          color="rgba(221,238,255,0.84)"
+                        >
+                          Cargando tus playlists…
+                        </Typography>
+                      </Stack>
+                    ) : playlistLoadState === "error" ? (
+                      <Alert
+                        severity="error"
+                        variant="outlined"
+                        action={
+                          <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() => void onRetryPlaylists()}
+                          >
+                            Reintentar
+                          </Button>
+                        }
+                        sx={{
+                          color: "#ffe4e6",
+                          borderColor: "rgba(251,113,133,0.36)",
+                          backgroundColor: "rgba(76,20,36,0.24)",
+                        }}
+                      >
+                        No se pudieron cargar tus playlists personales.
+                      </Alert>
+                    ) : playablePersonalPlaylists.length === 0 ? (
+                      <Alert
+                        severity="info"
+                        variant="outlined"
+                        action={
+                          <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() =>
+                              handleStartAutoMode("personal_catalog", null)
+                            }
+                          >
+                            Jugar mi catálogo
+                          </Button>
+                        }
+                        sx={{
+                          color: "#fff1d6",
+                          borderColor: "rgba(255,196,122,0.34)",
+                          backgroundColor: "rgba(70,45,11,0.28)",
+                        }}
+                      >
+                        Aún no tienes playlists personales. Puedes jugar con
+                        todas las canciones de tu catálogo.
+                      </Alert>
+                    ) : (
+                      <>
+                        <TextField
+                          select
+                          label="Playlist personal"
+                          value={personalPlaylistDraftId}
+                          onChange={(event) =>
+                            setPersonalPlaylistDraftId(event.target.value)
+                          }
+                          fullWidth
+                          helperText={
+                            personalPlaylistSelection
+                              ? `${personalPlaylistSelection.songCount} ${personalPlaylistSelection.songCount === 1 ? "canción" : "canciones"}${personalPlaylistSelection.description ? ` · ${personalPlaylistSelection.description}` : " disponibles"}`
+                              : "Selecciona una playlist para ver sus canciones disponibles."
+                          }
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              color: "#fff",
+                              backgroundColor: "rgba(3,15,32,0.52)",
+                              "& fieldset": { borderColor: "rgba(153,246,228,0.26)" },
+                              "&:hover fieldset": { borderColor: "rgba(153,246,228,0.46)" },
+                              "&.Mui-focused fieldset": { borderColor: "#5eead4" },
+                            },
+                            "& .MuiFormLabel-root": { color: "rgba(219,244,240,0.78)" },
+                            "& .MuiFormLabel-root.Mui-focused": { color: "#99f6e5" },
+                            "& .MuiFormHelperText-root": { color: "rgba(216,240,236,0.72)" },
+                          }}
+                        >
+                          {playablePersonalPlaylists.map((playlist) => (
+                            <MenuItem
+                              key={playlist.id}
+                              value={String(playlist.id)}
+                            >
+                              {playlist.name} ({playlist.songCount})
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                        <Button
+                          variant="outlined"
+                          color="inherit"
+                          disabled={!personalPlaylistSelection}
+                          onClick={() =>
+                            personalPlaylistSelection
+                              ? handleStartAutoMode(
+                                  "personal_playlist",
+                                  personalPlaylistSelection,
+                                )
+                              : undefined
+                          }
+                          sx={{
+                            alignSelf: "flex-start",
+                            textTransform: "none",
+                            fontWeight: 700,
+                            borderRadius: 999,
+                            px: 2.6,
+                          borderColor: "rgba(153,246,228,0.42)",
+                          color: "#d1fae5",
+                          "&.Mui-disabled": {
+                            color: "rgba(225,244,255,0.72)",
+                            borderColor: "rgba(180,205,224,0.3)",
+                            backgroundColor: "rgba(180,205,224,0.08)",
+                          },
+                          }}
+                        >
+                          Jugar mi playlist
+                        </Button>
+                        {!personalPlaylistSelection && (
+                          <Typography variant="caption" sx={{ color: "rgba(221,238,255,0.72)" }}>
+                            Selecciona una playlist para habilitar el botón.
+                          </Typography>
+                        )}
+                      </>
+                    )}
                   </Stack>
                 </Box>
-              </>
+                </Stack>
+              </Box>
             ) : null}
           </Stack>
         </DialogContent>

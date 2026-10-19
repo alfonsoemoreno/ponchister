@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { adminUsers, songs } from "../../../../src/db/schema";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
 import { serializeAdminIdentity } from "../../../../src/admin/serializers";
+import { parseSongYear } from "../../../../src/lib/songYear";
 import {
   isSpanishTagSelected,
   normalizeSongTags,
@@ -151,16 +152,55 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return;
   }
 
+  if (req.method === "GET") {
+    const [row] = await db
+      .select({
+        id: songs.id,
+        artist: songs.artist,
+        title: songs.title,
+        year: songs.year,
+        play_start_seconds: songs.playStartSeconds,
+        youtube_url: songs.youtubeUrl,
+        tags: songs.songAttributes,
+        isspanish: songs.isSpanish,
+        mimica: songs.mimica,
+        tararear: songs.tararear,
+        karaoke: songs.karaoke,
+        karaoke_pause_seconds: songs.karaokePauseSeconds,
+        karaoke_lyric: songs.karaokeLyric,
+        trivia: songs.trivia,
+        trivia_question: songs.triviaQuestion,
+        trivia_answer: songs.triviaAnswer,
+        youtube_status: songs.youtubeStatus,
+        youtube_validation_message: songs.youtubeValidationMessage,
+        youtube_validation_code: songs.youtubeValidationCode,
+        youtube_validated_at: songs.youtubeValidatedAt,
+        catalog_status: songs.catalogStatus,
+        created_by: songs.createdBy,
+        approved_by: songs.approvedBy,
+        approved_at: songs.approvedAt,
+        created_at: songs.createdAt,
+        updated_at: songs.updatedAt,
+      })
+      .from(songs)
+      .where(and(eq(songs.id, id), eq(songs.scope, "public")))
+      .limit(1);
+
+    if (!row) {
+      res.status(404).end("Canción no encontrada.");
+      return;
+    }
+    const userMap = await buildUserMap([row.created_by, row.approved_by]);
+    return res.status(200).json(serializeSong(row, userMap));
+  }
+
   if (req.method === "PUT") {
     const body = parseBody(req);
     const artist = typeof body.artist === "string" ? body.artist.trim() : "";
     const title = typeof body.title === "string" ? body.title.trim() : "";
     const youtubeUrl =
       typeof body.youtube_url === "string" ? body.youtube_url.trim() : "";
-    const year =
-      typeof body.year === "number" && Number.isFinite(body.year)
-        ? body.year
-        : null;
+    const year = parseSongYear(body.year);
     const playStartSeconds =
       typeof body.play_start_seconds === "number" &&
       Number.isFinite(body.play_start_seconds)
@@ -205,9 +245,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .where(eq(songs.id, id))
       .limit(1);
 
-    if (!artist || !title || !youtubeUrl) {
+    if (!artist || !title || !youtubeUrl || year === undefined) {
       res.statusCode = 400;
-      res.end("Datos inválidos.");
+      res.end(year === undefined ? "El año debe ser válido." : "Datos inválidos.");
       return;
     }
 

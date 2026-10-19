@@ -220,6 +220,7 @@ const statements = [
     selected_song_attributes text[] not null default '{}'::text[],
     tag_match_mode text not null default 'any',
     timer_enabled boolean not null default false,
+    country_code text,
     created_at timestamptz not null default now()
   );
   `,
@@ -249,8 +250,16 @@ const statements = [
   add column if not exists playlist_name text;
   `,
   `
+  alter table game_sessions
+  add column if not exists country_code text;
+  `,
+  `
   create index if not exists game_sessions_created_at_idx
   on game_sessions (created_at);
+  `,
+  `
+  create index if not exists game_sessions_created_at_country_code_idx
+  on game_sessions (created_at, country_code);
   `,
 ];
 

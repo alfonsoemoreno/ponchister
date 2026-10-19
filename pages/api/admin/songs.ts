@@ -4,6 +4,7 @@ import { adminUsers, songs } from "../../../src/db/schema";
 import { db } from "../_db";
 import { requireAdmin } from "../_admin";
 import { serializeAdminIdentity } from "../../../src/admin/serializers";
+import { parseSongYear } from "../../../src/lib/songYear";
 import {
   isSpanishTagSelected,
   normalizeSongTags,
@@ -121,6 +122,12 @@ function serializeSong(
     catalog_status: string;
     created_by: number | null;
     approved_by: number | null;
+    created_by_user?: {
+      id: number;
+      email: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    } | null;
     approved_at: Date | null;
     created_at: Date;
     updated_at: Date;
@@ -133,8 +140,16 @@ function serializeSong(
     approved_at: row.approved_at?.toISOString() ?? null,
     created_at: row.created_at.toISOString(),
     updated_at: row.updated_at.toISOString(),
-    created_by_user:
-      row.created_by !== null ? (userMap.get(row.created_by) ?? null) : null,
+    created_by_user: row.created_by_user
+      ? serializeAdminIdentity({
+          id: row.created_by_user.id,
+          email: row.created_by_user.email,
+          displayName: row.created_by_user.displayName,
+          avatarUrl: row.created_by_user.avatarUrl,
+        })
+      : row.created_by !== null
+      ? userMap.get(row.created_by) ?? null
+      : null,
     approved_by_user:
       row.approved_by !== null ? (userMap.get(row.approved_by) ?? null) : null,
   };
@@ -146,9 +161,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "GET") {
     const url = new URL(req.url ?? "", "http://localhost");
-    const page = Number(url.searchParams.get("page") ?? "0");
-    const pageSize = Number(url.searchParams.get("pageSize") ?? "25");
+    const requestedPage = Number(url.searchParams.get("page") ?? "0");
+    const requestedPageSize = Number(url.searchParams.get("pageSize") ?? "25");
+    const page = Number.isInteger(requestedPage) && requestedPage >= 0 ? requestedPage : 0;
     const search = url.searchParams.get("search")?.trim() ?? "";
+    const requestedIds = (url.searchParams.get("ids") ?? "").split(",")
+      .map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0);
+    const hasIdsFilter = url.searchParams.has("ids");
+    const maxPageSize = hasIdsFilter ? 2_000 : 200;
+    const pageSize = Number.isInteger(requestedPageSize) && requestedPageSize > 0
+      ? Math.min(requestedPageSize, maxPageSize)
+      : 25;
+    const includeTotal = url.searchParams.get("includeTotal") !== "false";
     const yearParam = url.searchParams.get("year");
     const year =
       typeof yearParam === "string" && yearParam !== ""
@@ -179,6 +203,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       filters.push(eq(songs.year, year));
     }
     filters.push(eq(songs.scope, "public"));
+    if (requestedIds.length) filters.push(inArray(songs.id, requestedIds));
+    else if (hasIdsFilter) filters.push(sql`false`);
     if (catalogStatus) {
       filters.push(eq(songs.catalogStatus, catalogStatus));
     }
@@ -227,55 +253,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       orderBy.push(asc(songs.id));
     }
 
-    const [countRow] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(songs)
-      .where(whereClause);
-
     const rows = await db
       .select({
         id: songs.id,
         artist: songs.artist,
         title: songs.title,
         year: songs.year,
-        play_start_seconds: songs.playStartSeconds,
         youtube_url: songs.youtubeUrl,
         tags: songs.songAttributes,
         isspanish: songs.isSpanish,
-        mimica: songs.mimica,
-        tararear: songs.tararear,
-        karaoke: songs.karaoke,
-        karaoke_pause_seconds: songs.karaokePauseSeconds,
-        karaoke_lyric: songs.karaokeLyric,
-        trivia: songs.trivia,
-        trivia_question: songs.triviaQuestion,
-        trivia_answer: songs.triviaAnswer,
         youtube_status: songs.youtubeStatus,
-        youtube_validation_message: songs.youtubeValidationMessage,
-        youtube_validation_code: songs.youtubeValidationCode,
-        youtube_validated_at: songs.youtubeValidatedAt,
         catalog_status: songs.catalogStatus,
-        created_by: songs.createdBy,
-        approved_by: songs.approvedBy,
-        approved_at: songs.approvedAt,
-        created_at: songs.createdAt,
-        updated_at: songs.updatedAt,
+        row_total: includeTotal
+          ? sql<number>`count(*) over()`
+          : sql<number>`0`,
       })
       .from(songs)
       .where(whereClause)
       .orderBy(...orderBy)
-      .limit(pageSize)
+      .limit(pageSize + (includeTotal ? 0 : 1))
       .offset(page * pageSize);
 
-    const userMap = await buildUserMap(
-      rows.flatMap((entry) => [entry.created_by, entry.approved_by])
-    );
-
+    const hasMore = includeTotal
+      ? (page + 1) * pageSize < Number(rows[0]?.row_total ?? 0)
+      : rows.length > pageSize;
+    const total = includeTotal
+      ? rows.length
+        ? Number(rows[0].row_total ?? 0)
+        : Number((await db.select({ count: sql<number>`count(*)` }).from(songs).where(whereClause))[0]?.count ?? 0)
+      : -1;
     res.setHeader("Content-Type", "application/json");
     res.end(
       JSON.stringify({
-        songs: rows.map((entry) => serializeSong(entry, userMap)),
-        total: Number(countRow?.count ?? 0),
+        songs: rows.slice(0, pageSize).map(({ row_total: rowTotal, ...entry }) => {
+          void rowTotal;
+          return entry;
+        }),
+        total,
+        hasMore,
       })
     );
     return;
@@ -287,10 +302,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const title = typeof body.title === "string" ? body.title.trim() : "";
     const youtubeUrl =
       typeof body.youtube_url === "string" ? body.youtube_url.trim() : "";
-    const year =
-      typeof body.year === "number" && Number.isFinite(body.year)
-        ? body.year
-        : null;
+    const year = parseSongYear(body.year);
     const playStartSeconds =
       typeof body.play_start_seconds === "number" &&
       Number.isFinite(body.play_start_seconds)
@@ -325,9 +337,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isSpanish = isSpanishTagSelected(tags);
     const youtubeValidation = parseYoutubeValidation(body);
 
-    if (!artist || !title || !youtubeUrl) {
+    if (!artist || !title || !youtubeUrl || year === undefined) {
       res.statusCode = 400;
-      res.end("Datos inválidos.");
+      res.end(year === undefined ? "El año debe ser válido." : "Datos inválidos.");
       return;
     }
 

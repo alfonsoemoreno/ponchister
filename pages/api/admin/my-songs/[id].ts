@@ -4,6 +4,7 @@ import { songs } from "../../../../src/db/schema";
 import { db } from "../../_db";
 import { requireAdmin } from "../../_admin";
 import { serializeAdminIdentity } from "../../../../src/admin/serializers";
+import { parseSongYear } from "../../../../src/lib/songYear";
 import {
   isSpanishTagSelected,
   normalizeSongTags,
@@ -162,10 +163,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const title = typeof body.title === "string" ? body.title.trim() : "";
     const youtubeUrl =
       typeof body.youtube_url === "string" ? body.youtube_url.trim() : "";
-    const year =
-      typeof body.year === "number" && Number.isFinite(body.year)
-        ? body.year
-        : null;
+    const year = parseSongYear(body.year);
     const playStartSeconds =
       typeof body.play_start_seconds === "number" &&
       Number.isFinite(body.play_start_seconds)
@@ -200,8 +198,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const isSpanish = isSpanishTagSelected(tags);
     const youtubeValidation = parseYoutubeValidation(body);
 
-    if (!artist || !title || !youtubeUrl) {
-      res.status(400).end("Datos inválidos.");
+    if (!artist || !title || !youtubeUrl || year === undefined) {
+      res.status(400).end(year === undefined ? "El año debe ser válido." : "Datos inválidos.");
       return;
     }
 

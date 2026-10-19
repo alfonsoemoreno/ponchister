@@ -1,30 +1,49 @@
-import { createTheme } from "@mui/material/styles";
+import { createTheme, type PaletteMode } from "@mui/material/styles";
 
-const adminTheme = createTheme({
+export function createAdminTheme(mode: PaletteMode) {
+  const isDark = mode === "dark";
+
+  return createTheme({
   palette: {
-    mode: "light",
+    mode,
     primary: {
-      main: "#111827",
+      main: "#f06449",
+      light: "#ff9274",
+      dark: "#c94a35",
       contrastText: "#ffffff",
     },
     secondary: {
-      main: "#64748b",
+      main: "#00a7b5",
+      light: "#54cbd0",
+      dark: "#007d8b",
     },
     error: {
-      main: "#ef4444",
+      main: "#c83b54",
     },
     success: {
-      main: "#16a34a",
+      main: "#16866d",
+      light: "#e8f7f1",
+      dark: "#10634f",
+    },
+    info: {
+      main: "#5856b8",
+      light: "#efefff",
+      dark: "#41408e",
+    },
+    warning: {
+      main: "#a96300",
+      light: "#fff5df",
+      dark: "#824d00",
     },
     background: {
-      default: "#f5f6f8",
-      paper: "#ffffff",
+      default: isDark ? "#12171e" : "#fffdfb",
+      paper: isDark ? "#1b222b" : "#ffffff",
     },
     text: {
-      primary: "#0f172a",
-      secondary: "#64748b",
+      primary: isDark ? "#f2f4f7" : "#25243a",
+      secondary: isDark ? "#b0bac6" : "#6f7082",
     },
-    divider: "#e2e8f0",
+    divider: isDark ? "#35414d" : "#eee8e3",
   },
   typography: {
     fontFamily: "'Sora','Poppins','Segoe UI',sans-serif",
@@ -51,14 +70,15 @@ const adminTheme = createTheme({
     },
   },
   shape: {
-    borderRadius: 0,
+    borderRadius: 8,
   },
   components: {
     MuiPaper: {
       styleOverrides: {
         root: {
-          border: "1px solid rgba(148,163,184,0.3)",
-          boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
+          borderRadius: 8,
+          border: `1px solid ${isDark ? "#35414d" : "#eee8e3"}`,
+          boxShadow: isDark ? "0 2px 8px rgba(0,0,0,0.18)" : "0 2px 8px rgba(43,35,91,0.035)",
           backgroundImage: "none",
         },
       },
@@ -69,15 +89,21 @@ const adminTheme = createTheme({
       },
       styleOverrides: {
         root: {
-          borderRadius: 0,
-          paddingInline: "18px",
+          borderRadius: 8,
+          minHeight: 40,
+          paddingInline: "16px",
           paddingBlock: "8px",
+          fontWeight: 600,
+          transition: "background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease",
         },
         containedPrimary: {
-          boxShadow: "0 12px 24px rgba(15,23,42,0.16)",
+          boxShadow: "0 2px 5px rgba(240,100,73,0.18)",
+          "&:hover": {
+            boxShadow: "0 4px 10px rgba(240,100,73,0.24)",
+          },
         },
         outlined: {
-          borderColor: "rgba(100,116,139,0.4)",
+          borderColor: "#cbd5e1",
         },
       },
     },
@@ -88,7 +114,7 @@ const adminTheme = createTheme({
         },
         indicator: {
           height: 3,
-          borderRadius: 0,
+          borderRadius: 999,
         },
       },
     },
@@ -98,26 +124,83 @@ const adminTheme = createTheme({
           minHeight: 44,
           textTransform: "none",
           fontWeight: 600,
+          borderRadius: 8,
         },
       },
     },
     MuiTableHead: {
       styleOverrides: {
         root: {
-          backgroundColor: "#f8fafc",
+          backgroundColor: isDark ? "#222b35" : "#fff8f4",
         },
       },
     },
     MuiDialog: {
       styleOverrides: {
         paper: {
-          borderRadius: 0,
-          border: "1px solid rgba(148,163,184,0.3)",
-          boxShadow: "0 28px 60px rgba(15,23,42,0.14)",
+          borderRadius: 12,
+          border: `1px solid ${isDark ? "#35414d" : "#eee8e3"}`,
+          boxShadow: isDark ? "0 16px 40px rgba(0,0,0,0.42)" : "0 16px 40px rgba(43,35,91,0.12)",
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          backgroundColor: isDark ? "#1b222b" : "#ffffff",
+          transition: "box-shadow 140ms ease",
+          "&.Mui-focused": {
+          boxShadow: "0 0 0 3px rgba(240,100,73,0.14)",
+          },
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          borderRadius: 999,
+          fontWeight: 500,
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+        },
+      },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        head: {
+          color: isDark ? "#ff9a80" : "#c94a35",
+          fontWeight: 600,
+          borderBottomColor: isDark ? "#35414d" : "#eee8e3",
+        },
+        body: {
+          borderBottomColor: isDark ? "#2b3540" : "#f5f1ed",
+        },
+      },
+    },
+    MuiToggleButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          textTransform: "none",
+          fontWeight: 600,
         },
       },
     },
   },
-});
+  });
+}
 
-export default adminTheme;
+export default createAdminTheme("light");

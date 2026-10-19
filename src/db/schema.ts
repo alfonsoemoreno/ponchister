@@ -1,5 +1,6 @@
 import {
   boolean,
+  doublePrecision,
   integer,
   pgTable,
   serial,
@@ -169,6 +170,10 @@ export const gameSessions = pgTable("game_sessions", {
   playlistId: integer("playlist_id"),
   playlistName: text("playlist_name"),
   countryCode: text("country_code"),
+  city: text("city"),
+  region: text("region"),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

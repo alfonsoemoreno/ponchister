@@ -134,6 +134,15 @@ export interface GameSessionSeriesEntry {
   count: number;
 }
 
+export interface GameSessionCityCount {
+  countryCode: string;
+  city: string;
+  region: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  count: number;
+}
+
 export interface GameSessionStatistics {
   todayCount: number;
   currentMonthCount: number;
@@ -141,6 +150,7 @@ export interface GameSessionStatistics {
   daily: GameSessionSeriesEntry[];
   monthly: GameSessionSeriesEntry[];
   countries: { countryCode: string; count: number }[];
+  cities: GameSessionCityCount[];
   locationPeriodMonths: number;
   locationDetectionAvailable: boolean;
 }

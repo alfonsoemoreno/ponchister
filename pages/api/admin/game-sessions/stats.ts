@@ -58,8 +58,12 @@ export default async function handler(
     // The admin UI only displays the last 30 days and 12 months.
     const result = await db.execute<StatisticsRow>(sql`
       with recent_sessions as materialized (
-        select created_at, country_code
-        from game_sessions
+        select created_at, country_code,
+          to_jsonb(session)->>'city' as city,
+          to_jsonb(session)->>'region' as region,
+          (to_jsonb(session)->>'latitude')::double precision as latitude,
+          (to_jsonb(session)->>'longitude')::double precision as longitude
+        from game_sessions session
         where created_at >= date_trunc('month', now()) - interval '11 months'
       ),
       totals as (
@@ -98,6 +102,14 @@ export default async function handler(
         where country_code is not null
         group by country_code
       ),
+      cities as (
+        select country_code, city, region, count(*)::int as count,
+          avg(latitude) filter (where latitude between -90 and 90 and longitude between -180 and 180) as latitude,
+          avg(longitude) filter (where latitude between -90 and 90 and longitude between -180 and 180) as longitude
+        from recent_sessions
+        where country_code is not null and nullif(trim(city), '') is not null
+        group by country_code, city, region
+      ),
       output as (
         select 'totals'::text as kind, null::text as label,
           0::int as count, today_count, month_count, year_count from totals
@@ -110,6 +122,12 @@ export default async function handler(
         union all
         select 'country', country_code, count, null::int, null::int, null::int
         from countries
+        union all
+        select 'city', json_build_object(
+          'countryCode', country_code, 'city', city, 'region', region,
+          'latitude', latitude, 'longitude', longitude
+        )::text, count, null::int, null::int, null::int
+        from cities
       )
       select * from output order by kind, label nulls first
     `);
@@ -132,6 +150,9 @@ export default async function handler(
       daily: toSeries("daily"),
       monthly: toSeries("monthly"),
       countries,
+      cities: rows.filter((row) => row.kind === "city" && row.label).map((row) => ({
+        ...JSON.parse(row.label as string), count: normalizeCount(row.count),
+      })),
       locationPeriodMonths: 12,
       locationDetectionAvailable: hasCountryDetection(req),
     });
@@ -188,6 +209,7 @@ export default async function handler(
         daily: legacySeries("daily"),
         monthly: legacySeries("monthly"),
         countries: [],
+        cities: [],
         locationPeriodMonths: 12,
         locationDetectionAvailable: hasCountryDetection(req),
       });

@@ -160,6 +160,7 @@ export default function GameSessionStatisticsView({
       <Box sx={{ width: "100%", maxWidth: 1480, mx: "auto" }}>
         <GameSessionWorldMap
           countries={stats.countries}
+          cities={stats.cities}
           periodMonths={stats.locationPeriodMonths}
           locationDetectionAvailable={stats.locationDetectionAvailable}
         />

@@ -1,4 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { sql } from "drizzle-orm";
+import { getGameSessionLocation, getMissingSessionColumn } from "../../../src/server/gameSessionLocation";
 import { gameSessions } from "../../../src/db/schema";
 import { db } from "../_db";
 import {
@@ -36,32 +38,6 @@ function toFiniteInteger(value: unknown): number | null {
   return null;
 }
 
-function isMissingColumnError(error: unknown, columnName: string): boolean {
-  let candidate: unknown = error;
-  while (candidate && typeof candidate === "object") {
-    const current = candidate as {
-      code?: unknown;
-      message?: unknown;
-      cause?: unknown;
-    };
-    if (
-      current.code === "42703" &&
-      typeof current.message === "string" &&
-      current.message.toLowerCase().includes(`column "${columnName.toLowerCase()}"`)
-    ) {
-      return true;
-    }
-    candidate = current.cause;
-  }
-  return false;
-}
-
-function getCountryCode(value: string | string[] | undefined): string | null {
-  const candidate = Array.isArray(value) ? value[0] : value;
-  const countryCode = candidate?.trim().toUpperCase();
-  return countryCode && /^[A-Z]{2}$/.test(countryCode) ? countryCode : null;
-}
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -84,49 +60,42 @@ export default async function handler(
     typeof body.playlistName === "string" && body.playlistName.trim()
       ? body.playlistName.trim()
       : null;
-  const countryCode = getCountryCode(req.headers["x-vercel-ip-country"]);
+  const location = getGameSessionLocation(req.headers);
 
   if (!mode) {
     res.status(400).end("Datos inválidos.");
     return;
   }
 
-  try {
-    await db.insert(gameSessions).values({
-      mode,
-      yearMin,
-      yearMax,
-      onlySpanish,
-      selectedSongAttributes: selectedTags,
-      tagMatchMode,
-      timerEnabled,
-      playlistId,
-      playlistName,
-      countryCode,
-    });
-  } catch (error) {
-    const missingTagMatchMode = isMissingColumnError(error, "tag_match_mode");
-    const missingCountryCode = isMissingColumnError(error, "country_code");
-    if (!missingTagMatchMode && !missingCountryCode) {
-      throw error;
+  // Explicit columns let older deployments keep recording games until migrated.
+  // Drizzle's insert builder also names omitted schema columns as DEFAULT.
+  const values: Record<string, unknown> = {
+    mode, year_min: yearMin, year_max: yearMax,
+    only_spanish: onlySpanish,
+    selected_song_attributes: sql.param(selectedTags, gameSessions.selectedSongAttributes),
+    tag_match_mode: tagMatchMode, timer_enabled: timerEnabled,
+    playlist_id: playlistId, playlist_name: playlistName,
+    country_code: location.countryCode, city: location.city, region: location.region,
+    latitude: location.latitude, longitude: location.longitude,
+  };
+  const optionalColumns = new Set([
+    "tag_match_mode", "country_code", "city", "region", "latitude", "longitude",
+  ]);
+  for (;;) {
+    try {
+      const entries = Object.entries(values);
+      await db.execute(sql`insert into ${gameSessions} (
+        ${sql.join(entries.map(([name]) => sql.identifier(name)), sql`, `)}
+      ) values (
+        ${sql.join(entries.map(([, value]) => sql`${value}`), sql`, `)}
+      )`);
+      break;
+    } catch (error) {
+      const missing = getMissingSessionColumn(error);
+      if (!missing || !optionalColumns.delete(missing)) throw error;
+      delete values[missing];
+      console.warn(`[game-session] Missing metadata column ${missing}; apply database migrations.`);
     }
-
-    console.warn(
-      "[game-session] Database schema is missing a session metadata column. Retrying with available columns."
-    );
-
-    await db.insert(gameSessions).values({
-      mode,
-      yearMin,
-      yearMax,
-      onlySpanish,
-      selectedSongAttributes: selectedTags,
-      ...(missingTagMatchMode ? {} : { tagMatchMode }),
-      timerEnabled,
-      playlistId,
-      playlistName,
-      ...(missingCountryCode ? {} : { countryCode }),
-    });
   }
 
   res.status(201).json({ ok: true });

@@ -1,0 +1,44 @@
+.ponchister-game-map .leaflet-container {
+  background: #e8f0f2;
+  font-family: inherit;
+}
+.ponchister-map-marker {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--map-accent, #f36b54);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 12px #102c4440;
+  font-size: 12px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.ponchister-map-marker:focus-visible {
+  outline: 3px solid #152f4b;
+  outline-offset: 4px;
+}
+.ponchister-map-cluster {
+  border-width: 5px;
+  box-shadow: 0 0 0 5px #f36b5430, 0 2px 12px #102c4440;
+}
+.ponchister-game-map .leaflet-popup-content {
+  line-height: 1.65;
+}
+.ponchister-game-map .leaflet-popup-content strong {
+  display: block;
+  font-size: 15px;
+}
+.ponchister-game-map .leaflet-popup-content div {
+  color: #596679;
+  font-size: 12px;
+}
+.ponchister-game-map-dark .ponchister-map-tiles {
+  filter: invert(0.9) hue-rotate(180deg) saturate(0.5);
+}
+.ponchister-game-map-dark .leaflet-container {
+  background: #182831;
+}
+.ponchister-game-map .leaflet-control-attribution {
+  max-width: 100%;
+}

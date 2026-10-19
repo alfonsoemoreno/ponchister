@@ -22,6 +22,7 @@ Ponchister es una PWA construida con Next.js 16, React y TypeScript. Ofrece una 
 
 - **Modo automático**: rotación continua con animaciones, portada y revelado de datos.
 - **Panel administrativo**: login propio, gestión de canciones y estadísticas.
+- **Mapa de partidas**: mapa interactivo con zoom, agrupación de marcadores y ranking por país o ciudad aproximada. Las nuevas partidas usan la geolocalización de Vercel, sin pedir GPS ni guardar la dirección IP.
 - **Usuarios administradores**: roles `superadmin` y `editor`.
 - **Preparado para PWA**: `manifest.json`, `next-pwa` y assets maskable.
 
@@ -91,12 +92,21 @@ npm run setup:neon
 ADMIN_EMAIL="tu@email" ADMIN_PASSWORD="tu-password" npm run admin:create
 ```
 
+### Actualizar el mapa de partidas
+
+Para instalaciones existentes, aplica `drizzle/0009_add_game_session_city.sql` en la consola SQL de Neon antes de desplegar. Agrega únicamente las columnas opcionales `city`, `region`, `latitude` y `longitude`, sin modificar partidas anteriores. `npm run setup:neon` también incluye estas columnas para instalaciones nuevas.
+
+La ciudad, región y coordenadas aproximadas se leen de los encabezados `x-vercel-ip-*` al registrar cada partida en Vercel. No requiere claves adicionales ni permisos de ubicación. Las coordenadas se redondean a dos decimales. En localhost o cuando Vercel no entrega ubicación, la partida se registra igualmente. Las partidas antiguas conservan su país; las que no tienen coordenadas se incluyen en el ranking sin inventar un marcador.
+
+El mapa administrativo carga Leaflet y su agrupador de marcadores solo en el navegador. Usa las teselas de OpenStreetMap, con atribución visible y caché HTTP del navegador; requiere conexión y no ofrece descarga de mapas offline. La ubicación por conexión puede diferir de la ciudad real, especialmente con VPN o redes móviles.
+
 ## Comandos habituales
 
 - `npm run dev` – levanta Next en modo desarrollo.
 - `npm run build` – genera el build de producción.
 - `npm run start` – sirve el build local.
 - `npm run lint` – ejecuta ESLint.
+- `npm test` – verifica la lectura y validación de la ubicación de partidas (Node.js 24).
 
 ## Despliegue
 

@@ -254,6 +254,13 @@ const statements = [
   add column if not exists country_code text;
   `,
   `
+  alter table game_sessions
+  add column if not exists city text,
+  add column if not exists region text,
+  add column if not exists latitude double precision,
+  add column if not exists longitude double precision;
+  `,
+  `
   create index if not exists game_sessions_created_at_idx
   on game_sessions (created_at);
   `,

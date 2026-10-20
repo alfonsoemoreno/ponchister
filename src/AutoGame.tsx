@@ -49,6 +49,7 @@ import { NeonLines } from "./auto-game/NeonLines";
 import { YearSpotlight } from "./auto-game/YearSpotlight";
 import LocalQrCode from "./components/LocalQrCode";
 import { useViewTransition } from "./hooks/useViewTransition";
+import { maskGameMediaSession } from "./lib/gameMediaSession";
 import { createAdaptiveTheme } from "./auto-game/theme";
 import type { GameSource, PlaylistSummary, YearRange } from "./types";
 import {
@@ -365,17 +366,21 @@ const AutoGame: React.FC<AutoGameProps> = ({
       return;
     }
 
-    // YouTube's embedded player can publish the video's title to connected
-    // Bluetooth devices. Keep the browser's active media metadata generic for
-    // the full game session so the answer is not exposed between rounds.
-    mediaSession.metadata = new MediaMetadata({
-      title: "Ponchister",
-      artist: "",
-      album: "",
-    });
+    // Reapply when returning from the lock screen or device output controls.
+    // This only controls our document; iframe sessions are restricted by the
+    // response's Permissions-Policy where the browser supports that directive.
+    const refreshMetadata = () => maskGameMediaSession();
+    refreshMetadata();
+    document.addEventListener("visibilitychange", refreshMetadata);
+    window.addEventListener("pageshow", refreshMetadata);
+    window.addEventListener("focus", refreshMetadata);
 
     return () => {
+      document.removeEventListener("visibilitychange", refreshMetadata);
+      window.removeEventListener("pageshow", refreshMetadata);
+      window.removeEventListener("focus", refreshMetadata);
       mediaSession.metadata = null;
+      mediaSession.playbackState = "none";
     };
   }, [sessionStarted]);
 
@@ -1231,6 +1236,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     if (exitingRef.current) {
       return;
     }
+    maskGameMediaSession("paused");
     const startSeconds = Math.max(
       0,
       Math.trunc(currentSong?.play_start_seconds ?? 0)
@@ -1253,6 +1259,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     if (exitingRef.current) {
       return;
     }
+    maskGameMediaSession();
     const internalPlayer = (event.target as unknown as InternalPlayer) ?? null;
     internalPlayer?.pauseVideo?.();
     internalPlayer?.unMute?.();
@@ -1270,6 +1277,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     }
     const playerState = event.data;
     if (playerState === 1) {
+      maskGameMediaSession("playing");
       duckMainPlayerVolume();
       return;
     }
@@ -1286,6 +1294,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
     mainPlayerApiRef.current =
       (event.target as unknown as InternalPlayer) ?? null;
     const playerState = event.data;
+    maskGameMediaSession(
+      playerState === 1 ? "playing" : playerState === 2 || playerState === 0 ? "paused" : undefined,
+    );
     if (playerState === 1) {
       applyPlaybackOptimizations(
         (event.target as unknown as InternalPlayer) ?? null,

@@ -23,6 +23,7 @@ import AdminAccessDialog from "./admin/AdminAccessDialog";
 import { loginAdmin, logoutAdmin } from "./admin/services/adminAuth";
 
 interface WelcomeProps {
+  onStartPasapalabra: () => void;
   onStartAuto: (payload: {
     source: GameSource;
     playlist: PlaylistSummary | null;
@@ -53,6 +54,7 @@ const requestFullscreen = () => {
 };
 
 const Welcome: React.FC<WelcomeProps> = ({
+  onStartPasapalabra,
   onStartAuto,
   onOpenAdmin,
   onAdminSessionRefresh,
@@ -608,6 +610,20 @@ const Welcome: React.FC<WelcomeProps> = ({
                   }}
                 >
                   Jugar clásico
+                </Button>
+              </Stack>
+            </Box>
+            <Box sx={{ borderRadius: 3, border: "1px solid rgba(196,181,253,0.4)", background: "linear-gradient(120deg, rgba(76,29,149,0.35), rgba(8,47,73,0.5))", p: 2.25 }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }} justifyContent="space-between">
+                <Box>
+                  <Typography sx={{ fontWeight: 800, color: "#fff", fontSize: "1.1rem" }}>Pasapalabra musical</Typography>
+                  <Typography variant="body2" sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.6 }}>
+                    Completa el rosco escuchando canciones. Adivina artistas y títulos antes de que se acabe el tiempo.
+                  </Typography>
+                </Box>
+                <Button variant="contained" onClick={() => { setModeDialogOpen(false); requestFullscreen(); onStartPasapalabra(); }}
+                  sx={{ flexShrink: 0, textTransform: "none", fontWeight: 700, borderRadius: 999, background: "#c4b5fd", color: "#1e1245", "&:hover": { background: "#ddd6fe" } }}>
+                  Jugar Pasapalabra
                 </Button>
               </Stack>
             </Box>

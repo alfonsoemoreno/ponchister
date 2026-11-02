@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Welcome from "./Welcome";
+const PasapalabraGame = lazy(() => import("./PasapalabraGame"));
 const AutoGame = lazy(() => import("./AutoGame"));
 const AdminApp = lazy(() => import("./admin/AdminApp"));
 const MimicaRemoteView = lazy(() => import("./components/MimicaRemoteView"));
@@ -154,7 +155,7 @@ const readStoredPlaylist = (): PlaylistSummary | null => {
 };
 
 function App() {
-  const [view, setView] = useState<"welcome" | "auto" | "admin">("welcome");
+  const [view, setView] = useState<"welcome" | "auto" | "admin" | "pasapalabra">("welcome");
   const [remoteMode, setRemoteMode] = useState<"mimica" | "tararear" | null>(
     null,
   );
@@ -486,6 +487,7 @@ function App() {
   if (view === "welcome")
     return (
       <Welcome
+        onStartPasapalabra={() => setView("pasapalabra")}
         onStartAuto={handleStartAuto}
         onOpenAdmin={handleOpenAdmin}
         onAdminSessionRefresh={loadPlaylists}
@@ -497,6 +499,12 @@ function App() {
         selectedPlaylist={selectedPlaylist}
         currentAdminUser={currentAdminUser}
       />
+    );
+  if (view === "pasapalabra")
+    return (
+      <Suspense fallback={<div>Cargando Pasapalabra...</div>}>
+        <PasapalabraGame onExit={handleExitAuto} />
+      </Suspense>
     );
   if (view === "auto")
     return (

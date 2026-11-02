@@ -4,6 +4,8 @@ import withBundleAnalyzer from "@next/bundle-analyzer";
 const nextConfig = {
   reactStrictMode: true,
   turbopack: {},
+  // Preserve the absolute localhost redirect instead of normalizing loopback hosts.
+  skipProxyUrlNormalize: process.env.NODE_ENV === "development",
   headers() {
     return [{
       source: "/",

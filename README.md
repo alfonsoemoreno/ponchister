@@ -100,9 +100,17 @@ La ciudad, región y coordenadas aproximadas se leen de los encabezados `x-verce
 
 El mapa administrativo carga Leaflet y su agrupador de marcadores solo en el navegador. Usa las teselas de OpenStreetMap, con atribución visible y caché HTTP del navegador; requiere conexión y no ofrece descarga de mapas offline. La ubicación por conexión puede diferir de la ciudad real, especialmente con VPN o redes móviles.
 
+## Pasapalabra: idiomas y consultas
+
+- Todos y Español usan 27 letras; Inglés usa 26, sin Ñ. Los idiomas se filtran por las etiquetas del catálogo (con compatibilidad para la marca histórica de español).
+- Abrir la modalidad y cambiar el idioma no solicita un rosco. Solo «¡A jugar!» o un reintento de carga hace `POST /api/songs/pasapalabra`.
+- El navegador recibe únicamente las 26–27 preguntas seleccionadas (menos si falta cobertura), nunca el catálogo completo. Pasar, responder, repetir audio y revisar resultados no consultan la base de datos.
+- El servidor mantiene una sola copia de los metadatos públicos elegibles durante cinco minutos por instancia y comparte las lecturas simultáneas. Una instancia nueva o la expiración requieren una lectura del catálogo; esta caché no se comparte globalmente entre instancias de Vercel.
+- Cada nueva partida valida solo los IDs seleccionados en una consulta, usando la clave primaria. Si una canción fue retirada, cambió de idioma o cambió su respuesta, se invalida la copia y se intenta generar el rosco una sola vez más. No se cargan letras, trivias ni datos personales.
+
 ## Comandos habituales
 
-- `npm run dev` – levanta Next en modo desarrollo.
+- `npm run dev` – levanta Next en modo desarrollo. Abre `http://localhost:3000`: YouTube puede rechazar la reproducción integrada desde `127.0.0.1` con el error 150. En desarrollo, la app redirige esa dirección a `localhost`, conservando puerto, ruta y parámetros.
 - `npm run build` – genera el build de producción.
 - `npm run start` – sirve el build local.
 - `npm run lint` – ejecuta ESLint.

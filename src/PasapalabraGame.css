@@ -1,0 +1,292 @@
+.pasapalabra {
+  --pp-cyan: #82edff;
+  --pp-green: #67eab0;
+  --pp-red: #ff8096;
+  --pp-amber: #ffd68a;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  color: #f4f8ff;
+  font-family: 'Poppins', Arial, sans-serif;
+  background: radial-gradient(ellipse at 30% 48%, #123d7e60, transparent 52%), linear-gradient(125deg, #080f23, #0b1734 55%, #080f23);
+}
+.pasapalabra *, .pasapalabra-dialog * { box-sizing: border-box; }
+.pasapalabra-lights { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.pasapalabra-lights::before, .pasapalabra-lights::after { content: ''; position: absolute; top: -25%; width: 28%; height: 130%; filter: blur(24px); background: linear-gradient(180deg, #53a6ff15, #53a6ff02 85%); transform: rotate(-24deg); transform-origin: top; }
+.pasapalabra-lights::before { left: 15%; }
+.pasapalabra-lights::after { right: 6%; transform: rotate(30deg); background: linear-gradient(180deg, #a694ff16, transparent 85%); }
+.pasapalabra-shell { position: relative; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 20px; width: 100%; max-width: 1600px; height: 100%; margin: auto; padding: 24px clamp(24px, 4vw, 64px) 18px; }
+.pasapalabra-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; min-height: 62px; }
+.pasapalabra-brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.pasapalabra-brand img { object-fit: contain; filter: drop-shadow(0 0 12px #5ba7ff30); }
+.pasapalabra-brand h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.6px; line-height: 1.1; white-space: nowrap; }
+.pasapalabra-brand h1 span { display: block; margin-top: 3px; font-size: 12px; color: var(--pp-cyan); font-weight: 500; letter-spacing: 3px; }
+.pasapalabra-brand p { display: none; }
+.pasapalabra-clock { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 7px 22px; min-width: 166px; border: 1px solid #99c8ff2e; border-radius: 18px; background: linear-gradient(150deg, #1b2f51a0, #0c182dc0); box-shadow: inset 0 1px 0 #ffffff0c, 0 12px 30px #00000020; }
+.pasapalabra-clock > svg { width: 21px; color: #a0b9d9; }
+.pasapalabra-clock strong { font-family: 'Sora', 'Poppins', sans-serif; font-size: 35px; font-weight: 600; letter-spacing: -1px; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.pasapalabra-clock-state { display: flex; width: 16px; justify-content: center; }
+.pasapalabra-clock-state > svg { width: 17px; color: var(--pp-amber); }
+.pasapalabra-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pp-green); box-shadow: 0 0 9px #67eab090; }
+.pasapalabra-clock.urgent { border-color: #ff809680; color: var(--pp-red); }
+.pasapalabra-utilities { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+.pasapalabra-control-wrap { display: inline-flex; flex-shrink: 0; }
+.pasapalabra-control { display: inline-flex; justify-content: center; align-items: center; width: 42px; height: 42px; margin: 0; padding: 0; border: 1px solid #adcfff21; border-radius: 13px; color: #c4d6ef; background: #ffffff05; cursor: pointer; transition: background .18s ease, color .18s ease, border-color .18s ease, transform .18s ease; }
+.pasapalabra-control svg { font-size: 22px; }
+.pasapalabra-control:hover { background: #b4dcff12; color: white; border-color: #a4cfff70; }
+.pasapalabra button:focus-visible, .pasapalabra-dialog button:focus-visible { outline: 3px solid var(--pp-cyan, #82edff); outline-offset: 4px; }
+.pasapalabra button:disabled, .pasapalabra-dialog button:disabled { opacity: .35; cursor: default; }
+.pasapalabra-stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 370px); align-items: stretch; gap: clamp(24px, 4vw, 64px); min-height: 0; }
+.pasapalabra-arena { display: grid; grid-template-rows: 24px minmax(0, 1fr) 26px; min-width: 0; min-height: 0; }
+.pasapalabra-stage-label { display: flex; justify-content: center; align-items: center; gap: 16px; color: #93aacb; font-size: 10px; letter-spacing: 3px; font-weight: 500; }
+.pasapalabra-stage-label span { width: 36px; height: 1px; background: linear-gradient(90deg, transparent, #b0d5ff70, transparent); }
+.pasapalabra-ring-space { display: grid; place-items: center; min-height: 0; min-width: 0; container-type: size; }
+.pasapalabra-rosco { position: relative; width: min(98cqw, 98cqh, 740px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, #123b6d36 0%, #0a193422 55%, transparent 69%); }
+.pasapalabra-rosco::before { content: ''; position: absolute; inset: 15%; border: 1px solid #70b4ff16; border-radius: 50%; box-shadow: 0 0 65px #4da8ff0a, inset 0 0 60px #4da8ff08; }
+.pasapalabra-rosco::after { content: ''; position: absolute; inset: 17%; border-radius: 50%; border: 1px dashed #70b4ff10; pointer-events: none; }
+.pasapalabra-ring-track { position: absolute; inset: 6%; border: 1px solid #76b7ff24; border-radius: 50%; box-shadow: 0 0 30px #4da8ff0c, inset 0 0 30px #4da8ff0c; }
+.pasapalabra-letter { position: absolute; z-index: 1; display: grid; place-items: center; width: 7.8%; aspect-ratio: 1; transform: translate(-50%, -50%); border: 1px solid #689fe65c; border-radius: 50%; background: linear-gradient(145deg, #1c467f, #123060 58%, #10274c); box-shadow: inset 0 2px 2px #ffffff12, 0 4px 12px #00000030; font-family: 'Sora', 'Poppins', sans-serif; font-size: clamp(13px, 3cqw, 26px); font-weight: 600; color: #dbebff; transition: background .25s ease, box-shadow .25s ease, color .25s ease; }
+.pasapalabra-letter.active { color: #06213d; background: linear-gradient(145deg, #d4fbff, #88edff 55%, #42cbe8); border-color: #d4fbff; box-shadow: 0 0 0 5px #80edff16, 0 0 30px #6ee7ff66, inset 0 2px 2px #ffffffa0; transform: translate(-50%, -50%) scale(1.13); }
+.pasapalabra-letter.correct { background: linear-gradient(145deg, #268669, #14523e); border-color: #67eab080; color: #bfffe2; }
+.pasapalabra-letter.incorrect { background: linear-gradient(145deg, #993e5a, #5d2139); border-color: #ff809680; color: #ffe3ec; }
+.pasapalabra-letter.passed:not(.active) { border-color: #ffd68a90; color: #ffdfa1; background: linear-gradient(145deg, #534a38, #2b2e38); }
+.pasapalabra-letter.unavailable { background: #243044; border-color: #59657c; color: #8e9eb5; }
+.pasapalabra-letter > svg { position: absolute; right: -2px; bottom: -2px; width: 35%; height: 35%; padding: 1px; border-radius: 50%; background: #0b1830; }
+.pasapalabra-center { position: absolute; inset: 23%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.pasapalabra-center-kicker { color: #abc1e0; font-size: clamp(9px, 1.8cqw, 12px); letter-spacing: 2.4px; font-weight: 500; }
+.pasapalabra-current-letter, .pasapalabra-center-number { display: block; color: white; font-family: 'Sora', 'Poppins', sans-serif; font-size: clamp(58px, 20cqw, 155px); font-weight: 600; line-height: 1.25; letter-spacing: -6px; text-shadow: 0 0 65px #89cdff30; }
+.pasapalabra-current-letter { animation: pp-letter-in .25s ease-out; }
+.pasapalabra-center-number { font-size: clamp(55px, 16cqw, 125px); }
+.pasapalabra-center-number small { font-size: .3em; color: #9fb8d7; letter-spacing: -2px; }
+.pasapalabra-center-caption { color: #a7bddb; font-size: clamp(11px, 2cqw, 15px); }
+.pasapalabra-kind { display: flex; gap: 7px; align-items: center; padding: 6px 11px; color: var(--pp-cyan); border: 1px solid #82edff28; border-radius: 8px; background: #82edff07; font-size: clamp(9px, 1.8cqw, 12px); letter-spacing: 1.6px; }
+.pasapalabra-kind svg { font-size: 17px; }
+.pasapalabra-wave { display: flex; height: 40px; align-items: center; justify-content: center; gap: 4px; margin-top: 22px; opacity: .4; }
+.pasapalabra-wave i { display: block; width: 3px; height: calc(var(--bar-height) * .35); border-radius: 4px; background: linear-gradient(#9defff, #498dce); }
+.pasapalabra-wave.active { opacity: 1; }
+.pasapalabra-wave.active i { animation: pp-wave .8s ease-in-out infinite alternate; animation-delay: var(--bar-delay); }
+.pasapalabra-pause-symbol { width: 78px !important; height: 78px !important; color: var(--pp-amber); margin-bottom: 12px; }
+.pasapalabra-trophy { color: var(--pp-amber); width: 42px !important; height: 42px !important; filter: drop-shadow(0 0 20px #ffd68a40); }
+.pasapalabra-legend { display: flex; gap: 24px; justify-content: center; align-items: center; color: #a7bbd6; font-size: 10px; }
+.pasapalabra-legend span { display: inline-flex; gap: 7px; align-items: center; }
+.pasapalabra-legend i { width: 6px; height: 6px; border-radius: 50%; }
+.pasapalabra-legend .correct { background: var(--pp-green); }
+.pasapalabra-legend .incorrect { background: var(--pp-red); }
+.pasapalabra-legend .passed { background: var(--pp-amber); }
+.pasapalabra-console { display: flex; flex-direction: column; justify-content: center; gap: 18px; min-width: 0; min-height: 0; }
+.pasapalabra-scoreboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; padding: 17px 10px; border: 1px solid #91b8ef24; border-radius: 18px; background: linear-gradient(145deg, #20365555, #10213b55); box-shadow: inset 0 1px 0 #ffffff08; }
+.pasapalabra-scoreboard > div { display: grid; grid-template-columns: auto auto; justify-content: center; align-items: center; gap: 1px 5px; border-right: 1px solid #9cc7ff1c; }
+.pasapalabra-scoreboard > div:last-child { border: 0; }
+.pasapalabra-scoreboard svg { width: 19px; height: 19px; }
+.pasapalabra-scoreboard strong { font-family: 'Sora', sans-serif; font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.3; }
+.pasapalabra-scoreboard span { grid-column: 1 / -1; text-align: center; color: #a6b9d4; font-size: 9px; letter-spacing: .5px; }
+.pasapalabra-scoreboard .correct { color: var(--pp-green); }
+.pasapalabra-scoreboard .incorrect { color: var(--pp-red); }
+.pasapalabra-scoreboard .pending { color: #a9c9ff; }
+.pasapalabra-panel { position: relative; display: flex; flex-direction: column; gap: 20px; padding: clamp(22px, 2.4vw, 34px); border: 1px solid #8eb4ec2e; border-radius: 25px; background: linear-gradient(145deg, #20375b70, #10203b70 70%); box-shadow: inset 0 1px 0 #ffffff0c, 0 24px 70px #00000015; }
+.pasapalabra-panel::before { content: ''; position: absolute; left: 28px; right: 28px; height: 1px; top: -1px; background: linear-gradient(90deg, transparent, #b1e9ff90, transparent); }
+.pasapalabra-eyebrow { color: #9cb6d9; font-size: 10px; letter-spacing: 2.1px; font-weight: 500; }
+.pasapalabra-panel h2 { margin: 0; color: #f4f8ff; font-size: clamp(26px, 2.6vw, 38px); line-height: 1.23; font-weight: 600; letter-spacing: -1px; }
+.pasapalabra-panel h2 > span { color: var(--pp-cyan); }
+.pasapalabra-how { display: flex; flex-direction: column; gap: 13px; }
+.pasapalabra-how > div { display: flex; align-items: center; gap: 12px; font-size: 12px; color: #c4d5ec; }
+.pasapalabra-how svg { color: #8ed5f4; font-size: 21px; }
+.pasapalabra-director-note { margin: 0; font-size: 10px; color: #a1b5d2; }
+.pasapalabra-button { display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; min-height: 48px; padding: 12px 14px; border-radius: 13px; border: 1px solid transparent; font-family: inherit; font-size: 12px; line-height: 1.2; font-weight: 600; letter-spacing: 0; transition: background .18s ease, box-shadow .18s ease, transform .18s ease; }
+.pasapalabra-button svg { font-size: 21px; flex-shrink: 0; }
+.pasapalabra-button.primary { color: #05243d; background: linear-gradient(115deg, #b5f4ff, #74d8f4); box-shadow: 0 5px 24px #68dcff1a, inset 0 1px 0 #ffffff90; }
+.pasapalabra-button.primary:hover { background: linear-gradient(115deg, #d0faff, #9cecff); box-shadow: 0 5px 32px #68dcff35; border-color: transparent; }
+.pasapalabra-button.secondary { color: #dceaff; background: #759ee00c; border-color: #91b8ef30; }
+.pasapalabra-button.secondary:hover { background: #759ee022; border-color: #91b8ef80; }
+.pasapalabra-button.pass { color: #ffdda5; background: #ffd68a0b; border-color: #ffd68a36; }
+.pasapalabra-button.pass:hover { background: #ffd68a18; border-color: #ffd68a80; }
+.pasapalabra-button.quiet { color: #a9bed9; background: transparent; border-color: transparent; min-height: 32px; padding: 4px; font-size: 11px; }
+.pasapalabra-panel-footnote { color: #a1b5d2; font-size: 10px; text-align: center; }
+.pasapalabra-question-heading { display: flex; flex-direction: column; gap: 9px; }
+.pasapalabra-question-heading h2 { font-size: clamp(24px, 2.1vw, 31px); }
+.pasapalabra-audio { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 10px 0 4px; }
+.pasapalabra-audio.concealed { display: none; }
+.pasapalabra-player { position: absolute; width: 40px; height: 20px; opacity: .01; pointer-events: none; overflow: hidden; }
+.pasapalabra-audio-orbit { display: grid; place-items: center; padding: 10px; border: 1px solid #92d5ff18; border-radius: 50%; box-shadow: 0 0 0 8px #82edff03; }
+.pasapalabra-play { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(140deg, #bbf7ff, #73d8f4); border-color: #c4f5ff; color: #08304b; box-shadow: 0 0 30px #69ddff20, inset 0 2px 0 #ffffff80; }
+.pasapalabra-play svg { width: 38px; height: 38px; }
+.pasapalabra-play:hover { background: #c4f6ff; color: #082d46; border-color: white; transform: scale(1.04); }
+.pasapalabra-audio-orbit.playing { border-color: #82edff60; box-shadow: 0 0 0 8px #82edff08, 0 0 40px #82edff0c; }
+.pasapalabra-clip { display: flex; gap: 7px; align-items: center; width: 100%; font-size: 10px; color: #afc2df; }
+.pasapalabra-clip svg { width: 16px; height: 16px; color: #8ed5f4; }
+.pasapalabra-clip b { margin-left: auto; font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; color: #b6cce8; }
+.pasapalabra-clip-track { width: 100%; height: 3px; border-radius: 4px; background: #8dbaff1b; overflow: hidden; }
+.pasapalabra-clip-track span { display: block; height: 100%; background: var(--pp-cyan); transition: width .15s linear; }
+.pasapalabra-audio-error { display: flex; flex-direction: column; gap: 14px; align-items: center; color: var(--pp-amber); font-size: 12px; padding: 10px 0; }
+.pasapalabra-audio-error > svg { width: 38px; height: 38px; }
+.pasapalabra-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pasapalabra-actions .pasapalabra-button { flex-direction: column; gap: 6px; min-height: 76px; padding: 10px 6px; font-size: 11px; }
+.pasapalabra-actions .pasapalabra-button svg { width: 25px; height: 25px; }
+.pasapalabra-panel-status { display: flex; align-items: center; justify-content: center; gap: 7px; color: #a1b5d2; font-size: 9px; }
+.pasapalabra-panel-status > span { width: 5px; height: 5px; background: #8bb2e5; border-radius: 50%; flex-shrink: 0; }
+.pasapalabra-panel-status > span.amber { background: var(--pp-amber); }
+.pasapalabra-answer { display: flex; flex-direction: column; gap: 18px; text-align: center; padding-top: 4px; }
+.pasapalabra-answer-kind { display: flex; align-items: center; justify-content: center; gap: 6px; color: #9fbcdf; font-size: 11px; }
+.pasapalabra-answer-kind svg { width: 18px; }
+.pasapalabra-answer h2 { font-size: clamp(23px, 2.3vw, 32px); overflow-wrap: anywhere; letter-spacing: -.7px; }
+.pasapalabra-answer h2.long-answer { font-size: 21px; }
+.pasapalabra-answer p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0; color: #b4c7e2; font-size: 12px; line-height: 1.5; }
+.pasapalabra-verdict { display: flex; gap: 20px; justify-content: center; padding-top: 6px; }
+.pasapalabra-verdict .pasapalabra-control { width: 76px; height: 66px; border-radius: 17px; }
+.pasapalabra-verdict .pasapalabra-control svg { width: 34px; height: 34px; }
+.pasapalabra-control.verdict-correct { color: #a3f6cf; border-color: #67eab060; background: linear-gradient(145deg, #1c7a5c70, #11594240); }
+.pasapalabra-control.verdict-incorrect { color: #ffafc0; border-color: #ff809660; background: linear-gradient(145deg, #9e3f5c70, #7b274440); }
+.pasapalabra-final-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 12px 0; }
+.pasapalabra-final-stats > span { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 8px; font-size: 22px; color: #d4e8ff; font-variant-numeric: tabular-nums; }
+.pasapalabra-final-stats svg { width: 20px; color: #89b4e5; }
+.pasapalabra-final-stats small { width: 100%; font-size: 10px; text-align: center; color: #a6bddb; }
+.pasapalabra-footer { display: flex; align-items: center; gap: 18px; height: 28px; border-top: 1px solid #a1c5ff14; padding-top: 12px; }
+.pasapalabra-progress-label { font-size: 11px; font-variant-numeric: tabular-nums; color: #d8e7fa; min-width: 44px; }
+.pasapalabra-progress-label > span { color: #899fbd; }
+.pasapalabra-round-track { width: 120px; height: 3px; overflow: hidden; background: #8dbaff20; border-radius: 4px; }
+.pasapalabra-round-track > span { display: block; height: 100%; background: linear-gradient(90deg, #4291f4, #82edff); transition: width .3s ease; }
+.pasapalabra-footer-note { margin-left: auto; font-size: 9px; color: #8199ba; letter-spacing: 2px; }
+.pasapalabra-loading { grid-row: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; }
+.pasapalabra-loading h2 { font-size: 24px; margin: 0; font-weight: 500; }
+.pasapalabra-loading p { max-width: 440px; margin: 0; color: #afc4e3; font-size: 13px; }
+.pasapalabra-loading > .pasapalabra-button { width: auto; margin-top: 10px; }
+.pasapalabra-loading-ring { display: grid; place-items: center; width: 100px; height: 100px; border-radius: 50%; border: 1px dashed #82edff60; background: #82edff08; box-shadow: 0 0 60px #82edff12; }
+.pasapalabra-loading-ring svg { font-size: 42px; color: var(--pp-cyan); animation: pp-loading 1.4s ease-in-out infinite; }
+.pasapalabra-dialog.MuiPaper-root { --pp-cyan: #82edff; background: linear-gradient(140deg, #152b4b, #0c1a31); border: 1px solid #95bff640; border-radius: 22px; color: #e4eeff; box-shadow: 0 30px 100px #00000070; }
+.pasapalabra-dialog .MuiDialogTitle-root { display: flex; align-items: center; gap: 12px; padding: 22px 24px 14px; color: #f1f7ff; font-size: 20px; }
+.pasapalabra-dialog .MuiDialogTitle-root > svg { color: #82edff; }
+.pasapalabra-dialog .MuiDialogTitle-root > .pasapalabra-control-wrap { margin-left: auto; }
+.pasapalabra-dialog .MuiDialogContent-root { padding: 16px 24px 24px; }
+.pasapalabra-help-steps { display: flex; flex-direction: column; gap: 18px; }
+.pasapalabra-help-steps p { display: flex; align-items: center; gap: 16px; margin: 0; color: #d6e4f9; font-size: 13px; line-height: 1.6; }
+.pasapalabra-help-steps svg { color: #82edff; flex-shrink: 0; }
+.pasapalabra-help-note { margin: 22px 0; font-size: 12px; color: #a9bfdd; line-height: 1.7; }
+.pasapalabra-shortcuts { display: flex; flex-wrap: wrap; gap: 12px; font-size: 10px; color: #b5c8e4; }
+.pasapalabra-shortcuts > span { display: flex; gap: 6px; align-items: center; }
+.pasapalabra-shortcuts kbd { padding: 4px 7px; border: 1px solid #b5c8e440; border-radius: 5px; background: #ffffff07; color: #dcecff; font: inherit; }
+.pasapalabra-review { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pasapalabra-review > div { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid #adcfff20; border-radius: 12px; min-height: 108px; }
+.pasapalabra-review-letter { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #294c7b; flex-shrink: 0; font-weight: 600; }
+.pasapalabra-review > .correct .pasapalabra-review-letter { background: #206348; }
+.pasapalabra-review > .incorrect .pasapalabra-review-letter { background: #83344c; }
+.pasapalabra-review > .unavailable .pasapalabra-review-letter { background: #364052; }
+.pasapalabra-review > div > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pasapalabra-review strong { font-size: 13px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.pasapalabra-review small { font-size: 10px; color: #afc5e1; overflow-wrap: anywhere; }
+.pasapalabra-review > div > div > span { display: flex; align-items: center; gap: 5px; color: #92b0d8; font-size: 9px; text-transform: uppercase; letter-spacing: .5px; }
+.pasapalabra-review svg { width: 13px; height: 13px; }
+.pasapalabra-review-pages { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 20px; color: #adc5e5; font-size: 12px; }
+@keyframes pp-wave { from { height: calc(var(--bar-height) * .25); } to { height: var(--bar-height); } }
+@keyframes pp-loading { 50% { opacity: .4; transform: scale(.9); } }
+@keyframes pp-letter-in { from { opacity: .4; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+@media (max-height: 760px) and (min-width: 900px) {
+  .pasapalabra-shell { gap: 12px; padding-top: 16px; padding-bottom: 12px; }
+  .pasapalabra-header { min-height: 50px; }
+  .pasapalabra-stage { grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: 30px; }
+  .pasapalabra-console { gap: 12px; }
+  .pasapalabra-panel { gap: 14px; padding: 22px 26px; }
+  .pasapalabra-panel h2 { font-size: 29px; }
+  .pasapalabra-scoreboard { padding: 12px 8px; }
+  .pasapalabra-how { gap: 10px; }
+  .pasapalabra-audio { gap: 12px; padding-top: 0; }
+  .pasapalabra-play { width: 66px; height: 66px; }
+  .pasapalabra-audio-orbit { padding: 8px; }
+  .pasapalabra-answer { gap: 12px; }
+  .pasapalabra-answer h2.long-answer { font-size: 18px; }
+  .pasapalabra-verdict .pasapalabra-control { height: 56px; width: 68px; }
+  .pasapalabra-center .pasapalabra-wave { margin-top: 12px; height: 26px; }
+}
+@media (max-height: 620px) and (min-width: 900px) {
+  .pasapalabra-shell { gap: 8px; padding-top: 10px; padding-bottom: 10px; }
+  .pasapalabra-clock strong { font-size: 28px; }
+  .pasapalabra-clock { border-radius: 13px; padding-block: 5px; }
+  .pasapalabra-console { gap: 9px; }
+  .pasapalabra-panel { gap: 10px; padding: 16px 22px; }
+  .pasapalabra-panel h2 { font-size: 25px; }
+  .pasapalabra-panel h2 br { display: none; }
+  .pasapalabra-how { gap: 8px; }
+  .pasapalabra-how > div { font-size: 11px; }
+  .pasapalabra-scoreboard { padding: 8px; }
+  .pasapalabra-scoreboard strong { font-size: 22px; }
+  .pasapalabra-director-note { display: none; }
+  .pasapalabra-stage-label { visibility: hidden; }
+  .pasapalabra-arena { grid-template-rows: 0 minmax(0, 1fr) 22px; }
+  .pasapalabra-play { height: 54px; width: 54px; }
+  .pasapalabra-audio-orbit { padding: 6px; }
+  .pasapalabra-audio { gap: 10px; }
+  .pasapalabra-actions .pasapalabra-button { min-height: 58px; flex-direction: row; }
+  .pasapalabra-center .pasapalabra-wave { display: none; }
+  .pasapalabra-answer h2 { font-size: 24px; }
+  .pasapalabra-answer { gap: 10px; }
+  .pasapalabra-final-stats { padding: 0; }
+}
+@media (max-width: 899px) {
+  .pasapalabra { overflow-y: auto; }
+  .pasapalabra-shell { height: auto; min-height: 100%; grid-template-rows: auto 1fr auto; padding: 16px 20px; gap: 20px; }
+  .pasapalabra-header { grid-template-columns: 1fr auto; gap: 12px; }
+  .pasapalabra-brand { gap: 10px; }
+  .pasapalabra-brand img { width: 30px; height: 30px; }
+  .pasapalabra-brand h1 { font-size: 17px; }
+  .pasapalabra-brand h1 span { font-size: 10px; }
+  .pasapalabra-brand .pasapalabra-control { width: 44px; height: 44px; border-radius: 10px; }
+  .pasapalabra-brand img { display: none; }
+  .pasapalabra-utilities { grid-column: 2; grid-row: 1; gap: 6px; }
+  .pasapalabra-utilities .pasapalabra-control { width: 44px; height: 44px; border-radius: 10px; }
+  .pasapalabra-utilities .pasapalabra-control svg { width: 19px; }
+  .pasapalabra-clock { grid-column: 1 / -1; grid-row: 2; justify-self: center; min-width: 160px; }
+  .pasapalabra-clock strong { font-size: 30px; }
+  .pasapalabra-stage { display: flex; flex-direction: column; gap: 22px; }
+  .pasapalabra-arena { grid-template-rows: 20px minmax(0, 1fr) 22px; }
+  .pasapalabra-ring-space { height: min(83vw, 460px); }
+  .pasapalabra-center-kicker { font-size: 10px; }
+  .pasapalabra-letter { font-size: clamp(12px, 3.5vw, 23px); }
+  .pasapalabra-center .pasapalabra-wave { height: 25px; margin-top: 14px; }
+  .pasapalabra-current-letter { font-size: clamp(65px, 22vw, 120px); }
+  .pasapalabra-center-number { font-size: clamp(65px, 20vw, 115px); }
+  .pasapalabra-console { max-width: 480px; width: 100%; margin-inline: auto; gap: 14px; }
+  .pasapalabra-scoreboard { padding: 12px 8px; }
+  .pasapalabra-panel { padding: 24px; gap: 18px; }
+  .pasapalabra-panel h2 br { display: none; }
+  .pasapalabra-panel h2 { font-size: 28px; }
+  .pasapalabra-audio { padding-top: 0; }
+  .pasapalabra-panel-status { font-size: 10px; }
+  .pasapalabra-how { gap: 12px; }
+  .pasapalabra-footer { margin-top: 6px; }
+  .pasapalabra-footer-note { font-size: 8px; letter-spacing: 1px; }
+  .pasapalabra-round-track { width: 80px; }
+  .pasapalabra-dialog .MuiDialogTitle-root { padding: 18px 20px 12px; font-size: 18px; }
+  .pasapalabra-dialog .MuiDialogContent-root { padding: 14px 20px 20px; }
+}
+@media (max-width: 480px) {
+  .pasapalabra-shell { padding-inline: 16px; gap: 14px; }
+  .pasapalabra-header { gap: 14px; }
+  .pasapalabra-stage { gap: 18px; }
+  .pasapalabra-ring-space { height: 86vw; }
+  .pasapalabra-legend { gap: 20px; font-size: 9px; }
+  .pasapalabra-stage-label { font-size: 8px; letter-spacing: 2px; }
+  .pasapalabra-kind { padding: 4px 8px; font-size: 9px; }
+  .pasapalabra-kind svg { width: 14px; height: 14px; }
+  .pasapalabra-center-caption { font-size: 11px; }
+  .pasapalabra-panel h2 { font-size: 26px; }
+  .pasapalabra-play { width: 68px; height: 68px; }
+  .pasapalabra-review { grid-template-columns: 1fr; gap: 8px; }
+  .pasapalabra-review > div { min-height: 78px; padding: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pasapalabra *, .pasapalabra *::before, .pasapalabra *::after { animation: none !important; transition: none !important; }
+}
+.pasapalabra-languages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border: 1px solid #91b8ef26; border-radius: 12px; background: #050e2340; }
+.pasapalabra-languages button { min-width: 0; min-height: 38px; padding: 8px 3px; color: #b4c9e5; font: inherit; font-size: 11px; border: 1px solid transparent; border-radius: 8px; background: transparent; }
+.pasapalabra-languages button[aria-pressed="true"] { color: #ddfaff; border-color: #82edff55; background: #82edff18; box-shadow: inset 0 1px 0 #ffffff0c; }
+.pasapalabra-languages button:hover { color: white; border-color: #82edff40; }
+@media (min-width: 900px) and (max-height: 620px) {
+  .pasapalabra-languages button { min-height: 30px; padding-block: 5px; }
+  .pasapalabra-how { gap: 5px; }
+}
+@media (max-width: 899px) {
+  .pasapalabra-languages button { min-height: 44px; }
+}

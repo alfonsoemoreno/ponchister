@@ -5,6 +5,7 @@ const AutoGame = lazy(() => import("./AutoGame"));
 const AdminApp = lazy(() => import("./admin/AdminApp"));
 const MimicaRemoteView = lazy(() => import("./components/MimicaRemoteView"));
 import "./App.css";
+import "./GameChrome.css";
 import type { GameSource, PlaylistSummary, YearRange } from "./types";
 import { fetchSongYearBounds } from "./services/songService";
 import {

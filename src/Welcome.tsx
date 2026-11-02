@@ -14,7 +14,10 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
+import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
+import HelpOutlineRoundedIcon from "@mui/icons-material/HelpOutlineRounded";
+import LibraryMusicRoundedIcon from "@mui/icons-material/LibraryMusicRounded";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import type { GameSource, PlaylistSummary, YearRange } from "./types";
@@ -150,7 +153,7 @@ const Welcome: React.FC<WelcomeProps> = ({
   );
 
   return (
-    <Box
+    <Box className="game-screen game-welcome"
       sx={{
         position: "relative",
         width: "100%",
@@ -357,6 +360,7 @@ const Welcome: React.FC<WelcomeProps> = ({
           >
             <Box
               component="img"
+              className="game-welcome-logo"
               src="/ponchister_logo.png"
               alt="Ponchister"
               sx={{
@@ -368,6 +372,7 @@ const Welcome: React.FC<WelcomeProps> = ({
             />
             <Typography
               variant="overline"
+              className="game-catalog-badge"
               sx={{
                 letterSpacing: 2,
                 fontWeight: 700,
@@ -379,6 +384,7 @@ const Welcome: React.FC<WelcomeProps> = ({
             </Typography>
             <Typography
               variant="h2"
+              className="game-welcome-title"
               sx={{
                 fontWeight: 800,
                 letterSpacing: "-0.02em",
@@ -450,7 +456,8 @@ const Welcome: React.FC<WelcomeProps> = ({
               <Button
                 variant="contained"
                 color="inherit"
-                startIcon={<AutoAwesomeIcon />}
+                className="game-primary"
+                startIcon={<PlayArrowRoundedIcon />}
                 onClick={() => handleStartAutoMode("classic", null)}
                 sx={{
                   width: { xs: "100%", sm: "auto" },
@@ -474,7 +481,7 @@ const Welcome: React.FC<WelcomeProps> = ({
               <Button
                 variant="outlined"
                 color="inherit"
-                startIcon={<AutoAwesomeIcon />}
+                startIcon={<TuneRoundedIcon />}
                 onClick={handleOpenModeDialog}
                 sx={{
                   width: { xs: "100%", sm: "auto" },
@@ -498,6 +505,7 @@ const Welcome: React.FC<WelcomeProps> = ({
               <Button
                 variant="outlined"
                 color="inherit"
+                startIcon={<HelpOutlineRoundedIcon />}
                 onClick={handleOpenRules}
                 sx={{
                   width: { xs: "100%", sm: "auto" },
@@ -522,7 +530,7 @@ const Welcome: React.FC<WelcomeProps> = ({
           </Box>
         </Stack>
       </Box>
-      <Dialog
+      <Dialog className="game-dialog-host"
         open={modeDialogOpen}
         onClose={handleCloseModeDialog}
         fullWidth
@@ -566,7 +574,7 @@ const Welcome: React.FC<WelcomeProps> = ({
             >
               Juega con todo el catálogo, una playlist temática o tu propia colección.
             </Typography>
-            <Box
+            <Box className="game-option-card"
               sx={{
                 borderRadius: 3,
                 border: "1px solid rgba(122,196,255,0.26)",
@@ -584,7 +592,7 @@ const Welcome: React.FC<WelcomeProps> = ({
               >
                 <Box>
                   <Typography sx={{ fontWeight: 800, color: "#fff", fontSize: "1.1rem" }}>
-                    Juego clásico
+                    <PlayArrowRoundedIcon sx={{ verticalAlign: "middle", mr: 1, color: "#82edff" }} />Juego clásico
                   </Typography>
                   <Typography variant="body2" sx={{ color: "rgba(221,238,255,0.84)", lineHeight: 1.6 }}>
                     Todo el catálogo, con tus ajustes habituales.
@@ -613,7 +621,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                 </Button>
               </Stack>
             </Box>
-            <Box sx={{ borderRadius: 3, border: "1px solid rgba(196,181,253,0.4)", background: "linear-gradient(120deg, rgba(76,29,149,0.35), rgba(8,47,73,0.5))", p: 2.25 }}>
+            <Box className="game-option-card" sx={{ borderRadius: 3, border: "1px solid rgba(196,181,253,0.4)", background: "linear-gradient(120deg, rgba(76,29,149,0.35), rgba(8,47,73,0.5))", p: 2.25 }}>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }} justifyContent="space-between">
                 <Box>
                   <Typography sx={{ fontWeight: 800, color: "#fff", fontSize: "1.1rem" }}>Pasapalabra musical</Typography>
@@ -627,7 +635,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                 </Button>
               </Stack>
             </Box>
-            <Box
+            <Box className="game-option-card"
               sx={{
                 borderRadius: 3,
                 border: "1px solid rgba(94,234,212,0.28)",
@@ -642,7 +650,7 @@ const Welcome: React.FC<WelcomeProps> = ({
                   variant="h6"
                   sx={{ fontWeight: 800, color: "#fff", lineHeight: 1.15 }}
                 >
-                  Playlists públicas
+                  <LibraryMusicRoundedIcon sx={{ verticalAlign: "middle", mr: 1, color: "#82edff" }} />Playlists públicas
                 </Typography>
                 <Typography
                   variant="body2"
@@ -1023,7 +1031,7 @@ const Welcome: React.FC<WelcomeProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
-      <Dialog
+      <Dialog className="game-dialog-host"
         open={rulesOpen}
         onClose={handleCloseRules}
         fullWidth

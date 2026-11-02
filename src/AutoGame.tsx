@@ -31,6 +31,8 @@ import CampaignIcon from "@mui/icons-material/Campaign";
 import MicIcon from "@mui/icons-material/Mic";
 import QuizIcon from "@mui/icons-material/Quiz";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import MusicNoteRoundedIcon from "@mui/icons-material/MusicNoteRounded";
+import TheaterComedyRoundedIcon from "@mui/icons-material/TheaterComedyRounded";
 
 import {
   fetchEligibleSongCount,
@@ -1335,18 +1337,18 @@ const AutoGame: React.FC<AutoGameProps> = ({
         ? specialRoundMode === "tararear"
           ? "Ronda de tararear"
           : "Ronda de mímica"
-        : "¿Puedes adivinar la canción?";
+        : "¿Qué canción suena?";
     const subheading = showDetails
       ? currentSong.artist
       : showRemoteQr
         ? "Escanea el QR y controla la pista desde otro dispositivo."
-        : "Escucha, siente y deja que la intuición te guíe.";
+        : "Escucha y adivina.";
     const description = showDetails
       ? karaokeCompleted && karaokeEnabledForSong
           ? "El karaoke ya se reanudó y toda la información quedó descubierta, incluida la letra configurada."
           : showTriviaDetails
             ? "La canción ya quedó descubierta. También puedes abrir la trivia y revisar la pregunta con su respuesta."
-          : "Disfruta visuales envolventes inspirados en tu canción. Sigue jugando para descubrir nuevas portadas y ambientes memorables."
+          : null
       : showRemoteQr
         ? specialRoundMode === "tararear"
           ? "Cuando alguien mantenga presionado el botón en el celular verá el título y el artista, y además la canción sonará ahí al 30%."
@@ -1355,13 +1357,13 @@ const AutoGame: React.FC<AutoGameProps> = ({
           ? 'La pista quedó pausada para karaoke. Presiona "Mostrar" para revelar la información, ver la letra y continuar.'
         : songHasTrivia
           ? 'Puedes abrir la trivia en cualquier momento. Cuando quieras confirmar la canción, presiona "Mostrar".'
-          : 'Mantén el suspenso: cuando creas tener la respuesta, presiona "Mostrar" para confirmar tu apuesta.';
+          : null;
     const highlightedYear = showDetails && songYear !== null ? songYear : null;
 
     const statusCaptionLabel = showDetails
       ? karaokeCompleted && karaokeEnabledForSong
           ? "Karaoke reanudado"
-          : "Reproduciendo"
+          : isPlaying ? "Reproduciendo" : "En pausa"
       : showRemoteQr
         ? specialRoundMode === "tararear"
           ? "Tararear activo"
@@ -1372,7 +1374,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
     const statusCaptionDescription = showDetails
       ? karaokeCompleted && karaokeEnabledForSong
           ? "La canción sigue sonando desde la pausa del karaoke con toda la información visible."
-          : "Usa los controles para pasar o salir de la partida cuando quieras."
+          : "Pausa o sigue con otra canción."
       : showRemoteQr
         ? timerStarted
           ? specialRoundMode === "tararear"
@@ -1381,7 +1383,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
           : "Presiona play para iniciar los 60 segundos."
         : karaokePaused && karaokeEnabledForSong
           ? 'La canción se detuvo en el punto de karaoke. Usa "Mostrar" para continuar.'
-        : "Puedes pausar, saltar o revelar en cualquier momento.";
+        : "Pausa, revela o pasa.";
 
     const primaryAction = showDetails
       ? {
@@ -1430,7 +1432,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
         : "No encontramos una portada perfecta, deja volar tu imaginación mientras suena la música."
       : null;
     const fallbackBackdrop =
-      "linear-gradient(190deg, rgba(12,44,110,0.75) 0%, rgba(6,26,68,0.88) 55%, rgba(2,12,34,0.92) 100%)";
+      "var(--game-stage-background)";
     const shouldDisplayArtwork = showDetails && Boolean(artworkUrl);
     const shouldShowGoldenBackdrop =
       isSpecialSong && !hasSpecialRemoteRound && !showDetails;
@@ -1448,12 +1450,12 @@ const AutoGame: React.FC<AutoGameProps> = ({
       : `00:${String(timerRemaining).padStart(2, "0")}`;
 
     return (
-      <Box
+      <Box className={`game-canvas ${showDetails ? "is-revealed" : "is-hidden"}`}
         sx={{
           position: "relative",
           width: "100%",
           height: { xs: "auto", md: "100%" },
-          minHeight: { xs: 520, md: 640 },
+          minHeight: { xs: 520, md: 0 },
           overflow: { xs: "visible", md: "hidden" },
           viewTransitionName: "auto-game-canvas",
         }}
@@ -1544,7 +1546,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
               py: { xs: 0, md: 2 },
             }}
           >
-            <Box
+            <Box className="game-song-copy"
               sx={{
                 display: "flex",
                 flexDirection: "column",
@@ -1580,8 +1582,13 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 </Stack>
               ) : null}
               <Stack spacing={0.8} sx={{ alignItems: "flex-start" }}>
+                <Box className="game-round-label">
+                  {showRemoteQr ? specialRoundMode === "tararear" ? <MicIcon /> : <TheaterComedyRoundedIcon /> : <MusicNoteRoundedIcon />}
+                  {showRemoteQr ? specialRoundMode === "tararear" ? "TARAREO" : "MÍMICA" : showDetails ? "LA RESPUESTA" : "AFINA EL OÍDO"}
+                </Box>
                 <Typography
                   variant="h3"
+                  className="game-song-title"
                   sx={{
                     fontWeight: 800,
                     letterSpacing: "-0.015em",
@@ -1596,6 +1603,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 </Typography>
                 <Typography
                   variant="h4"
+                  className="game-song-subtitle"
                   sx={{
                     fontWeight: 600,
                     fontSize: { xs: "clamp(1.25rem, 6vw, 1.9rem)", md: "2.125rem" },
@@ -1700,7 +1708,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   />
                 ) : null}
               </Stack>
-              <Typography
+              {description && <Typography
                 variant="body1"
                 sx={{
                   color: theme.text.body,
@@ -1709,7 +1717,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 }}
               >
                 {description}
-              </Typography>
+              </Typography>}
               {songHasKaraoke && !showDetails && !showRemoteQr ? (
                 <Button
                   variant={karaokeEnabledForSong ? "contained" : "outlined"}
@@ -1931,6 +1939,9 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 }}
               >
                 <IconButton
+                  className="game-play-control"
+                  aria-label={isPlaying && !showRemoteQr ? "Pausar canción" : showRemoteQr ? "Iniciar ronda" : "Reproducir canción"}
+                  title={isPlaying && !showRemoteQr ? "Pausar" : "Reproducir"}
                   onClick={handlePlayPause}
                   disabled={
                     !mainPlayerReady ||
@@ -1983,6 +1994,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 }}
               >
                 <Button
+                  className="game-primary"
                   variant={primaryAction.variant}
                   color={primaryAction.color}
                   startIcon={primaryAction.icon}
@@ -2020,6 +2032,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                   {primaryAction.label}
                 </Button>
                 <Button
+                  className="game-secondary"
                   variant={secondaryAction.variant}
                   color={secondaryAction.color}
                   startIcon={secondaryAction.icon}
@@ -2066,7 +2079,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
               viewTransitionName: "auto-game-artwork-frame",
             }}
           >
-            <Box
+            <Box className={`game-artwork-frame ${showRemoteQr ? "is-remote" : ""}`}
               sx={{
                 position: "relative",
                 width: {
@@ -2121,6 +2134,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     viewTransitionName: "auto-game-artwork-fallback",
                   }}
                 >
+                  {!showRemoteQr && !showDetails && <Box aria-hidden="true" className={`game-record ${isPlaying ? "is-playing" : ""}`}><MusicNoteRoundedIcon /></Box>}
                   {showRemoteQr ? (
                     <>
                       <Box
@@ -2187,7 +2201,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                     </Typography>
                   ) : null}
                   {shouldShowTimer ? (
-                    <Box
+                    <Box className="game-round-timer"
                       sx={{
                         px: 3,
                         py: 1.6,
@@ -2260,11 +2274,11 @@ const AutoGame: React.FC<AutoGameProps> = ({
 
   const renderIdleLanding = () => {
     const fallbackBackdrop =
-      "radial-gradient(circle at 15% 20%, rgba(15,102,255,0.35) 0%, rgba(7,30,82,0.85) 38%, rgba(3,12,34,0.98) 75%), radial-gradient(circle at 85% 20%, rgba(0,209,255,0.32) 0%, rgba(5,24,64,0.5) 35%, rgba(3,12,34,0.9) 70%), linear-gradient(180deg, #06102b 0%, #030a1c 100%)";
+      "var(--game-stage-background)";
     const theme = createAdaptiveTheme(null);
 
     return (
-      <Box
+      <Box className="game-setup"
         sx={{
           position: "relative",
           width: "100%",
@@ -2299,7 +2313,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
           label={spotlightLabel}
           styles={theme.spotlight}
         />
-        <Stack
+        <Stack className="game-setup-content" useFlexGap
           spacing={{ xs: 3, md: 4 }}
           sx={{
             position: "relative",
@@ -2322,12 +2336,13 @@ const AutoGame: React.FC<AutoGameProps> = ({
             justifyContent: { xs: "space-between", md: "center" },
           }}
         >
-          <Stack
+          <Stack useFlexGap
             spacing={{ xs: 2, md: 3 }}
             sx={{ width: "100%", alignItems: "center" }}
           >
             <Box
               component="img"
+              className="game-setup-logo"
               src="/ponchister_logo.png"
               alt="Ponchister"
               sx={{
@@ -2337,7 +2352,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
                 filter: "drop-shadow(0 18px 40px rgba(2,10,36,0.55))",
               }}
             />
-            <Typography
+            <Typography className="game-setup-title"
               variant="h2"
               sx={{
                 fontWeight: 800,
@@ -2362,7 +2377,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
               La partida usará los ajustes actuales. Puedes empezar ahora o personalizarlos.
             </Typography>
           </Stack>
-          <Accordion
+          <Accordion className="game-settings-panel"
             expanded={gameOptionsExpanded}
             onChange={(_, expanded) => setGameOptionsExpanded(expanded)}
             disableGutters
@@ -2828,7 +2843,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
           </Stack>
             </AccordionDetails>
           </Accordion>
-          <Stack
+          <Stack className="game-setup-actions"
             direction={{ xs: "column", sm: "row" }}
             spacing={2}
             sx={{
@@ -2862,6 +2877,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
             }}
           >
             <Button
+              className="game-primary"
               variant="contained"
               color="primary"
               startIcon={<PlayArrowIcon />}
@@ -2964,7 +2980,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
           >
             <CircularProgress sx={{ color: theme.spinner }} />
             <Typography variant="body1" sx={{ color: theme.text.body }}>
-              Preparando la atmósfera para la próxima canción...
+              Preparando la próxima pista…
             </Typography>
           </Stack>
         </Box>
@@ -3089,7 +3105,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
   const isExperienceMode = gameState === "playing" || gameState === "revealed";
 
   return (
-    <Box
+    <Box className="game-screen game-auto"
       sx={{
         position: "relative",
         width: "100vw",
@@ -3179,7 +3195,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
       >
         {renderControls()}
       </Box>
-      <Dialog
+      <Dialog className="game-dialog-host"
         open={karaokeLyricModalOpen}
         onClose={() => setKaraokeLyricModalOpen(false)}
         fullWidth
@@ -3229,7 +3245,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
           </Stack>
         </DialogContent>
       </Dialog>
-      <Dialog
+      <Dialog className="game-dialog-host"
         open={triviaQuestionModalOpen}
         onClose={() => setTriviaQuestionModalOpen(false)}
         fullWidth
@@ -3279,7 +3295,7 @@ const AutoGame: React.FC<AutoGameProps> = ({
           </Stack>
         </DialogContent>
       </Dialog>
-      <Dialog
+      <Dialog className="game-dialog-host"
         open={triviaDetailModalOpen !== null}
         onClose={() => setTriviaDetailModalOpen(null)}
         fullWidth

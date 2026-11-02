@@ -1,0 +1,119 @@
+/* Shared presentation for the existing game screens. Admin and Pasapalabra
+   retain their own styles; artwork-driven colors remain in the adaptive theme. */
+.game-screen, .game-dialog-host {
+  --game-stage-background: radial-gradient(ellipse at 30% 48%, #123d7e60, transparent 52%), linear-gradient(125deg, #080f23, #0b1734 55%, #080f23);
+  --game-panel-background: linear-gradient(145deg, #20375b70, #10203b70 70%);
+  --game-border: #8eb4ec2e;
+  --game-cyan: #82edff;
+}
+.game-screen, .game-screen *, .game-dialog-host .MuiDialog-paper, .game-dialog-host .MuiDialog-paper * { box-sizing: border-box; }
+.game-screen.game-welcome, .game-screen.game-auto, .game-screen.game-remote {
+  height: 100dvh;
+  min-height: 0;
+  flex-shrink: 0;
+  overflow-y: auto;
+  background: var(--game-stage-background);
+}
+.game-screen.game-welcome::before {
+  background: radial-gradient(ellipse at 15% 0%, #82edff08, transparent 55%), radial-gradient(ellipse at 85% 0%, #a694ff0c, transparent 55%);
+}
+.game-screen.game-welcome::after { opacity: .25; }
+.game-screen .MuiButton-root, .game-dialog-host .MuiButton-root {
+  min-height: 44px;
+  border-radius: 13px;
+  font-family: 'Poppins', Arial, sans-serif;
+  font-weight: 600;
+  text-transform: none;
+  border-width: 1px;
+  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.game-screen .MuiButton-outlined, .game-dialog-host .MuiButton-outlined {
+  border-width: 1px;
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+.game-screen .MuiButton-root.game-primary, .game-dialog-host .MuiButton-contained {
+  color: #05243d;
+  background: linear-gradient(115deg, #b5f4ff, #74d8f4);
+  border-color: transparent;
+  box-shadow: 0 5px 24px #68dcff1a, inset 0 1px 0 #ffffff90;
+}
+.game-screen .MuiButton-root.game-primary:hover, .game-dialog-host .MuiButton-contained:hover {
+  background: linear-gradient(115deg, #d0faff, #9cecff);
+  box-shadow: 0 5px 32px #68dcff35;
+}
+.game-screen .MuiButton-root.Mui-disabled, .game-dialog-host .MuiButton-root.Mui-disabled { opacity: .45; box-shadow: none; }
+.game-screen button:focus-visible, .game-screen [role='button']:focus-visible, .game-dialog-host button:focus-visible {
+  outline: 3px solid var(--game-cyan);
+  outline-offset: 4px;
+}
+.game-screen .MuiButton-startIcon { margin-right: 9px; }
+.game-screen .MuiButton-startIcon > svg { font-size: 21px; }
+.game-screen .MuiChip-root { border-radius: 9px; font-size: 11px; font-weight: 500; }
+.game-welcome .game-welcome-logo { width: 260px; height: 260px; filter: drop-shadow(0 15px 40px #68dcff16); }
+.game-welcome .game-welcome-title { font-weight: 600; font-size: clamp(28px, 3.5vw, 44px); text-shadow: none; letter-spacing: -.8px; }
+.game-welcome .game-catalog-badge { padding: 4px 13px; border: 1px solid #82edff28; border-radius: 9px; color: #b7eaff; background: #82edff07; font-size: 10px; font-weight: 500; line-height: 1.7; margin-top: -12px; }
+.game-dialog-host .MuiDialog-paper { background: linear-gradient(140deg, #152b4b, #0c1a31); border: 1px solid #95bff640; border-radius: 22px; color: #e4eeff; box-shadow: 0 30px 100px #00000070; }
+.game-dialog-host .MuiDialogTitle-root { font-family: 'Poppins', Arial, sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -.5px; }
+.game-dialog-host .MuiDialogContent-root { border-color: #adcfff18; }
+.game-dialog-host .game-option-card { background: var(--game-panel-background); border: 1px solid var(--game-border); border-radius: 18px; box-shadow: inset 0 1px 0 #ffffff0c; }
+.game-dialog-host .MuiDialogActions-root { border-color: #adcfff18; }
+.game-auto .game-setup-content { padding-top: 32px; padding-bottom: 32px; gap: 24px; }
+.game-auto .game-setup-logo { height: 120px; width: 120px; filter: drop-shadow(0 12px 30px #68dcff16); }
+.game-auto .game-setup-title { font-size: clamp(28px, 3.5vw, 40px); font-weight: 600; letter-spacing: -.8px; text-shadow: none; }
+.game-auto .game-settings-panel { border: 1px solid var(--game-border); background: var(--game-panel-background); border-radius: 18px; box-shadow: inset 0 1px 0 #ffffff0c; }
+.game-settings-panel .MuiAccordionSummary-root { border-radius: 16px; }
+.game-settings-panel .MuiSlider-thumb { box-shadow: 0 0 0 5px #82edff12; }
+.game-auto .game-setup-actions { padding-top: 4px; }
+.game-auto .game-setup-actions > .MuiButton-root { min-width: 0; width: auto; flex: 1; min-height: 50px; padding-inline: 18px; }
+.game-auto .game-round-label { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 8px; color: inherit; opacity: .8; font-size: 10px; font-weight: 500; letter-spacing: 2.2px; }
+.game-round-label svg { font-size: 18px; }
+.game-auto .game-song-title { font-family: 'Poppins', Arial, sans-serif; font-weight: 600; font-size: clamp(28px, 3.4vw, 46px); line-height: 1.14; letter-spacing: -1px; text-shadow: none; overflow-wrap: anywhere; }
+.game-auto .game-song-subtitle { font-weight: 400; font-size: clamp(20px, 2.1vw, 29px); line-height: 1.25; }
+.game-auto .game-play-control { border: 1px solid #c4f5ff; background: linear-gradient(140deg, #bbf7ff, #73d8f4); color: #08304b; box-shadow: 0 0 0 9px #82edff08, 0 0 30px #69ddff20, inset 0 2px 0 #ffffff80; }
+.game-auto .game-play-control:hover { color: #082d46; background: #c4f6ff; border-color: white; box-shadow: 0 0 0 9px #82edff10, 0 0 35px #69ddff30; transform: scale(1.03); }
+.game-auto .game-artwork-frame { border-radius: 24px; border: 1px solid #95bff630; box-shadow: inset 0 1px 0 #ffffff0a, 0 24px 70px #00000025; }
+.game-auto .is-hidden .game-artwork-frame:not(.is-remote) { background: linear-gradient(145deg, #20375b40, #10203b40); }
+.game-record { position: relative; display: grid; place-items: center; width: min(25vw, 300px); aspect-ratio: 1; border: 1px solid #91b8ef2b; border-radius: 50%; background: repeating-radial-gradient(circle at center, transparent 0 10px, #91b8ef0a 11px 12px), radial-gradient(circle, #123b6d35, #08152a50); box-shadow: inset 0 1px 0 #ffffff0a, 0 0 70px #4da8ff08; }
+.game-record::before { content: ''; position: absolute; inset: 26%; border: 1px solid #82edff30; border-radius: 50%; background: #82edff05; }
+.game-record > svg { position: relative; color: #b5eaff; font-size: clamp(36px, 5vw, 64px); }
+.game-record.is-playing { border-color: #82edff50; box-shadow: 0 0 50px #82edff12, inset 0 0 70px #82edff06; }
+.game-auto .game-round-timer { border-radius: 16px; border-width: 1px; }
+.game-round-timer .MuiTypography-root { font-family: 'Sora', 'Poppins', sans-serif; font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: -.5px; }
+.game-screen.game-remote { background: var(--game-stage-background); font-family: 'Poppins', Arial, sans-serif; }
+.game-remote .game-remote-heading, .game-remote .game-remote-answer { border-radius: 22px; border: 1px solid var(--game-border); background: var(--game-panel-background); box-shadow: inset 0 1px 0 #ffffff0c, 0 24px 70px #00000015; }
+.game-remote .game-remote-press { border-radius: 22px; border-width: 1px; background: linear-gradient(115deg, #b5f4ff, #74d8f4); box-shadow: 0 5px 24px #68dcff1a, inset 0 1px 0 #ffffff90; }
+.game-remote.is-tararear .game-remote-press { background: linear-gradient(115deg, #ffe9b3, #ffd68a); box-shadow: 0 5px 24px #ffd68a18; }
+.game-remote .game-remote-press[aria-pressed='true'] { background: #d0faff; border-color: #d4fbff; box-shadow: 0 0 0 5px #82edff16, 0 0 30px #82edff25; }
+.game-remote.is-tararear .game-remote-press[aria-pressed='true'] { background: #fff0ce; border-color: #fff0ce; box-shadow: 0 0 0 5px #ffd68a16, 0 0 30px #ffd68a25; }
+.game-remote .game-remote-press::before { border-radius: 16px; opacity: .45; }
+@media (min-width: 900px) and (max-height: 760px) {
+  .game-auto .game-setup-logo { height: 90px; width: 90px; }
+  .game-auto .game-setup-content { padding-block: 24px; gap: 20px; }
+  .game-auto .game-setup-content > .MuiStack-root:first-child { gap: 14px; }
+  .game-auto .game-song-title { font-size: 34px; }
+  .game-auto .game-song-subtitle { font-size: 24px; }
+  .game-auto .game-song-copy { gap: 18px; }
+  .game-auto .game-artwork-frame { max-width: calc(100dvh - 100px); }
+  .game-welcome .game-welcome-logo { width: 220px; height: 220px; }
+}
+@media (max-width: 899px) {
+  .game-welcome .game-welcome-logo { width: 190px; height: 190px; }
+  .game-welcome .game-welcome-title { font-size: 30px; }
+  .game-auto .game-setup-content { padding-top: max(24px, env(safe-area-inset-top)); padding-bottom: max(20px, env(safe-area-inset-bottom)); gap: 22px; justify-content: center; }
+  .game-auto .game-song-title { font-size: clamp(28px, 7vw, 40px); }
+  .game-auto .game-song-subtitle { font-size: clamp(20px, 5vw, 26px); }
+  .game-record { width: min(42vw, 210px); }
+  .game-auto .game-artwork-frame { border-radius: 20px; }
+}
+@media (max-width: 599px) {
+  .game-auto .game-setup-actions > .MuiButton-root { width: 100%; flex: none; }
+  .game-welcome .game-welcome-logo { width: 160px; height: 160px; }
+  .game-welcome .game-welcome-title { font-size: 29px; }
+  .game-dialog-host .MuiDialogTitle-root { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-screen .MuiButton-root, .game-screen .MuiIconButton-root, .game-remote .game-remote-press { transition: none; }
+}
+.game-dialog-host .MuiSelect-icon { color: #adc9e9; }
+.game-dialog-host .MuiOutlinedInput-root { border-radius: 12px; }
+.game-dialog-host .MuiButton-root.Mui-disabled { opacity: 1; color: #8c9eb8; border-color: #adcfff25; }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import YouTube from "react-youtube";
+import TouchAppRoundedIcon from "@mui/icons-material/TouchAppRounded";
 import type { YouTubeProps } from "react-youtube";
 import {
   Alert,
@@ -97,7 +98,7 @@ export default function MimicaRemoteView({
   };
 
   return (
-    <Box
+    <Box className={`game-screen game-remote ${isTararearMode ? "is-tararear" : ""}`}
       sx={{
         minHeight: "100dvh",
         px: { xs: 2, sm: 2.5 },
@@ -131,7 +132,7 @@ export default function MimicaRemoteView({
           justifyContent: "center",
         }}
       >
-        <Box
+        <Box className="game-remote-heading"
           sx={{
             px: { xs: 1.4, sm: 2 },
             py: { xs: 1.2, sm: 2.5 },
@@ -184,8 +185,9 @@ export default function MimicaRemoteView({
           <Alert severity="error">Faltan datos para abrir este modo remoto.</Alert>
         ) : (
           <>
-            <Box
+            <Box className="game-remote-press"
               role="button"
+              aria-pressed={isPressed}
               tabIndex={0}
               aria-label="Mantener apretado"
               onPointerDown={handlePressStart}
@@ -236,6 +238,7 @@ export default function MimicaRemoteView({
               }}
             >
               <Stack spacing={{ xs: 0.8, sm: 1.5 }} sx={{ position: "relative", zIndex: 1 }}>
+                <TouchAppRoundedIcon aria-hidden="true" sx={{ fontSize: 36, alignSelf: "center" }} />
                 <Typography
                   variant="overline"
                   sx={{
@@ -275,7 +278,7 @@ export default function MimicaRemoteView({
                 </Typography>
               </Stack>
             </Box>
-            <Box
+            <Box className="game-remote-answer"
               sx={{
                 minHeight: { xs: 132, sm: 176 },
                 borderRadius: { xs: 4, sm: 5 },
